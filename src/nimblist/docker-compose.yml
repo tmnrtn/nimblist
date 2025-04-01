@@ -1,0 +1,6 @@
+services:
+  nimblist.api:
+    image: ${DOCKER_REGISTRY-}nimblistapi
+    build:
+      context: .
+      dockerfile: nimblist.api/Dockerfile
