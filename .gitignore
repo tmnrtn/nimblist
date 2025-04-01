@@ -1,6 +1,134 @@
-﻿################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
-################################################################################
+﻿# Combined .NET (C#) and Node.js Git Ignore File
+# Add project-specific patterns at the end.
 
-/.vs
-/src/nimblist/.vs/nimblist
+## Operating System Files ##
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+## IDE / Editor Specific ##
+# Visual Studio
+.vs/
+*.suo
+*.user
+*proj.user      # e.g., MyProject.csproj.user
+*.vcxproj.user # For C++/CLI projects if any
+
+# Rider / IntelliJ Platform
+.idea/
+
+# VS Code
+# Often you WANT to commit shared settings (.vscode/launch.json, .vscode/tasks.json).
+# If so, uncomment the lines below to ignore everything EXCEPT specific files.
+# .vscode/*
+# !.vscode/settings.json
+# !.vscode/tasks.json
+# !.vscode/launch.json
+# !.vscode/extensions.json
+# *.code-workspace
+# --- OR ---
+# If you don't need to share any VS Code settings, uncomment this line to ignore the whole folder:
+# .vscode/
+
+# ReSharper
+_ReSharper*/
+*.DotSettings     # Shared settings - review if you want to commit these
+*.DotSettings.user # User-specific settings - definitely ignore
+
+## Secrets / Local Configuration ##
+# Common environment variable files (often contain secrets)
+.env
+.env.*
+!.env.example
+!.env.template
+
+# .NET User Secrets file (usually stored outside the repo anyway via `dotnet user-secrets`)
+**/secrets.json
+
+# .NET local development settings override file
+**/appsettings.Development.json
+
+## C# / .NET Specific ##
+# Build Output Folders
+[Bb]in/
+[Oo]bj/
+
+# Build Artifacts
+*.exe
+*.dll
+*.pdb          # Debug symbols
+*.xml          # Auto-generated XML documentation
+*.manifest
+*.cache
+
+# Old NuGet packages folder (pre-SDK style projects)
+packages/
+
+# Paket dependency manager files
+.paket/paket.exe
+paket-files/
+
+# WCF service reference files
+*.svcmap
+
+## Node.js Specific ##
+# Dependencies (VERY IMPORTANT)
+node_modules/
+jspm_packages/
+
+# Build Output / Distribution Folders (Common names - adjust as needed)
+dist/
+build/
+out/
+public/       # Often for built frontend assets - review based on framework
+.next/        # Next.js build output
+.nuxt/        # Nuxt.js build output
+.svelte-kit/  # SvelteKit build output
+.vercel/      # Vercel deployment output
+
+# Temporary / Cache Folders
+.tmp/
+.parcel-cache/ # Parcel bundler cache
+.vite/         # Vite dev server cache
+
+## Logging ##
+# General logs folder
+logs/
+*.log
+*.log.*
+
+# .NET Build Logs
+msbuild.log
+msbuild.err
+msbuild.wrn
+*_UpgradeReport.htm
+UpgradeLog.htm
+*.svclog
+
+# Node Package Manager logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+## Testing / Coverage ##
+# .NET Test Results
+TestResults/
+*.trx
+*.coverage
+*.coverlet.json
+
+# Node Test Results / Coverage
+coverage/
+.nyc_output/
+
+## Other ##
+# Backup files created by some tools/editors
+*.orig
+
+# Add any other project-specific generated files or folders below this line
+# Example: Generated code folder specific to your project
+# GeneratedClientCode/
