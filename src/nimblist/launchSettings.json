@@ -4,7 +4,7 @@
       "commandName": "DockerCompose",
       "commandVersion": "1.0",
       "serviceActions": {
-        "nimblist.api": "StartDebugging"
+        "Nimblist.api": "StartDebugging"
       }
     }
   }

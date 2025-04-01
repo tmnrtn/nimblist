@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.13.35825.156
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nimblist.data", "nimblist.data\nimblist.data.csproj", "{19D9ACF6-8629-4CB8-9E3D-7CD9FCF049B2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nimblist.data", "nimblist.data\Nimblist.data.csproj", "{19D9ACF6-8629-4CB8-9E3D-7CD9FCF049B2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nimblist.api", "nimblist.api\nimblist.api.csproj", "{3E87D134-32DE-2CB3-AFFA-CB60DF96A4DE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nimblist.api", "nimblist.api\Nimblist.api.csproj", "{3E87D134-32DE-2CB3-AFFA-CB60DF96A4DE}"
 EndProject
 Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{81DDED9D-158B-E303-5F62-77A2896D2A5A}"
 EndProject

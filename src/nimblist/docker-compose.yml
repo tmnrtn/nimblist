@@ -1,6 +1,46 @@
 services:
-  nimblist.api:
+  Nimblist.api:
     image: ${DOCKER_REGISTRY-}nimblistapi
     build:
       context: .
-      dockerfile: nimblist.api/Dockerfile
+      dockerfile: Nimblist.api/Dockerfile
+    environment:
+      # Use variable substitution for secrets from .env file (see step 2)
+      - ConnectionStrings__DefaultConnection=Host=nimblist_db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    depends_on:
+      - Nimblist.db # Make the API service depend on the database service
+    networks: # Optional but recommended: define explicit network
+      - nimblistnet
+  Nimblist.db:
+    image: postgres # Use a specific version or 'latest'
+    container_name: nimblist_db
+    restart: unless-stopped # Ensure DB restarts if stopped unexpectedly
+    environment:
+      # These are consumed by the postgres image on first run to initialize the DB
+      # Use variable substitution to get values from the .env file
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Mount a named volume for data persistence - CRITICAL!
+    ports:
+      # Optional: Expose Postgres port to host ONLY if you need external access (e.g., pgAdmin)
+      # Map host port 5433 to container port 5432 to avoid conflicts if you have local Postgres running
+      - "5433:5432"
+    networks: # Connect to the same network as the API
+      - nimblistnet
+    # Optional: Add a healthcheck to wait until Postgres is ready accepting connections
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# Define the named volume for persistent PostgreSQL data
+volumes:
+  postgres_data: # The name used in the db service's volume mapping
+
+# Define the custom network (optional but good practice)
+networks:
+  nimblistnet:
+    driver: bridge
