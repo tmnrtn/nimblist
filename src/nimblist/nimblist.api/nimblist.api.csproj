@@ -32,4 +32,8 @@
     <ProjectReference Include="..\nimblist.data\Nimblist.data.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Areas\Identity\Data\" />
+  </ItemGroup>
+
 </Project>

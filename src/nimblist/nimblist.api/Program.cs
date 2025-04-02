@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.Data;
 using Nimblist.Data.Models;
+
 
 namespace Nimblist.api
 {
@@ -55,6 +57,7 @@ namespace Nimblist.api
             builder.Services.AddDbContext<NimblistContext>(options =>
                 options.UseNpgsql(connectionString));
 
+
             builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false)
                 .AddEntityFrameworkStores<NimblistContext>()
                 .AddDefaultTokenProviders();
@@ -103,6 +106,25 @@ namespace Nimblist.api
 
             builder.Services.AddTransient<IEmailSender, NoOpEmailSender>();
 
+            var keyPath = "/keys"; // The path defined in the docker-compose volume mount
+            try
+            {
+                Console.WriteLine($"Configuring Data Protection to use file system path: {keyPath}");
+                builder.Services.AddDataProtection()
+                    .PersistKeysToFileSystem(new DirectoryInfo(keyPath))
+                    // Optional: Set a unique application name
+                    .SetApplicationName("NimblistApp");
+                // Optional: Configure key protection if needed (e.g., ProtectKeysWith* - may require specific setup in Linux containers)
+                Console.WriteLine("Data Protection configured to use File System.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error configuring Data Protection with File System path {keyPath}. Keys will be ephemeral. Error: {ex.Message}");
+                // Fallback to default ephemeral keys if file system setup fails
+                builder.Services.AddDataProtection()
+                       .SetApplicationName("NimblistApp");
+            }
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -114,13 +136,12 @@ namespace Nimblist.api
 
             app.UseHttpsRedirection();
 
+            app.UseStaticFiles();
             app.UseRouting();
 
             app.UseAuthentication();
             app.UseAuthorization();
 
-
-            app.MapControllers();
 
             using (var scope = app.Services.CreateScope())
             {
@@ -142,6 +163,7 @@ namespace Nimblist.api
             }
 
             app.MapRazorPages();
+            app.MapControllers();
 
             app.Run();
         }

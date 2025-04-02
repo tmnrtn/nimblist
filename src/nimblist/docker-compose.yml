@@ -11,6 +11,15 @@ services:
       - Nimblist.db # Make the API service depend on the database service
     networks: # Optional but recommended: define explicit network
       - nimblistnet
+    volumes:
+      # Mount the named volume to a path inside the container, e.g., /keys
+      - dataprotection_keys:/keys
+    ports:
+      # Optional: Expose Postgres port to host ONLY if you need external access (e.g., pgAdmin)
+      # Map host port 5433 to container port 5432 to avoid conflicts if you have local Postgres running
+      - "64212:8080"
+      - "64213:8081"
+    user: root 
   Nimblist.db:
     image: postgres # Use a specific version or 'latest'
     container_name: nimblist_db
@@ -39,6 +48,7 @@ services:
 # Define the named volume for persistent PostgreSQL data
 volumes:
   postgres_data: # The name used in the db service's volume mapping
+  dataprotection_keys: # Define the named volume
 
 # Define the custom network (optional but good practice)
 networks:
