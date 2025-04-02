@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Nimblist",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
