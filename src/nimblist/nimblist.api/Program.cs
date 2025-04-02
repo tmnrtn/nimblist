@@ -8,7 +8,7 @@ using Nimblist.Data.Models;
 
 namespace Nimblist.api
 {
-    public class Program
+    static public class Program
     {
         public static void Main(string[] args)
         {
@@ -60,7 +60,49 @@ namespace Nimblist.api
 
             builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false)
                 .AddEntityFrameworkStores<NimblistContext>()
-                .AddDefaultTokenProviders();
+                .AddDefaultTokenProviders()
+                .AddDefaultUI();
+
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                // Configure the events for the application cookie (used by Identity)
+                options.Events.OnRedirectToLogin = context =>
+                {
+                    // If the request path starts with /api, return 401 Unauthorized instead of redirecting
+                    if (context.Request.Path.StartsWithSegments("/api"))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        // Mark the response as complete to prevent the default redirect
+                        return Task.CompletedTask;
+                    }
+                    else
+                    {
+                        // For non-API requests (like browser navigating to protected Razor Pages),
+                        // perform the default redirect to the login page.
+                        context.Response.Redirect(context.RedirectUri);
+                        return Task.CompletedTask;
+                    }
+                };
+
+                options.Events.OnRedirectToAccessDenied = context =>
+                {
+                    // If the request path starts with /api, return 403 Forbidden instead of redirecting
+                    if (context.Request.Path.StartsWithSegments("/api"))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        return Task.CompletedTask;
+                    }
+                    else
+                    {
+                        // For non-API requests, perform the default redirect to the access denied page.
+                        context.Response.Redirect(context.RedirectUri);
+                        return Task.CompletedTask;
+                    }
+                };
+
+                // Other cookie settings like LoginPath, LogoutPath, AccessDeniedPath
+                // are usually configured by AddIdentity/AddDefaultIdentity automatically.
+            });
 
             builder.Services.AddAuthentication(options =>
             {
@@ -101,6 +143,7 @@ namespace Nimblist.api
                     // googleOptions.SaveTokens = true;
                 }
             });
+
 
             builder.Services.AddRazorPages();
 
