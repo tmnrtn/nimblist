@@ -1,0 +1,240 @@
+// src/pages/ListPageDetail.tsx
+import React, { useState, useEffect, FormEvent } from 'react'; // Import FormEvent
+import { useParams, Link } from 'react-router-dom';
+import useAuthStore from '../store/authStore';
+import { ShoppingList, Item } from '../types';
+
+const ListPageDetail: React.FC = () => {
+  const { listId } = useParams<{ listId: string }>();
+  const { isAuthenticated } = useAuthStore();
+
+  const [list, setList] = useState<ShoppingList | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // --- State for the 'Add Item' form ---
+  const [newItemName, setNewItemName] = useState<string>('');
+  const [newItemQuantity, setNewItemQuantity] = useState<string>('');
+  const [isAdding, setIsAdding] = useState<boolean>(false); // Loading state for add operation
+  const [addError, setAddError] = useState<string | null>(null); // Error specific to adding
+
+  // --- Fetching Logic (useEffect for getting list details - as before) ---
+  useEffect(() => {
+    if (!listId || !isAuthenticated) {
+        if (!isAuthenticated) setError("Please log in to view this list.");
+        else if (!listId) setError("No List ID provided.");
+        setIsLoading(false);
+        return;
+      }
+
+    const fetchListDetails = async () => {
+      // Reset component state on listId change before fetching
+      setIsLoading(true);
+      setError(null);
+      setList(null); // Clear previous list data
+
+      try {
+        const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/shoppinglists/${listId}`;
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          credentials: 'include', // Send auth cookie
+        });
+
+        if (response.ok) {
+          const data: ShoppingList = await response.json();
+          setList(data);
+        } else if (response.status === 401) {
+          setError("Authentication error. Please log in again.");
+        } else if (response.status === 404) {
+          setError("Shopping list not found or you don't have permission.");
+        } else {
+          setError(`Failed to load list details. Status: ${response.status}`);
+        }
+      } catch (err) {
+        setError("Network error fetching list details.");
+        console.error("Fetch error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchListDetails();
+  }, [listId, isAuthenticated]);
+
+
+  // --- Handle Add Item Form Submission ---
+  const handleAddItem = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); // Prevent default browser form submission behavior
+
+    // Basic client-side validation
+    if (!newItemName.trim()) {
+      setAddError("Item name is required.");
+      return;
+    }
+    // Ensure listId is available (should be if the component rendered list details)
+    if (!listId) {
+        setAddError("Cannot add item: List ID is missing.");
+        return;
+    }
+    // Ensure user is still authenticated (check client state)
+     if (!isAuthenticated) {
+         setAddError("You must be logged in to add items.");
+         return;
+     }
+
+    setIsAdding(true); // Set loading state for button
+    setAddError(null);  // Clear previous add errors
+
+    try {
+      const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/items`; // Assuming POST /api/items endpoint
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        credentials: 'include', // Send auth cookie
+        body: JSON.stringify({
+          name: newItemName.trim(),
+          quantity: newItemQuantity.trim() || null, // Send null if quantity is empty/whitespace
+          shoppingListId: listId // Send the ID of the current list
+        }),
+      });
+
+      if (response.ok) { // Check for 201 Created or other 2xx success
+        const newItemData: Item = await response.json();
+
+        // --- Update UI State ---
+        // Add the new item to the existing list's items array
+        setList(prevList => {
+          if (!prevList) return null; // Safety check
+          // Create a new list object with the new item appended
+          return {
+            ...prevList,
+            items: [...prevList.items, newItemData]
+          };
+        });
+
+        // --- Clear Form ---
+        setNewItemName('');
+        setNewItemQuantity('');
+
+      } else {
+        // Handle API errors (400 Bad Request, 401, 404, 500 etc.)
+        let errorMessage = `Failed to add item. Status: ${response.status}`;
+        try {
+            const errorData = await response.json();
+            // Use specific error message from backend if available
+            errorMessage = errorData?.message || errorData?.title || errorMessage;
+        } catch { /* Ignore if response body isn't JSON */ }
+        setAddError(errorMessage);
+        console.error("Add item error response:", response);
+      }
+    } catch (err) {
+      // Handle network errors
+      console.error("Network error adding item:", err);
+      setAddError("Failed to connect to the server to add item.");
+    } finally {
+      setIsAdding(false); // Clear loading state for button
+    }
+  };
+
+
+  // --- Render Logic ---
+  // Handle Error State
+  if (error) {
+    return (
+      <div>
+        <Link to="/lists" className="text-sm text-blue-600 hover:underline">&larr; Back to Lists</Link>
+        <div className="mt-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg border border-red-400" role="alert">
+          Error: {error}
+        </div>
+      </div>
+    );
+  }
+
+  // Handle List Not Found (after loading, no error, but list still null)
+  if (!list) {
+    return (
+       <div>
+         <Link to="/lists" className="text-sm text-blue-600 hover:underline">&larr; Back to Lists</Link>
+         <p className="mt-4 text-gray-600">Could not load list data.</p>
+       </div>
+     );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* ... Back Link ... */}
+      {/* ... List Header ... */}
+
+      {/* --- Add New Item Form --- */}
+      <form onSubmit={handleAddItem} className="p-4 bg-gray-100 rounded-md shadow space-y-3 border border-gray-200">
+        <h3 className="text-lg font-medium text-gray-700">Add New Item</h3>
+        {/* Display any error specific to adding */}
+        {addError && (
+          <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{addError}</p>
+        )}
+        <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
+          <input
+            type="text"
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
+            placeholder="Item Name (required)"
+            aria-label="New item name"
+            required // HTML5 validation
+            className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-200"
+            disabled={isAdding} // Disable input while submitting
+          />
+          <input
+            type="text"
+            value={newItemQuantity}
+            onChange={(e) => setNewItemQuantity(e.target.value)}
+            placeholder="Quantity (e.g., 2 packs)"
+            aria-label="New item quantity"
+            className="sm:w-1/3 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-200"
+            disabled={isAdding}
+          />
+          <button
+            type="submit"
+            disabled={isAdding || !newItemName.trim()} // Disable if adding or name is empty
+            className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isAdding ? 'Adding...' : 'Add Item'}
+          </button>
+        </div>
+      </form>
+
+      {/* --- Items List (remains mostly the same) --- */}
+      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+         <h3 className="text-lg font-medium leading-6 text-gray-900 px-4 py-3 sm:px-6 border-b border-gray-200">
+             Items ({list.items?.length ?? 0})
+         </h3>
+        {list.items && list.items.length > 0 ? (
+          <ul className="divide-y divide-gray-200">
+            {/* Ensure list.items is used here */}
+            {list.items.map((item) => (
+              <li key={item.id} className="px-4 py-3 sm:px-6 flex items-center justify-between hover:bg-gray-50">
+                {/* ... item display (checkbox, name, quantity) ... */}
+                <div className="flex items-center flex-grow mr-4">
+                  {/* ... checkbox ... */}
+                  <input type="checkbox" checked={item.isChecked} readOnly className="..." />
+                  <label htmlFor={`item-${item.id}`} className={`... ${item.isChecked ? 'line-through' : ''}`}>
+                     {/* ... name, quantity ... */}
+                     {item.name} {item.quantity && `(${item.quantity})`}
+                  </label>
+                </div>
+                {/* ... delete button ... */}
+                <button className="...">Delete</button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="px-4 py-4 text-sm text-gray-500 sm:px-6 italic">No items added yet.</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ListPageDetail;

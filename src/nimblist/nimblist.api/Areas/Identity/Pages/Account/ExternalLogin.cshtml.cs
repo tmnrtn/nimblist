@@ -30,13 +30,15 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
         private readonly IUserEmailStore<ApplicationUser> _emailStore;
         private readonly IEmailSender _emailSender;
         private readonly ILogger<ExternalLoginModel> _logger;
+        private readonly IConfiguration _configuration; // Inject IConfiguration
 
         public ExternalLoginModel(
             SignInManager<ApplicationUser> signInManager,
             UserManager<ApplicationUser> userManager,
             IUserStore<ApplicationUser> userStore,
             ILogger<ExternalLoginModel> logger,
-            IEmailSender emailSender)
+            IEmailSender emailSender,
+            IConfiguration configuration)
         {
             _signInManager = signInManager;
             _userManager = userManager;
@@ -44,6 +46,7 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
             _emailStore = GetEmailStore();
             _logger = logger;
             _emailSender = emailSender;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -116,8 +119,9 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
             var result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: false, bypassTwoFactor: true);
             if (result.Succeeded)
             {
-                _logger.LogInformation("{Name} logged in with {LoginProvider} provider.", info.Principal.Identity.Name, info.LoginProvider);
-                return LocalRedirect(returnUrl);
+                _logger.LogInformation("User logged in using {Name} provider.", info.LoginProvider); // Example log
+                var redirectUrl = GenerateSafeRedirectUrl(returnUrl);
+                return Redirect(redirectUrl); // Use Redirect, NOT LocalRedirect
             }
             if (result.IsLockedOut)
             {
@@ -184,7 +188,9 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
                         }
 
                         await _signInManager.SignInAsync(user, isPersistent: false, info.LoginProvider);
-                        return LocalRedirect(returnUrl);
+                        _logger.LogInformation("User logged in using {Name} provider.", info.LoginProvider); // Example log
+                        var redirectUrl = GenerateSafeRedirectUrl(returnUrl);
+                        return Redirect(redirectUrl); // Use Redirect, NOT LocalRedirect
                     }
                 }
                 foreach (var error in result.Errors)
@@ -219,6 +225,35 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
                 throw new NotSupportedException("The default UI requires a user store with email support.");
             }
             return (IUserEmailStore<ApplicationUser>)_userStore;
+        }
+
+        private string GenerateSafeRedirectUrl(string? returnUrl)
+        {
+            // 1. Get allowed frontend base URL from configuration
+            var frontendBaseUrl = _configuration["FrontendAppSettings:BaseUrl"];
+            if (string.IsNullOrEmpty(frontendBaseUrl))
+            {
+                _logger.LogError("FrontendAppSettings:BaseUrl is not configured in appsettings.");
+                return Url.Content("~/"); // Fallback to backend root
+            }
+
+            // 2. Validate the returnUrl parameter from the client
+            // It should be a relative path starting with '/'
+            // Avoid open redirect vulnerabilities!
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                // Url.IsLocalUrl checks if it starts with '/' but not '//' or '/\'
+                // Combine the configured frontend base URL with the relative path
+                var absoluteRedirectUrl = frontendBaseUrl.TrimEnd('/') + returnUrl;
+                _logger.LogInformation("Redirecting to validated external URL: {Url}", absoluteRedirectUrl);
+                return absoluteRedirectUrl;
+            }
+            else
+            {
+                // If returnUrl is invalid or missing, redirect to frontend base URL
+                _logger.LogWarning("Invalid or missing returnUrl '{ReturnUrl}'. Redirecting to frontend base URL: {BaseUrl}", returnUrl, frontendBaseUrl);
+                return frontendBaseUrl;
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.Data;
 using Nimblist.Data.Models;
+using System.Text.Json.Serialization;
 
 
 namespace Nimblist.api
@@ -39,7 +40,7 @@ namespace Nimblist.api
                                       else if (builder.Environment.IsDevelopment()) // Fallback for development if config missing
                                       {
                                           Console.WriteLine("Warning: CORS AllowedOrigins not configured. Allowing localhost:3000 for Development.");
-                                          policy.WithOrigins("http://localhost:3000") // Allow React dev server
+                                          policy.WithOrigins("https://localhost:5173") // Allow React dev server
                                                 .AllowAnyHeader()
                                                 .AllowAnyMethod()
                                                 .AllowCredentials();
@@ -48,7 +49,15 @@ namespace Nimblist.api
                                   });
             });
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                    .AddJsonOptions(options =>
+                    {
+                        // Add this line to ignore cycles during serialization
+                        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+
+                        // Optional: You might also configure other things like naming policy here
+                        // options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                    }); ;
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -181,6 +190,7 @@ namespace Nimblist.api
 
             app.UseStaticFiles();
             app.UseRouting();
+            app.UseCors("AllowSpecificOrigins");
 
             app.UseAuthentication();
             app.UseAuthorization();
