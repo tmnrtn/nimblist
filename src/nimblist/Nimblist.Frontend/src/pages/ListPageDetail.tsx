@@ -1,8 +1,11 @@
 // src/pages/ListPageDetail.tsx
-import React, { useState, useEffect, FormEvent } from 'react'; // Import FormEvent
-import { useParams, Link } from 'react-router-dom';
-import useAuthStore from '../store/authStore';
-import { ShoppingList, Item } from '../types';
+import React, { useState, useEffect, FormEvent } from "react"; // Import FormEvent
+import { useParams, Link } from "react-router-dom";
+import useAuthStore from "../store/authStore";
+import { ShoppingList, Item } from "../types";
+import ItemList from "../components/ItemList";
+import useShoppingListHub from '../hooks/useShoppingListHub'; // <-- Import the hook
+
 
 const ListPageDetail: React.FC = () => {
   const { listId } = useParams<{ listId: string }>();
@@ -13,19 +16,24 @@ const ListPageDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // --- State for the 'Add Item' form ---
-  const [newItemName, setNewItemName] = useState<string>('');
-  const [newItemQuantity, setNewItemQuantity] = useState<string>('');
+  const [newItemName, setNewItemName] = useState<string>("");
+  const [newItemQuantity, setNewItemQuantity] = useState<string>("");
   const [isAdding, setIsAdding] = useState<boolean>(false); // Loading state for add operation
   const [addError, setAddError] = useState<string | null>(null); // Error specific to adding
+
+  // *** Use the SignalR Hook ***
+  // Pass the listId. The hook manages connect/disconnect/join/leave.
+  const { connection, isConnected: isSignalRConnected } =
+    useShoppingListHub(listId);
 
   // --- Fetching Logic (useEffect for getting list details - as before) ---
   useEffect(() => {
     if (!listId || !isAuthenticated) {
-        if (!isAuthenticated) setError("Please log in to view this list.");
-        else if (!listId) setError("No List ID provided.");
-        setIsLoading(false);
-        return;
-      }
+      if (!isAuthenticated) setError("Please log in to view this list.");
+      else if (!listId) setError("No List ID provided.");
+      setIsLoading(false);
+      return;
+    }
 
     const fetchListDetails = async () => {
       // Reset component state on listId change before fetching
@@ -36,9 +44,9 @@ const ListPageDetail: React.FC = () => {
       try {
         const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/shoppinglists/${listId}`;
         const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' },
-          credentials: 'include', // Send auth cookie
+          method: "GET",
+          headers: { Accept: "application/json" },
+          credentials: "include", // Send auth cookie
         });
 
         if (response.ok) {
@@ -61,6 +69,67 @@ const ListPageDetail: React.FC = () => {
     fetchListDetails();
   }, [listId, isAuthenticated]);
 
+  // *** Effect for Attaching/Detaching SignalR Message Handlers ***
+  useEffect(() => {
+    // Only attach handlers if the connection object exists
+    if (connection) {
+      console.log("ListPageDetail: Attaching SignalR message handlers...");
+
+      // Handler for when a new item is added by *another* user
+      const handleItemAdded = (newItem: Item) => {
+        console.log("SignalR: ReceiveItemAdded", newItem);
+        setList((prevList) => {
+          if (!prevList || !prevList.items) return prevList;
+          // Avoid adding duplicate if this client was the one who added it
+          // (assuming handleAddItem already updated state)
+          if (prevList.items.some((item) => item.id === newItem.id)) {
+            return prevList;
+          }
+          return { ...prevList, items: [...prevList.items, newItem] };
+        });
+      };
+
+      // Handler for when an item is deleted by *another* user
+      const handleItemDeleted = (deletedItemId: string) => {
+        console.log("SignalR: ReceiveItemDeleted", deletedItemId);
+        setList((prevList) => {
+          if (!prevList || !prevList.items) return prevList;
+          return {
+            ...prevList,
+            items: prevList.items.filter((item) => item.id !== deletedItemId),
+          };
+        });
+      };
+
+      // Handler for when an item is updated (e.g., name/quantity change via PUT)
+      const handleItemUpdated = (updatedItem: Item) => {
+        // Assuming backend sends full Item
+        console.log("SignalR: ReceiveItemUpdated", updatedItem);
+        setList((prevList) => {
+          if (!prevList || !prevList.items) return prevList;
+          return {
+            ...prevList,
+            items: prevList.items.map((item) =>
+              item.id === updatedItem.id ? updatedItem : item
+            ),
+          };
+        });
+      };
+
+      // Register the handlers with the connection
+      connection.on("ReceiveItemAdded", handleItemAdded);
+      connection.on("ReceiveItemDeleted", handleItemDeleted);
+      connection.on("ReceiveItemUpdated", handleItemUpdated); // Ensure backend sends this
+
+      // Cleanup function for *this* effect: Remove handlers when connection changes or component unmounts
+      return () => {
+        console.log("ListPageDetail: Removing SignalR message handlers...");
+        connection.off("ReceiveItemAdded", handleItemAdded);
+        connection.off("ReceiveItemDeleted", handleItemDeleted);
+        connection.off("ReceiveItemUpdated", handleItemUpdated);
+      };
+    }
+  }, [connection]); // Dependency: This effect runs when the 'connection' object instance changes
 
   // --- Handle Add Item Form Submission ---
   const handleAddItem = async (event: FormEvent<HTMLFormElement>) => {
@@ -73,60 +142,62 @@ const ListPageDetail: React.FC = () => {
     }
     // Ensure listId is available (should be if the component rendered list details)
     if (!listId) {
-        setAddError("Cannot add item: List ID is missing.");
-        return;
+      setAddError("Cannot add item: List ID is missing.");
+      return;
     }
     // Ensure user is still authenticated (check client state)
-     if (!isAuthenticated) {
-         setAddError("You must be logged in to add items.");
-         return;
-     }
+    if (!isAuthenticated) {
+      setAddError("You must be logged in to add items.");
+      return;
+    }
 
     setIsAdding(true); // Set loading state for button
-    setAddError(null);  // Clear previous add errors
+    setAddError(null); // Clear previous add errors
 
     try {
       const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/items`; // Assuming POST /api/items endpoint
       const response = await fetch(apiUrl, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-        credentials: 'include', // Send auth cookie
+        credentials: "include", // Send auth cookie
         body: JSON.stringify({
           name: newItemName.trim(),
           quantity: newItemQuantity.trim() || null, // Send null if quantity is empty/whitespace
-          shoppingListId: listId // Send the ID of the current list
+          shoppingListId: listId, // Send the ID of the current list
         }),
       });
 
-      if (response.ok) { // Check for 201 Created or other 2xx success
+      if (response.ok) {
+        // Check for 201 Created or other 2xx success
         const newItemData: Item = await response.json();
 
         // --- Update UI State ---
         // Add the new item to the existing list's items array
-        setList(prevList => {
+        setList((prevList) => {
           if (!prevList) return null; // Safety check
           // Create a new list object with the new item appended
           return {
             ...prevList,
-            items: [...prevList.items, newItemData]
+            items: [...prevList.items, newItemData],
           };
         });
 
         // --- Clear Form ---
-        setNewItemName('');
-        setNewItemQuantity('');
-
+        setNewItemName("");
+        setNewItemQuantity("");
       } else {
         // Handle API errors (400 Bad Request, 401, 404, 500 etc.)
         let errorMessage = `Failed to add item. Status: ${response.status}`;
         try {
-            const errorData = await response.json();
-            // Use specific error message from backend if available
-            errorMessage = errorData?.message || errorData?.title || errorMessage;
-        } catch { /* Ignore if response body isn't JSON */ }
+          const errorData = await response.json();
+          // Use specific error message from backend if available
+          errorMessage = errorData?.message || errorData?.title || errorMessage;
+        } catch {
+          /* Ignore if response body isn't JSON */
+        }
         setAddError(errorMessage);
         console.error("Add item error response:", response);
       }
@@ -139,14 +210,18 @@ const ListPageDetail: React.FC = () => {
     }
   };
 
-
   // --- Render Logic ---
   // Handle Error State
   if (error) {
     return (
       <div>
-        <Link to="/lists" className="text-sm text-blue-600 hover:underline">&larr; Back to Lists</Link>
-        <div className="mt-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg border border-red-400" role="alert">
+        <Link to="/lists" className="text-sm text-blue-600 hover:underline">
+          &larr; Back to Lists
+        </Link>
+        <div
+          className="mt-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg border border-red-400"
+          role="alert"
+        >
           Error: {error}
         </div>
       </div>
@@ -156,12 +231,26 @@ const ListPageDetail: React.FC = () => {
   // Handle List Not Found (after loading, no error, but list still null)
   if (!list) {
     return (
-       <div>
-         <Link to="/lists" className="text-sm text-blue-600 hover:underline">&larr; Back to Lists</Link>
-         <p className="mt-4 text-gray-600">Could not load list data.</p>
-       </div>
-     );
+      <div>
+        <Link to="/lists" className="text-sm text-blue-600 hover:underline">
+          &larr; Back to Lists
+        </Link>
+        <p className="mt-4 text-gray-600">Could not load list data.</p>
+      </div>
+    );
   }
+
+  if (isLoading) {
+    return (
+      <div>
+        <Link to="/lists" className="text-sm text-blue-600 hover:underline">
+          &larr; Back to Lists
+        </Link>
+        <p className="mt-4 text-gray-600">Loading list data.</p>
+      </div>
+    );
+  }
+  
 
   return (
     <div className="space-y-6">
@@ -169,11 +258,16 @@ const ListPageDetail: React.FC = () => {
       {/* ... List Header ... */}
 
       {/* --- Add New Item Form --- */}
-      <form onSubmit={handleAddItem} className="p-4 bg-gray-100 rounded-md shadow space-y-3 border border-gray-200">
+      <form
+        onSubmit={handleAddItem}
+        className="p-4 bg-gray-100 rounded-md shadow space-y-3 border border-gray-200"
+      >
         <h3 className="text-lg font-medium text-gray-700">Add New Item</h3>
         {/* Display any error specific to adding */}
         {addError && (
-          <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{addError}</p>
+          <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">
+            {addError}
+          </p>
         )}
         <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
           <input
@@ -200,38 +294,18 @@ const ListPageDetail: React.FC = () => {
             disabled={isAdding || !newItemName.trim()} // Disable if adding or name is empty
             className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isAdding ? 'Adding...' : 'Add Item'}
+            {isAdding ? "Adding..." : "Add Item"}
           </button>
         </div>
+        <p>Real-time status: {isSignalRConnected ? 'Connected' : 'Disconnected'}</p>
       </form>
 
       {/* --- Items List (remains mostly the same) --- */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
-         <h3 className="text-lg font-medium leading-6 text-gray-900 px-4 py-3 sm:px-6 border-b border-gray-200">
-             Items ({list.items?.length ?? 0})
-         </h3>
-        {list.items && list.items.length > 0 ? (
-          <ul className="divide-y divide-gray-200">
-            {/* Ensure list.items is used here */}
-            {list.items.map((item) => (
-              <li key={item.id} className="px-4 py-3 sm:px-6 flex items-center justify-between hover:bg-gray-50">
-                {/* ... item display (checkbox, name, quantity) ... */}
-                <div className="flex items-center flex-grow mr-4">
-                  {/* ... checkbox ... */}
-                  <input type="checkbox" checked={item.isChecked} readOnly className="..." />
-                  <label htmlFor={`item-${item.id}`} className={`... ${item.isChecked ? 'line-through' : ''}`}>
-                     {/* ... name, quantity ... */}
-                     {item.name} {item.quantity && `(${item.quantity})`}
-                  </label>
-                </div>
-                {/* ... delete button ... */}
-                <button className="...">Delete</button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="px-4 py-4 text-sm text-gray-500 sm:px-6 italic">No items added yet.</p>
-        )}
+        {/* Pass the items array and listId down as props */}
+        {/* Use '?? []' to safely handle case where list.items might be initially null/undefined */}
+        {/* Use non-null assertion '!' for listId because we check for list earlier */}
+        <ItemList initialItems={list.items ?? []} listId={listId!} />
       </div>
     </div>
   );

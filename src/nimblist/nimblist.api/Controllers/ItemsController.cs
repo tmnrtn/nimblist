@@ -5,11 +5,15 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.api.DTO;
+using Nimblist.api.Hubs;
 using Nimblist.Data;
 using Nimblist.Data.Models;
+using StackExchange.Redis;
 
 namespace Nimblist.api.Controllers
 {
@@ -19,10 +23,17 @@ namespace Nimblist.api.Controllers
     public class ItemsController : ControllerBase
     {
         private readonly NimblistContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IHubContext<ShoppingListHub> _hubContext;
 
-        public ItemsController(NimblistContext context)
+        public ItemsController(
+            NimblistContext context,
+            UserManager<ApplicationUser> userManager,
+            IHubContext<ShoppingListHub> hubContext) // << Inject Hub Context here
         {
             _context = context;
+            _userManager = userManager;
+            _hubContext = hubContext; // << Store the injected context
         }
 
         // GET: api/Items
@@ -85,6 +96,14 @@ namespace Nimblist.api.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+
+                // --- Send SignalR Update ---
+                string groupName = $"list_{existingItem.ShoppingListId}";
+                // Message name "ReceiveItemUpdated" must match client listener
+                // Send the updated item data back (the version from DB after save)
+                await _hubContext.Clients.Group(groupName).SendAsync("ReceiveItemUpdated", existingItem);
+                Console.WriteLine($"--> SignalR: Sent ReceiveItemUpdated to {groupName} for item {existingItem.Id}");
+                // --------------------------
             }
             catch (DbUpdateConcurrencyException) { return Conflict("Concurrency conflict."); } // Handle concurrency
 
@@ -110,6 +129,14 @@ namespace Nimblist.api.Controllers
             _context.Items.Add(item);
             await _context.SaveChangesAsync();
 
+            // --- Send SignalR Update ---
+            string groupName = $"list_{item.ShoppingListId}";
+            // Message name "ReceiveItemAdded" must match client listener
+            // Send the newly created item object as payload
+            await _hubContext.Clients.Group(groupName).SendAsync("ReceiveItemAdded", item);
+            Console.WriteLine($"--> SignalR: Sent ReceiveItemAdded to {groupName} for item {item.Id}");
+            // --------------------------
+
             return CreatedAtAction(nameof(GetItem), new { id = item.Id }, item);
         }
 
@@ -130,6 +157,14 @@ namespace Nimblist.api.Controllers
 
             _context.Items.Remove(item);
             await _context.SaveChangesAsync();
+
+            // --- Send SignalR Update ---
+            string groupName = $"list_{item.ShoppingListId}";
+            // Message name "ReceiveItemDeleted" must match client listener
+            // Send just the ID of the item that was deleted
+            await _hubContext.Clients.Group(groupName).SendAsync("ReceiveItemDeleted", item.Id);
+            Console.WriteLine($"--> SignalR: Sent ReceiveItemDeleted to {groupName} for item {item.Id}");
+            // --------------------------
 
             return NoContent();
         }

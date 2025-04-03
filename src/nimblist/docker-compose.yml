@@ -7,6 +7,7 @@ services:
     environment:
       # Use variable substitution for secrets from .env file (see step 2)
       - ConnectionStrings__DefaultConnection=Host=nimblist_db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      - ConnectionStrings__Redis=${ConnectionStrings__Redis}
     depends_on:
       - Nimblist.db # Make the API service depend on the database service
     networks: # Optional but recommended: define explicit network
@@ -44,6 +45,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  redis_cache: # Or just 'redis' - the service name used in connection strings
+    image: redis:alpine # Use alpine for smaller image size
+    container_name: nimblist_redis # Optional fixed name
+    restart: unless-stopped
+    # Optional: Add a volume if you want Redis data to persist restarts
+    # volumes:
+    #   - redis_data:/data
+    # ports:
+      # Optional: Expose port to host ONLY if needed for external debugging/tools
+      # - "6379:6379"
+    networks:
+      - nimblistnet # Ensure it's on the same network as your API
 
 # Define the named volume for persistent PostgreSQL data
 volumes:
