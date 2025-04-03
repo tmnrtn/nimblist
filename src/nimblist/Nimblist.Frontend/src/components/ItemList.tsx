@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Item } from "../types"; // Adjust path as needed
 import clsx from 'clsx';
+import {authenticatedFetch} from "../components/HttpHelper"; // Adjust path as needed
 
 // --- Props Interface ---
 interface ItemListProps {
@@ -11,26 +12,7 @@ interface ItemListProps {
   // onItemToggled?: (itemId: string, newState: boolean) => void;
 }
 
-// --- Helper for API calls (type params optional but good practice) ---
-const authenticatedFetch = async (
-  url: string,
-  options?: RequestInit
-): Promise<Response> => {
-  options = { ...options, credentials: 'include' }; // Add if needed for cookie auth + CORS
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`API Error ${response.status}: ${errorText}`);
-    throw new Error(`Request failed: ${response.status}`);
-  }
-  // Only return body for requests that have one (e.g. GET, POST)
-  // For 204 No Content (like our PUT toggle), there's no body
-  // if (response.status === 204 || response.headers.get('Content-Length') === '0') {
-  //    return null as T; // Or just return the response status/object
-  // }
-  // return response.json() as Promise<T>; // Example if expecting JSON
-  return response; // Keep it simple for now
-};
+
 // --- End Helper ---
 
 const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
@@ -72,7 +54,7 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
     // --- API Call ---
     try {
         // Use the standard PUT endpoint for the item resource
-        const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/items/${itemId}`;
+        const apiUrl = `/api/items/${itemId}`;
 
         // Prepare the payload - send the updated item object
         // Ensure this matches what your backend PUT endpoint expects!
@@ -170,11 +152,14 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
           >
             {/* Item Checkbox and Name/Quantity */}
             {/* Use group utility if needed for hover states on children */}
-            <label className={clsx(
+            <label 
+              htmlFor={"checkbox_" + item.id} // Use a unique id for accessibility
+              className={clsx(
                 "flex-grow mr-4 flex items-center",
                 loadingItemId === item.id ? 'cursor-not-allowed' : 'cursor-pointer'
             )}>
               <input
+                id={"checkbox_" + item.id}
                 type="checkbox"
                 checked={item.isChecked}
                 onChange={() => handleToggleCheck(item.id)}

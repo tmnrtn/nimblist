@@ -8,7 +8,7 @@ interface User {
   // Add other properties like name if returned by /api/auth/userinfo
 }
 
-interface AuthState {
+export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
   isLoading: boolean; // Tracks the initial auth check

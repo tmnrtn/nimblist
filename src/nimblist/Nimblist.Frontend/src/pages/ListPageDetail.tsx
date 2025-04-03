@@ -4,8 +4,8 @@ import { useParams, Link } from "react-router-dom";
 import useAuthStore from "../store/authStore";
 import { ShoppingList, Item } from "../types";
 import ItemList from "../components/ItemList";
-import useShoppingListHub from '../hooks/useShoppingListHub'; // <-- Import the hook
-
+import useShoppingListHub from "../hooks/useShoppingListHub"; // <-- Import the hook
+import {authenticatedFetch} from "../components/HttpHelper"; // Adjust path as needed
 
 const ListPageDetail: React.FC = () => {
   const { listId } = useParams<{ listId: string }>();
@@ -42,11 +42,12 @@ const ListPageDetail: React.FC = () => {
       setList(null); // Clear previous list data
 
       try {
-        const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/shoppinglists/${listId}`;
-        const response = await fetch(apiUrl, {
+        const apiUrl = `/api/shoppinglists/${listId}`;
+        const response = await authenticatedFetch(apiUrl, {
           method: "GET",
-          headers: { Accept: "application/json" },
-          credentials: "include", // Send auth cookie
+          headers: {
+            Accept: "application/json", // Often good practice
+          },
         });
 
         if (response.ok) {
@@ -250,7 +251,6 @@ const ListPageDetail: React.FC = () => {
       </div>
     );
   }
-  
 
   return (
     <div className="space-y-6">
@@ -297,7 +297,9 @@ const ListPageDetail: React.FC = () => {
             {isAdding ? "Adding..." : "Add Item"}
           </button>
         </div>
-        <p>Real-time status: {isSignalRConnected ? 'Connected' : 'Disconnected'}</p>
+        <p>
+          Real-time status: {isSignalRConnected ? "Connected" : "Disconnected"}
+        </p>
       </form>
 
       {/* --- Items List (remains mostly the same) --- */}

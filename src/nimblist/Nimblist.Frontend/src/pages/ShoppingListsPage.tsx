@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore'; // Import your Zustand auth store
 import { ShoppingList } from '../types'; // Import the interface (adjust path if needed)
+import {authenticatedFetch} from "../components/HttpHelper"; // Adjust path as needed
 
 const ShoppingListsPage: React.FC = () => {
   // Get authentication status from the global store
@@ -27,16 +28,13 @@ const ShoppingListsPage: React.FC = () => {
       setError(null);     // Clear any previous errors
 
       try {
-        const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/shoppinglists`;
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            // No 'Content-Type' needed for GET
-          },
-          // IMPORTANT: Send credentials (cookies) with the request
-          credentials: 'include',
-        });
+        const apiUrl = `/api/shoppinglists`;
+        const response = await authenticatedFetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json', // Often good practice
+                    }
+                });
 
         if (response.ok) { // Status 200-299
           const data: ShoppingList[] = await response.json();
