@@ -2,12 +2,12 @@ name: Build, Test and Analyze (React & .NET)
 
 # Define variables available to all jobs in the workflow
 env:
-  FRONTEND_DIR: /src/nimblist/Nimblist.Frontend                # Directory for React app
-  DOTNET_DIR: /src/nimblist                        # Directory containing .sln (use '.' if root, or e.g., ./backend)
+  FRONTEND_DIR: ../src/nimblist/Nimblist.Frontend                # Directory for React app
+  DOTNET_DIR: ../src/nimblist                        # Directory containing .sln (use '.' if root, or e.g., ./backend)
   DOTNET_SLN: nimblist.sln           # Name of the .NET solution file
   # Define full report paths relative to the repository root
-  FRONTEND_COVERAGE_PATH: ./src/nimblist/Nimblist.Frontend/coverage/lcov.info
-  DOTNET_COVERAGE_PATH: ./src/nimblist /TestResults/Coverage/coverage.opencover.xml # Adjust if DOTNET_DIR is not root or output changes
+  FRONTEND_COVERAGE_PATH: ../src/nimblist/Nimblist.Frontend/coverage/lcov.info
+  DOTNET_COVERAGE_PATH: ../src/nimblist/TestResults/Coverage/coverage.opencover.xml # Adjust if DOTNET_DIR is not root or output changes
 
 on:
   push:
