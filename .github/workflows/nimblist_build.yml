@@ -6,8 +6,8 @@ env:
   DOTNET_DIR: ./src/nimblist                        # Directory containing .sln (use '.' if root, or e.g., ./backend)
   DOTNET_SLN: nimblist.sln           # Name of the .NET solution file
   # Define full report paths relative to the repository root
-  FRONTEND_COVERAGE_PATH: ${{ env.FRONTEND_DIR }}/coverage/lcov.info
-  DOTNET_COVERAGE_PATH: ${{ env.DOTNET_DIR }}/TestResults/Coverage/coverage.opencover.xml # Adjust if DOTNET_DIR is not root or output changes
+  FRONTEND_COVERAGE_PATH: ./src/nimblist/Nimblist.Frontend/coverage/lcov.info
+  DOTNET_COVERAGE_PATH: ./src/nimblist /TestResults/Coverage/coverage.opencover.xml # Adjust if DOTNET_DIR is not root or output changes
 
 on:
   push:
