@@ -2,8 +2,11 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
+using Nimblist.api.Hubs;
 using Nimblist.Data;
 using Nimblist.Data.Models;
+using StackExchange.Redis;
+using System.Text.Json.Serialization;
 
 
 namespace Nimblist.api
@@ -39,7 +42,7 @@ namespace Nimblist.api
                                       else if (builder.Environment.IsDevelopment()) // Fallback for development if config missing
                                       {
                                           Console.WriteLine("Warning: CORS AllowedOrigins not configured. Allowing localhost:3000 for Development.");
-                                          policy.WithOrigins("http://localhost:3000") // Allow React dev server
+                                          policy.WithOrigins("https://localhost:5173") // Allow React dev server
                                                 .AllowAnyHeader()
                                                 .AllowAnyMethod()
                                                 .AllowCredentials();
@@ -48,7 +51,15 @@ namespace Nimblist.api
                                   });
             });
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                    .AddJsonOptions(options =>
+                    {
+                        // Add this line to ignore cycles during serialization
+                        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+
+                        // Optional: You might also configure other things like naming policy here
+                        // options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                    });
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -149,6 +160,73 @@ namespace Nimblist.api
 
             builder.Services.AddTransient<IEmailSender, NoOpEmailSender>();
 
+            var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+            if (!string.IsNullOrEmpty(redisConnectionString))
+            {
+                try
+                {
+                    Console.WriteLine("Connecting to Redis...");
+                    // Use a single ConnectionMultiplexer for both Data Protection and SignalR
+                    // Register as singleton for reuse
+                    builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnectionString));
+
+                    // Get the multiplexer instance for configuration methods below
+                    var redis = builder.Services.BuildServiceProvider().GetRequiredService<IConnectionMultiplexer>();
+
+                    // Configure Data Protection
+                    builder.Services.AddDataProtection()
+                        .PersistKeysToStackExchangeRedis(redis, "DataProtection-Keys-Nimblist")
+                        .SetApplicationName("NimblistApp");
+                    Console.WriteLine("Data Protection configured to use Redis.");
+
+                    // Configure SignalR and add Redis backplane using the same connection string
+                    builder.Services.AddSignalR()
+                        .AddJsonProtocol(options => // Configure System.Text.Json specifically for SignalR
+                        {
+                            // *** Add this line for SignalR cycle handling ***
+                            options.PayloadSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+
+                            // Optional: Configure other SignalR serialization settings if needed
+                            // options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                        })
+                        .AddStackExchangeRedis(redisConnectionString, options =>
+                        {
+                            options.Configuration.ChannelPrefix = RedisChannel.Literal("Nimblist.SignalR."); // Updated prefix usage for clarity
+                        });
+                    Console.WriteLine("SignalR configured with Redis backplane.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error configuring Redis. SignalR/DataProtection will be ephemeral. Error: {ex.Message}");
+                    // Fallback configurations if Redis fails
+                    builder.Services.AddDataProtection().SetApplicationName("NimblistApp");
+                    builder.Services.AddSignalR()
+                                    .AddJsonProtocol(options => // Configure System.Text.Json specifically for SignalR
+                                    {
+                                        // *** Add this line for SignalR cycle handling ***
+                                        options.PayloadSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+
+                                        // Optional: Configure other SignalR serialization settings if needed
+                                        // options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                                    });
+                }
+            }
+            else
+            {
+                Console.WriteLine("Warning: Redis connection string not configured. SignalR/DataProtection will be ephemeral.");
+                // Fallback configurations without Redis
+                builder.Services.AddDataProtection().SetApplicationName("NimblistApp");
+                builder.Services.AddSignalR()
+                                .AddJsonProtocol(options => // Configure System.Text.Json specifically for SignalR
+                                {
+                                    // *** Add this line for SignalR cycle handling ***
+                                    options.PayloadSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+
+                                    // Optional: Configure other SignalR serialization settings if needed
+                                    // options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                                }); // Add SignalR without Redis backplane
+            }
+
             var keyPath = "/keys"; // The path defined in the docker-compose volume mount
             try
             {
@@ -181,6 +259,8 @@ namespace Nimblist.api
 
             app.UseStaticFiles();
             app.UseRouting();
+            app.UseCors("AllowSpecificOrigins");
+            app.MapHub<ShoppingListHub>("/hubs/shoppinglist"); // <-- MUST be after UseRouting
 
             app.UseAuthentication();
             app.UseAuthorization();

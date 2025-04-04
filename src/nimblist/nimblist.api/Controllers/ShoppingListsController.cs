@@ -49,7 +49,7 @@ namespace Nimblist.api.Controllers
 
             // Find the list matching ID AND UserId
             var shoppingList = await _context.ShoppingLists
-                                        // .Include(sl => sl.Items) // Still optionally include children
+                                        .Include(sl => sl.Items) // Still optionally include children
                                         .FirstOrDefaultAsync(sl => sl.Id == id && sl.UserId == userId); // <<< Filter by Id AND UserId
 
             if (shoppingList == null)
