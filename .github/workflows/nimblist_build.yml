@@ -1,0 +1,98 @@
+name: Build, Test and Analyze (React & .NET)
+
+# Define variables available to all jobs in the workflow
+env:
+  FRONTEND_DIR: ./src/nimblist/Nimblist.Frontend                # Directory for React app
+  DOTNET_DIR: ./src/nimblist                        # Directory containing .sln (use '.' if root, or e.g., ./backend)
+  DOTNET_SLN: nimblist.sln           # Name of the .NET solution file
+  # Define full report paths relative to the repository root
+  FRONTEND_COVERAGE_PATH: ${{ env.FRONTEND_DIR }}/coverage/lcov.info
+  DOTNET_COVERAGE_PATH: ${{ env.DOTNET_DIR }}/TestResults/Coverage/coverage.opencover.xml # Adjust if DOTNET_DIR is not root or output changes
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build_test_analyze:
+    name: Build, Test & Analyze
+    runs-on: ubuntu-latest
+    # Variables defined here override workflow env vars or add job-specific ones
+    # env:
+    #   MY_JOB_VAR: value
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # --- Node.js/React Setup & Test ---
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: ${{ env.FRONTEND_DIR }}/package-lock.json # Use variable
+
+      - name: Install Node dependencies
+        run: npm ci
+        working-directory: ${{ env.FRONTEND_DIR }} # Use variable
+
+      - name: Run React Linters (Optional)
+        run: npm run lint
+        working-directory: ${{ env.FRONTEND_DIR }} # Use variable
+
+      - name: Run React unit tests and generate coverage report
+        run: npm run test:coverage # Assumes output is coverage/lcov.info inside working dir
+        working-directory: ${{ env.FRONTEND_DIR }} # Use variable
+
+      # --- .NET Setup & Test ---
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore .NET dependencies
+        run: dotnet restore ${{ env.DOTNET_SLN }}
+        working-directory: ${{ env.DOTNET_DIR }} # Use variable (often '.' for root)
+
+      - name: Build .NET solution
+        run: dotnet build ${{ env.DOTNET_SLN }} --configuration Release --no-restore
+        working-directory: ${{ env.DOTNET_DIR }} # Use variable
+
+      - name: Create Test Results Directory
+        # Create path relative to root, matching DOTNET_COVERAGE_PATH structure
+        run: mkdir -p $(dirname ${{ env.DOTNET_COVERAGE_PATH }})
+        working-directory: ${{ env.DOTNET_DIR }} # Base directory for mkdir if needed
+
+      - name: Run .NET tests and generate coverage report
+        run: |
+          dotnet test ${{ env.DOTNET_SLN }} --no-build --configuration Release \
+            --collect:"XPlat Code Coverage" \
+            /p:CoverletOutputFormat=opencover \
+            # Use the full path variable directly for Coverlet output
+            /p:CoverletOutput=${{ github.workspace }}/${{ env.DOTNET_COVERAGE_PATH }}
+        working-directory: ${{ env.DOTNET_DIR }} # Use variable
+
+      # --- SonarQube Scan ---
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=your_org_your_project_key
+            -Dsonar.organization=your_org_key
+            # Adjust source/test paths potentially using variables too if complex
+            -Dsonar.sources=${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/src # Example structure
+            -Dsonar.tests=${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/tests # Example structure
+            -Dsonar.test.inclusions=**/*.test.js,**/*.test.jsx,**/*.test.ts,**/*.test.tsx,**/*Tests.cs
+            -Dsonar.exclusions=**/obj/**,**/bin/**,${{ env.FRONTEND_DIR }}/node_modules/**
+            # Use variables for report paths
+            -Dsonar.javascript.lcov.reportPaths=${{ env.FRONTEND_COVERAGE_PATH }}
+            -Dsonar.cs.opencover.reportsPaths=${{ env.DOTNET_COVERAGE_PATH }}
