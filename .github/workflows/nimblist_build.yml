@@ -9,6 +9,10 @@ env:
   FRONTEND_COVERAGE_PATH: ./src/nimblist/Nimblist.Frontend/coverage/lcov.info
   DOTNET_COVERAGE_PATH: ./src/nimblist/TestResults/Coverage/coverage.opencover.xml # Adjust if DOTNET_DIR is not root or output changes
   VITE_API_BASE_URL: https://localhost:64213
+  # --- SonarQube Configuration (Non-Secret) ---
+  SONAR_PROJECT_KEY: "tmnrtn_nimblist"     # <-- ADD THIS (Replace with actual value)
+  SONAR_ORGANIZATION: "tmnrtn" # <-- ADD THIS (Replace with actual value)
+  SONAR_HOST_URL: "https://sonarcloud.io"   
 
 on:
   push:
@@ -79,9 +83,10 @@ jobs:
         # Run from the directory containing the solution or where scan should start
         working-directory: ${{ env.DOTNET_DIR }}
         run: |
-          dotnet sonarscanner begin /k:"${{ secrets.SONAR_PROJECT_KEY }}" \
-            /o:"${{ secrets.SONAR_ORGANIZATION }}" \
+          dotnet sonarscanner begin /k:"${{ env.SONAR_PROJECT_KEY }}" \
+            /o:"${{ env.SONAR_ORGANIZATION }}" \
             /d:sonar.login="${{ secrets.SONAR_TOKEN }}" \
+            /d:sonar.host.url="${{ env.SONAR_HOST_URL }}" \
             /d:sonar.sources="${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/Nimblist.api" \ # Adjust .NET path
             /d:sonar.tests="${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/Nimblist.test" \ # Adjust .NET path
             /d:sonar.test.inclusions="**/*.test.js,**/*.test.jsx,**/*.test.ts,**/*.test.tsx,**/*Tests.cs" \
