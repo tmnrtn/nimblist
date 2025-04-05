@@ -85,8 +85,6 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=your_org_your_project_key
-            -Dsonar.organization=your_org_key
             # Adjust source/test paths potentially using variables too if complex
             -Dsonar.sources=${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/src # Example structure
             -Dsonar.tests=${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/tests # Example structure
