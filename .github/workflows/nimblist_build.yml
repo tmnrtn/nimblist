@@ -70,24 +70,48 @@ jobs:
         run: mkdir -p $(dirname ${{ env.DOTNET_COVERAGE_PATH }})
         working-directory: ${{ env.DOTNET_DIR }} # Base directory for mkdir if needed
 
+              # 1. Install the .NET Sonar Scanner tool
+      - name: Install SonarScanner for .NET
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      # 2. Begin SonarScanner analysis (BEFORE build/test)
+      - name: Begin SonarQube Scan
+        # Run from the directory containing the solution or where scan should start
+        working-directory: ${{ env.DOTNET_DIR }}
+        run: |
+          dotnet sonarscanner begin 
+            /d:sonar.login="${{ secrets.SONAR_TOKEN }}" \
+            /d:sonar.sources="${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/Nimblist.api" \ # Adjust .NET path
+            /d:sonar.tests="${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/Nimblist.test" \ # Adjust .NET path
+            /d:sonar.test.inclusions="**/*.test.js,**/*.test.jsx,**/*.test.ts,**/*.test.tsx,**/*Tests.cs" \
+            /d:sonar.exclusions="**/obj/**,**/bin/**,${{ env.FRONTEND_DIR }}/node_modules/**,**/*.Generated.cs" \
+            /d:sonar.javascript.lcov.reportPaths="${{ github.workspace}}/${{ env.FRONTEND_COVERAGE_PATH }}" \ # Use workspace path if needed
+            /d:sonar.cs.opencover.reportsPaths="${{ github.workspace}}/${{ env.DOTNET_COVERAGE_PATH }}" # Use workspace path if needed
+            # Add other necessary Sonar parameters here using /d:
+
+      # 3. Build the solution (AFTER scanner begin)
+      #    The scanner integrates with the build to perform analysis.
+      - name: Build .NET solution
+        run: dotnet build ${{ env.DOTNET_SLN }} --configuration Release --no-restore
+        working-directory: ${{ env.DOTNET_DIR }}
+
+      # 4. Run tests (AFTER scanner begin, usually AFTER build)
+      #    This generates the coverage report needed by the scanner end step.
       - name: Run .NET tests and generate coverage report
         run: |
           dotnet test ${{ env.DOTNET_SLN }} --no-build --configuration Release \
             --collect:"XPlat Code Coverage" \
             /p:CoverletOutputFormat=opencover \
             /p:CoverletOutput=${{ github.workspace }}/${{ env.DOTNET_COVERAGE_PATH }}
-        working-directory: ${{ env.DOTNET_DIR }} # Use variable
+        working-directory: ${{ env.DOTNET_DIR }}
 
-      # --- SonarQube Scan ---
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v5
+      # 5. End SonarScanner analysis (AFTER build/test)
+      - name: End SonarQube Scan
+        # Needs to run from the same directory as 'begin' or have access to build info
+        working-directory: ${{ env.DOTNET_DIR }}
         env:
+          # Pass token securely, sonarscanner end picks it up from this env var
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.sources=${{ env.DOTNET_DIR }}
-            -Dsonar.tests=${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/Nimblist.test
-            -Dsonar.test.inclusions=**/*.test.js,**/*.test.jsx,**/*.test.ts,**/*.test.tsx,**/*Tests.cs
-            -Dsonar.exclusions=**/obj/**,**/bin/**,${{ env.FRONTEND_DIR }}/node_modules/**
-            -Dsonar.javascript.lcov.reportPaths=${{ env.FRONTEND_COVERAGE_PATH }}
-            -Dsonar.cs.opencover.reportsPaths=${{ env.DOTNET_COVERAGE_PATH }}
+        run: dotnet sonarscanner end /d:sonar.login="${{ env.SONAR_TOKEN }}"
+
+
