@@ -7,7 +7,7 @@ env:
   DOTNET_SLN: nimblist.sln           # Name of the .NET solution file
   # Define full report paths relative to the repository root
   FRONTEND_COVERAGE_PATH: ./src/nimblist/Nimblist.Frontend/coverage/lcov.info
-  DOTNET_COVERAGE_PATH: ./src/nimblist/TestResults/Coverage/coverage.opencover.xml # Adjust if DOTNET_DIR is not root or output changes
+  DOTNET_COVERAGE_PATH: ./src/nimblist/Nimblist.test/TestResults/Coverage/coverage.opencover.xml # Adjust if DOTNET_DIR is not root or output changes
   VITE_API_BASE_URL: https://localhost:64213
   # --- SonarQube Configuration (Non-Secret) ---
   SONAR_PROJECT_KEY: "tmnrtn_nimblist"     # <-- ADD THIS (Replace with actual value)
