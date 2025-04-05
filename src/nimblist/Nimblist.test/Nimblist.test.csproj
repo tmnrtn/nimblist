@@ -21,8 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\nimblist\nimblist.api\Nimblist.api.csproj" />
-    <ProjectReference Include="..\nimblist\nimblist.data\Nimblist.data.csproj" />
+    <ProjectReference Include="..\nimblist.api\Nimblist.api.csproj" />
+    <ProjectReference Include="..\nimblist.data\Nimblist.data.csproj" />
   </ItemGroup>
 
   <ItemGroup>
