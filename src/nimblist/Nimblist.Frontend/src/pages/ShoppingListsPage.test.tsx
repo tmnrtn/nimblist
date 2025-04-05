@@ -1,14 +1,11 @@
 // src/pages/ShoppingListsPage.test.tsx
-
-import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom'; // Needed because component uses <Link>
 import type { MockedFunction } from 'vitest';
 
 // Import types and component
 import type { AuthState } from '../store/authStore';
-import useAuthStore from '../store/authStore';
 import type { ShoppingList } from '../types';
 import { authenticatedFetch } from '../components/HttpHelper'; // Function to mock
 import ShoppingListsPage from './ShoppingListsPage'; // Component under test

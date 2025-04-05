@@ -80,14 +80,11 @@ jobs:
 
       # --- SonarQube Scan ---
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@master
+        uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           args: >
-            -Dsonar.projectKey=your_org_your_project_key
-            -Dsonar.organization=your_org_key
             # Adjust source/test paths potentially using variables too if complex
             -Dsonar.sources=${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/src # Example structure
             -Dsonar.tests=${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/tests # Example structure
