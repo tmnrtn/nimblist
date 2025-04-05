@@ -5,109 +5,264 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Moq;
-using Nimblist.api.Controllers;
-using Nimblist.api.DTO;
+using Microsoft.EntityFrameworkCore; // Required for In-Memory provider and options
+// Moq is no longer needed for DbContext/DbSet, but might be needed if other dependencies exist
+// using Moq;
+using Nimblist.api.Controllers; // Assuming this is the correct namespace
+using Nimblist.api.DTO;        // Assuming this is the correct namespace
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using Xunit;
 
 namespace Nimblist.Tests
 {
-    public class ShoppingListsControllerTests
+    public class ShoppingListsControllerTests // Consider : IDisposable if complex setup/teardown needed later
     {
-        private readonly Mock<NimblistContext> _mockContext;
-        private readonly ShoppingListsController _controller;
-        private readonly Mock<DbSet<ShoppingList>> _mockSet;
+        // No longer need Moq fields for context/dbset
+        // private readonly Mock<NimblistContext> _mockContext;
+        // private readonly Mock<DbSet<ShoppingList>> _mockSet;
+
+        // Store options to create contexts
+        private readonly DbContextOptions<NimblistContext> _dbOptions;
+        private const string TestUserId = "test-user-id"; // Define constant for user ID
 
         public ShoppingListsControllerTests()
         {
-            _mockContext = new Mock<NimblistContext>(new DbContextOptions<NimblistContext>());
-            _mockSet = new Mock<DbSet<ShoppingList>>();
-            _controller = new ShoppingListsController(_mockContext.Object);
+            // Create unique DbContextOptions for each test instance using the In-Memory provider
+            _dbOptions = new DbContextOptionsBuilder<NimblistContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()) // Unique DB name ensures isolation
+                .Options;
+        }
 
+        // Helper method to seed data into a fresh context instance
+        private async Task SeedDataAsync(params ShoppingList[] shoppingLists)
+        {
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                context.ShoppingLists.AddRange(shoppingLists);
+                await context.SaveChangesAsync();
+            }
+        }
+
+        // Helper method to create the controller with a fresh context and set user context
+        private ShoppingListsController CreateControllerWithContext(NimblistContext context)
+        {
+            var controller = new ShoppingListsController(context);
+
+            // Setup the User claims principal
             var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
             {
-                new Claim(ClaimTypes.NameIdentifier, "test-user-id")
+                new Claim(ClaimTypes.NameIdentifier, TestUserId)
             }, "mock"));
 
-            _controller.ControllerContext = new ControllerContext
+            controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { User = user }
             };
+
+            return controller;
         }
 
         [Fact]
         public async Task GetShoppingLists_ReturnsOkResult_WithUserShoppingLists()
         {
             // Arrange
-            var shoppingLists = new List<ShoppingList>
+            var userListId = Guid.NewGuid();
+            var otherUserId = "other-user-id";
+            var otherUserListId = Guid.NewGuid();
+
+            await SeedDataAsync(
+                new ShoppingList { Id = userListId, Name = "My Test List", UserId = TestUserId },
+                new ShoppingList { Id = otherUserListId, Name = "Other User's List", UserId = otherUserId }
+            );
+
+            using (var context = new NimblistContext(_dbOptions))
             {
-                new ShoppingList { Id = Guid.NewGuid(), Name = "Test List", UserId = "test-user-id" }
-            }.AsQueryable();
+                var controller = CreateControllerWithContext(context);
 
-            _mockSet.As<IQueryable<ShoppingList>>().Setup(m => m.Provider).Returns(shoppingLists.Provider);
-            _mockSet.As<IQueryable<ShoppingList>>().Setup(m => m.Expression).Returns(shoppingLists.Expression);
-            _mockSet.As<IQueryable<ShoppingList>>().Setup(m => m.ElementType).Returns(shoppingLists.ElementType);
-            _mockSet.As<IQueryable<ShoppingList>>().Setup(m => m.GetEnumerator()).Returns(shoppingLists.GetEnumerator());
+                // Act
+                var result = await controller.GetShoppingLists();
 
-            _mockContext.Setup(c => c.ShoppingLists).Returns(_mockSet.Object);
-
-            // Act
-            var result = await _controller.GetShoppingLists();
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var returnValue = Assert.IsType<List<ShoppingList>>(okResult.Value);
-            Assert.Single(returnValue);
+                // Assert
+                var okResult = Assert.IsType<OkObjectResult>(result.Result);
+                var returnValue = Assert.IsAssignableFrom<IEnumerable<ShoppingList>>(okResult.Value); // Use IEnumerable
+                Assert.Single(returnValue); // Should only contain the list for TestUserId
+                Assert.Equal("My Test List", returnValue.First().Name);
+                Assert.Equal(userListId, returnValue.First().Id);
+            }
         }
 
         [Fact]
         public async Task GetShoppingList_ReturnsNotFound_WhenListDoesNotExist()
         {
             // Arrange
-            var listId = Guid.NewGuid();
-            _mockSet.Setup(m => m.FindAsync(listId)).ReturnsAsync((ShoppingList)null);
-            _mockContext.Setup(c => c.ShoppingLists).Returns(_mockSet.Object);
+            var nonExistentListId = Guid.NewGuid();
+            // No need to seed anything for this specific test case, or seed unrelated data
+            await SeedDataAsync(new ShoppingList { Id = Guid.NewGuid(), Name = "Some other list", UserId = TestUserId });
 
-            // Act
-            var result = await _controller.GetShoppingList(listId);
 
-            // Assert
-            Assert.IsType<NotFoundResult>(result.Result);
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var controller = CreateControllerWithContext(context);
+
+                // Act
+                var result = await controller.GetShoppingList(nonExistentListId);
+
+                // Assert
+                Assert.IsType<NotFoundResult>(result.Result);
+            }
         }
 
         [Fact]
-        public async Task PostShoppingList_ReturnsCreatedAtActionResult()
+        public async Task GetShoppingList_ReturnsNotFound_WhenListBelongsToOtherUser()
         {
             // Arrange
-            var newList = new ShoppingListInputDto { Name = "New List" };
+            var otherUserId = "other-user-id";
+            var listId = Guid.NewGuid();
+            await SeedDataAsync(new ShoppingList { Id = listId, Name = "Other User's List", UserId = otherUserId });
 
-            // Act
-            var result = await _controller.PostShoppingList(newList);
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var controller = CreateControllerWithContext(context); // Controller context user is TestUserId
 
-            // Assert
-            var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-            var returnValue = Assert.IsType<ShoppingList>(createdAtActionResult.Value);
-            Assert.Equal(newList.Name, returnValue.Name);
+                // Act
+                var result = await controller.GetShoppingList(listId); // Try to get other user's list
+
+                // Assert
+                // Assuming the controller checks ownership and returns NotFound if user doesn't match
+                Assert.IsType<NotFoundResult>(result.Result);
+            }
+        }
+
+        [Fact]
+        public async Task GetShoppingList_ReturnsOkResult_WhenListExistsAndBelongsToUser()
+        {
+            // Arrange
+            var listId = Guid.NewGuid();
+            await SeedDataAsync(new ShoppingList { Id = listId, Name = "My Specific List", UserId = TestUserId });
+
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var controller = CreateControllerWithContext(context);
+
+                // Act
+                var result = await controller.GetShoppingList(listId);
+
+                // Assert
+                var okResult = Assert.IsType<OkObjectResult>(result.Result);
+                var returnValue = Assert.IsType<ShoppingList>(okResult.Value);
+                Assert.Equal(listId, returnValue.Id);
+                Assert.Equal(TestUserId, returnValue.UserId);
+            }
+        }
+
+
+        [Fact]
+        public async Task PostShoppingList_ReturnsCreatedAtActionResult_AndAddsToList()
+        {
+            // Arrange
+            var newListDto = new ShoppingListInputDto { Name = "New List From Post" };
+            Guid createdListId = Guid.Empty; // To store the ID for verification
+
+            using (var context = new NimblistContext(_dbOptions)) // Context for Act
+            {
+                var controller = CreateControllerWithContext(context);
+
+                // Act
+                var result = await controller.PostShoppingList(newListDto);
+
+                // Assert (Result Check)
+                var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(result.Result);
+                var returnValue = Assert.IsType<ShoppingList>(createdAtActionResult.Value);
+                Assert.Equal(newListDto.Name, returnValue.Name);
+                Assert.Equal(TestUserId, returnValue.UserId); // Ensure user ID is set correctly
+                Assert.Equal(nameof(controller.GetShoppingList), createdAtActionResult.ActionName); // Check action name
+                createdListId = returnValue.Id; // Store ID for verification step
+            } // Dispose the context used for the action
+
+            // Assert (Side Effect Verification)
+            using (var context = new NimblistContext(_dbOptions)) // New context to verify save
+            {
+                var addedList = await context.ShoppingLists.FindAsync(createdListId);
+                Assert.NotNull(addedList);
+                Assert.Equal(newListDto.Name, addedList.Name);
+                Assert.Equal(TestUserId, addedList.UserId);
+            }
         }
 
         [Fact]
         public async Task DeleteShoppingList_ReturnsNoContent_WhenListIsDeleted()
         {
             // Arrange
-            var listId = Guid.NewGuid();
-            var shoppingList = new ShoppingList { Id = listId, UserId = "test-user-id" };
+            var listIdToDelete = Guid.NewGuid();
+            await SeedDataAsync(new ShoppingList { Id = listIdToDelete, Name = "List To Delete", UserId = TestUserId });
 
-            _mockSet.Setup(m => m.FindAsync(listId)).ReturnsAsync(shoppingList);
-            _mockContext.Setup(c => c.ShoppingLists).Returns(_mockSet.Object);
+            using (var context = new NimblistContext(_dbOptions)) // Context for Act
+            {
+                var controller = CreateControllerWithContext(context);
 
-            // Act
-            var result = await _controller.DeleteShoppingList(listId);
+                // Act
+                var result = await controller.DeleteShoppingList(listIdToDelete);
 
-            // Assert
-            Assert.IsType<NoContentResult>(result);
+                // Assert (Result Check)
+                Assert.IsType<NoContentResult>(result);
+
+            } // Dispose the context used for the action
+
+            // Assert (Side Effect Verification)
+            using (var context = new NimblistContext(_dbOptions)) // New context to verify save
+            {
+                var deletedList = await context.ShoppingLists.FindAsync(listIdToDelete);
+                Assert.Null(deletedList); // Verify it's gone from the database
+            }
+        }
+
+        [Fact]
+        public async Task DeleteShoppingList_ReturnsNotFound_WhenListDoesNotExist()
+        {
+            // Arrange
+            var nonExistentListId = Guid.NewGuid();
+            // Don't seed the list we are trying to delete
+
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var controller = CreateControllerWithContext(context);
+
+                // Act
+                var result = await controller.DeleteShoppingList(nonExistentListId);
+
+                // Assert
+                Assert.IsType<NotFoundResult>(result);
+            }
+        }
+
+        [Fact]
+        public async Task DeleteShoppingList_ReturnsNotFound_WhenListBelongsToOtherUser()
+        {
+            // Arrange
+            var otherUserId = "other-user-id";
+            var listIdToDelete = Guid.NewGuid();
+            await SeedDataAsync(new ShoppingList { Id = listIdToDelete, Name = "Other User's List", UserId = otherUserId });
+
+
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var controller = CreateControllerWithContext(context); // Controller user is TestUserId
+
+                // Act
+                var result = await controller.DeleteShoppingList(listIdToDelete); // Try deleting other user's list
+
+                // Assert
+                // Assuming controller checks ownership
+                Assert.IsType<NotFoundResult>(result);
+            }
+
+            // Assert (Side Effect Verification - Ensure it wasn't deleted)
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var listShouldStillExist = await context.ShoppingLists.FindAsync(listIdToDelete);
+                Assert.NotNull(listShouldStillExist);
+            }
         }
     }
 }

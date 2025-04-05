@@ -10,8 +10,8 @@ namespace Nimblist.Data
     {
         // Define DbSet properties for each of your custom entities.
         // These represent the tables in your database.
-        public DbSet<ShoppingList> ShoppingLists { get; set; }
-        public DbSet<Item> Items { get; set; }
+        public virtual DbSet<ShoppingList> ShoppingLists { get; set; }
+        public virtual DbSet<Item> Items { get; set; }
 
         // Constructor needed for dependency injection.
         // It accepts DbContextOptions, allowing the configuration (like connection string)
