@@ -85,8 +85,8 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.sources=${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/src # Example structure
-            -Dsonar.tests=${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/tests # Example structure
+            -Dsonar.sources=${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }} # Example structure
+            -Dsonar.tests=${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/Nimblist.test # Example structure
             -Dsonar.test.inclusions=**/*.test.js,**/*.test.jsx,**/*.test.ts,**/*.test.tsx,**/*Tests.cs
             -Dsonar.exclusions=**/obj/**,**/bin/**,${{ env.FRONTEND_DIR }}/node_modules/**
             -Dsonar.javascript.lcov.reportPaths=${{ env.FRONTEND_COVERAGE_PATH }}
