@@ -75,7 +75,6 @@ jobs:
           dotnet test ${{ env.DOTNET_SLN }} --no-build --configuration Release \
             --collect:"XPlat Code Coverage" \
             /p:CoverletOutputFormat=opencover \
-            # Use the full path variable directly for Coverlet output
             /p:CoverletOutput=${{ github.workspace }}/${{ env.DOTNET_COVERAGE_PATH }}
         working-directory: ${{ env.DOTNET_DIR }} # Use variable
 
