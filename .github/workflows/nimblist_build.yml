@@ -79,7 +79,8 @@ jobs:
         # Run from the directory containing the solution or where scan should start
         working-directory: ${{ env.DOTNET_DIR }}
         run: |
-          dotnet sonarscanner begin 
+          dotnet sonarscanner begin /k:"${{ secrets.SONAR_PROJECT_KEY }}" \
+            /o:"${{ secrets.SONAR_ORGANIZATION }}" \
             /d:sonar.login="${{ secrets.SONAR_TOKEN }}" \
             /d:sonar.sources="${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/Nimblist.api" \ # Adjust .NET path
             /d:sonar.tests="${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/Nimblist.test" \ # Adjust .NET path
