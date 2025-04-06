@@ -8,30 +8,35 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
+# Dockerfile located in nimblist.api/
+# Build Context = Solution Root (.)
+
 # --- Build Stage ---
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-# Set encoding (optional but good practice)
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
     LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8
 
-# Copy solution file and project files first to leverage layer cache
-# --- Corrected Paths Relative to Build Context Root ---
+# Copy solution and ALL necessary project files first
+# Paths are relative TO THE BUILD CONTEXT (solution root)
+# Destination paths are relative TO THE WORKDIR (/src)
 COPY ["src/nimblist/nimblist.sln", "src/nimblist/"]
 COPY ["src/nimblist/nimblist.api/Nimblist.api.csproj", "src/nimblist/nimblist.api/"]
 COPY ["src/nimblist/nimblist.data/Nimblist.data.csproj", "src/nimblist/nimblist.data/"]
-# --- End Corrected Paths ---
+# --- ADD COPY FOR TEST PROJECT ---
+COPY ["src/nimblist/Nimblist.test/Nimblist.test.csproj", "src/nimblist/Nimblist.test/"]
+# --- (Optional: Copy dcproj if restore *really* needs it, but likely not) ---
+# COPY ["src/nimblist/docker-compose.dcproj", "src/nimblist/"]
 
 # Restore dependencies for the solution, using its path inside the container
-# Note: WORKDIR is /src, so the path becomes relative to that
 RUN dotnet restore "src/nimblist/nimblist.sln"
 
-# Copy the rest of the source code from the context root into the container's /src
-# This replicates your repo structure inside /src (e.g., /src/src/nimblist/...)
+# Copy the rest of the source code
 COPY . .
 
-# Publish the API project, using its full path within the container relative to WORKDIR (/src)
+# Publish the API project
+# Path is relative to WORKDIR /src
 RUN dotnet publish "./src/nimblist/nimblist.api/Nimblist.api.csproj" \
     -c Release \
     -o /app/publish \
@@ -42,8 +47,6 @@ RUN dotnet publish "./src/nimblist/nimblist.api/Nimblist.api.csproj" \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-# Optional: USER instruction might be here or inherited from 'base' stage
-# USER app
-EXPOSE 8080 
+EXPOSE 8080
 EXPOSE 8081
-ENTRYPOINT ["dotnet", "Nimblist.api.dll"] 
+ENTRYPOINT ["dotnet", "Nimblist.api.dll"]
