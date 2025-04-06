@@ -96,10 +96,9 @@ jobs:
       - name: Run .NET tests and generate coverage report
         run: |
           dotnet test ${{ env.DOTNET_SLN }} --no-build --configuration Release \
-            /p:CollectCoverage=true \ # Enable coverage via msbuild package
+            /p:CollectCoverage=true \ # REMOVED comment from this line
             /p:CoverletOutputFormat=opencover \
-            /p:CoverletOutput=${{ github.workspace }}/${{ env.DOTNET_COVERAGE_PATH }} # This should now be respected
-          # REMOVED: --collect:"XPlat Code Coverage"
+            /p:CoverletOutput=${{ github.workspace }}/${{ env.DOTNET_COVERAGE_PATH }}
         working-directory: ${{ env.DOTNET_DIR }}
 
       # 5. End SonarScanner analysis (AFTER build/test)
