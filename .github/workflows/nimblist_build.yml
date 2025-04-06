@@ -129,7 +129,7 @@ jobs:
       - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ${{ env.DOTNET_DIR }}
           file: ${{ env.DOTNET_DIR }}/nimblist.api/Dockerfile # Verify path
           push: true
           tags: |
