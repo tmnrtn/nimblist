@@ -65,15 +65,6 @@ jobs:
         run: dotnet restore ${{ env.DOTNET_SLN }}
         working-directory: ${{ env.DOTNET_DIR }} # Use variable (often '.' for root)
 
-      - name: Build .NET solution
-        run: dotnet build ${{ env.DOTNET_SLN }} --configuration Release --no-restore
-        working-directory: ${{ env.DOTNET_DIR }} # Use variable
-
-      - name: Create Test Results Directory
-        # Create path relative to root, matching DOTNET_COVERAGE_PATH structure
-        run: mkdir -p $(dirname ${{ env.DOTNET_COVERAGE_PATH }})
-        working-directory: ${{ env.DOTNET_DIR }} # Base directory for mkdir if needed
-
               # 1. Install the .NET Sonar Scanner tool
       - name: Install SonarScanner for .NET
         run: dotnet tool install --global dotnet-sonarscanner
@@ -83,7 +74,7 @@ jobs:
         # Run from the directory containing the solution or where scan should start
         working-directory: ${{ env.DOTNET_DIR }}
         run: |
-          dotnet sonarscanner begin /k:"${{ env.SONAR_PROJECT_KEY }}" /o:"${{ env.SONAR_ORGANIZATION }}" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="${{ env.SONAR_HOST_URL }}" /d:sonar.sources="${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/nimblist.api" /d:sonar.tests="${{ env.FRONTEND_DIR }}/src,${{ env.DOTNET_DIR }}/Nimblist.test" /d:sonar.test.inclusions="**/*.test.js,**/*.test.jsx,**/*.test.ts,**/*.test.tsx,**/*Tests.cs" /d:sonar.exclusions="**/obj/**,**/bin/**,${{ env.FRONTEND_DIR }}/node_modules/**,**/*.Generated.cs,**/nimblist.data/Migrations/**" /d:sonar.javascript.lcov.reportPaths="${{ github.workspace }}/${{ env.FRONTEND_COVERAGE_PATH }}" /d:sonar.cs.opencover.reportsPaths="${{ github.workspace }}/${{ env.DOTNET_COVERAGE_PATH }}"
+          dotnet sonarscanner begin /k:"${{ env.SONAR_PROJECT_KEY }}" /o:"${{ env.SONAR_ORGANIZATION }}" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="${{ env.SONAR_HOST_URL }}" /d:sonar.test.inclusions="**/*.test.js,**/*.test.jsx,**/*.test.ts,**/*.test.tsx,**/*Tests.cs" /d:sonar.exclusions="**/obj/**,**/bin/**,${{ env.FRONTEND_DIR }}/node_modules/**,**/*.Generated.cs,**/nimblist.data/Migrations/**" /d:sonar.javascript.lcov.reportPaths="${{ github.workspace }}/${{ env.FRONTEND_COVERAGE_PATH }}" /d:sonar.cs.opencover.reportsPaths="${{ github.workspace }}/${{ env.DOTNET_COVERAGE_PATH }}"
 
       # 3. Build the solution (AFTER scanner begin)
       #    The scanner integrates with the build to perform analysis.
