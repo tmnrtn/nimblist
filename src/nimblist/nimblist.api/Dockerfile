@@ -27,7 +27,7 @@ COPY ["src/nimblist/nimblist.data/Nimblist.data.csproj", "src/nimblist/nimblist.
 # --- ADD COPY FOR TEST PROJECT ---
 COPY ["src/nimblist/Nimblist.test/Nimblist.test.csproj", "src/nimblist/Nimblist.test/"]
 # --- (Optional: Copy dcproj if restore *really* needs it, but likely not) ---
-# COPY ["src/nimblist/docker-compose.dcproj", "src/nimblist/"]
+COPY ["src/nimblist/docker-compose.dcproj", "src/nimblist/"]
 
 # Restore dependencies for the solution, using its path inside the container
 RUN dotnet restore "src/nimblist/nimblist.sln"
