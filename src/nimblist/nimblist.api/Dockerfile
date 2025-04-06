@@ -44,6 +44,6 @@ WORKDIR /app
 COPY --from=build /app/publish .
 # Optional: USER instruction might be here or inherited from 'base' stage
 # USER app
-EXPOSE 8080  # Likely around line 41
-EXPOSE 8081  # Likely around line 42
-ENTRYPOINT ["dotnet", "Nimblist.api.dll"] # Likely around line 43
+EXPOSE 8080 
+EXPOSE 8081
+ENTRYPOINT ["dotnet", "Nimblist.api.dll"] 
