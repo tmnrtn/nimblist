@@ -4,7 +4,7 @@
 # ---- Build Stage ----
 FROM node:20-alpine AS builder
 WORKDIR /app
-ENV NODE_ENV production
+# ENV NODE_ENV production
 
 # Copy package files first, using path relative to context root
 COPY ["src/nimblist/Nimblist.Frontend/package.json", "./"]
@@ -13,7 +13,7 @@ COPY ["src/nimblist/Nimblist.Frontend/package-lock.json", "./"]
 # COPY ["src/nimblist/Nimblist.Frontend/yarn.lock", "./"]
 
 # Install dependencies based on copied package files
-RUN npm install
+RUN npm ci
 # If using yarn:
 # RUN yarn install --frozen-lockfile
 
@@ -23,7 +23,7 @@ RUN npm install
 COPY ["src/nimblist/Nimblist.Frontend/", "./"]
 
 # Build the React application
-RUN npm run build
+RUN NODE_ENV=production npm run build
 # If using yarn:
 # RUN yarn build
 
