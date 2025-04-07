@@ -43,6 +43,7 @@ _ReSharper*/
 .env.*
 !.env.example
 !.env.template
+!/src/nimblist/Nimblist.Frontend/.env.production
 
 # .NET User Secrets file (usually stored outside the repo anyway via `dotnet user-secrets`)
 **/secrets.json
