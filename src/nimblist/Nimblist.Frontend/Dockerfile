@@ -13,7 +13,7 @@ COPY ["src/nimblist/Nimblist.Frontend/package-lock.json", "./"]
 # COPY ["src/nimblist/Nimblist.Frontend/yarn.lock", "./"]
 
 # Install dependencies based on copied package files
-RUN npm ci
+RUN npm install
 # If using yarn:
 # RUN yarn install --frozen-lockfile
 
