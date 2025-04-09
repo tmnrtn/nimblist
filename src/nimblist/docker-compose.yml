@@ -8,6 +8,7 @@ services:
       # Use variable substitution for secrets from .env file (see step 2)
       - ConnectionStrings__DefaultConnection=Host=nimblist_db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       - ConnectionStrings__Redis=${ConnectionStrings__Redis}
+      - FrontendAppSettings__BaseUrl=${FRONTEND_APP_SETTINGS__BASE_URL}
     depends_on:
       - Nimblist.db # Make the API service depend on the database service
     networks: # Optional but recommended: define explicit network
