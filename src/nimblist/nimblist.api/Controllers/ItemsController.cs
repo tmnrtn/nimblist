@@ -68,7 +68,7 @@ namespace Nimblist.api.Controllers
                 return NotFound();
             }
 
-            return item;
+            return Ok(item);
         }
 
         // PUT: api/Items/5

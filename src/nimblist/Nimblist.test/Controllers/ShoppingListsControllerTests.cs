@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore; // Required for In-Memory provider and options
+
 // Moq is no longer needed for DbContext/DbSet, but might be needed if other dependencies exist
 // using Moq;
 using Nimblist.api.Controllers; // Assuming this is the correct namespace
@@ -14,7 +15,7 @@ using Nimblist.Data;
 using Nimblist.Data.Models;
 using Xunit;
 
-namespace Nimblist.Tests
+namespace Nimblist.test.Controllers
 {
     public class ShoppingListsControllerTests // Consider : IDisposable if complex setup/teardown needed later
     {
@@ -262,6 +263,100 @@ namespace Nimblist.Tests
             {
                 var listShouldStillExist = await context.ShoppingLists.FindAsync(listIdToDelete);
                 Assert.NotNull(listShouldStillExist);
+            }
+        }
+        [Fact]
+        public async Task PutShoppingList_ReturnsNoContent_WhenListIsUpdated()
+        {
+            // Arrange
+            var listId = Guid.NewGuid();
+            var initialName = "Initial List Name";
+            var updatedName = "Updated List Name";
+
+            await SeedDataAsync(new ShoppingList { Id = listId, Name = initialName, UserId = TestUserId });
+
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var controller = CreateControllerWithContext(context);
+                var updateDto = new ShoppingListUpdateDto { Name = updatedName };
+
+                // Act
+                var result = await controller.PutShoppingList(listId, updateDto);
+
+                // Assert
+                Assert.IsType<NoContentResult>(result);
+
+                // Verify the update in the database
+                var updatedList = await context.ShoppingLists.FindAsync(listId);
+                Assert.NotNull(updatedList);
+                Assert.Equal(updatedName, updatedList.Name);
+            }
+        }
+
+        [Fact]
+        public async Task PutShoppingList_ReturnsNotFound_WhenListDoesNotExist()
+        {
+            // Arrange
+            var nonExistentListId = Guid.NewGuid();
+            var updateDto = new ShoppingListUpdateDto { Name = "Updated Name" };
+
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var controller = CreateControllerWithContext(context);
+
+                // Act
+                var result = await controller.PutShoppingList(nonExistentListId, updateDto);
+
+                // Assert
+                Assert.IsType<NotFoundResult>(result);
+            }
+        }
+
+        [Fact]
+        public async Task PutShoppingList_ReturnsNotFound_WhenListBelongsToOtherUser()
+        {
+            // Arrange
+            var otherUserId = "other-user-id";
+            var listId = Guid.NewGuid();
+            await SeedDataAsync(new ShoppingList { Id = listId, Name = "Other User's List", UserId = otherUserId });
+
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var controller = CreateControllerWithContext(context);
+                var updateDto = new ShoppingListUpdateDto { Name = "Updated Name" };
+
+                // Act
+                var result = await controller.PutShoppingList(listId, updateDto);
+
+                // Assert
+                Assert.IsType<NotFoundResult>(result);
+            }
+        }
+
+        [Fact]
+        public async Task PutShoppingList_ReturnsUnauthorized_WhenUserIdClaimIsMissing()
+        {
+            // Arrange
+            var listId = Guid.NewGuid();
+            var updateDto = new ShoppingListUpdateDto { Name = "Updated Name" };
+
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var controller = new ShoppingListsController(context);
+
+                // Set up a ClaimsPrincipal without the NameIdentifier claim
+                var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[] { }, "mock"));
+                controller.ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext { User = user }
+                };
+
+                // Act
+                var result = await controller.PutShoppingList(listId, updateDto);
+
+                // Assert
+                var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
+                Assert.Equal("User ID claim not found.", unauthorizedResult.Value);
             }
         }
     }
