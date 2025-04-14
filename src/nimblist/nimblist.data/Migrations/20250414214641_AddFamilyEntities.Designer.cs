@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Nimblist.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nimblist.data.Migrations
 {
     [DbContext(typeof(NimblistContext))]
-    partial class NimblistContextModelSnapshot : ModelSnapshot
+    [Migration("20250414214641_AddFamilyEntities")]
+    partial class AddFamilyEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -231,7 +234,7 @@ namespace Nimblist.data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Families");
+                    b.ToTable("Family");
                 });
 
             modelBuilder.Entity("Nimblist.Data.Models.FamilyMember", b =>
@@ -263,7 +266,7 @@ namespace Nimblist.data.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_FamilyMembers_UserId_FamilyId");
 
-                    b.ToTable("FamilyMembers");
+                    b.ToTable("FamilyMember");
                 });
 
             modelBuilder.Entity("Nimblist.Data.Models.Item", b =>

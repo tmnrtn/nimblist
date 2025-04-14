@@ -21,6 +21,8 @@ namespace Nimblist.Data.Models
         [Required]
         public string UserId { get; set; } = string.Empty; // Foreign key property (matches IdentityUser's Id type - string)
 
+        public bool IsShared { get; set; } = false; // Indicates if the list is shared with family members
+
         // Navigation property back to the user who owns this list
         [ForeignKey(nameof(UserId))] // Links this navigation property to the UserId foreign key
         public virtual ApplicationUser? User { get; set; } // Reference to the related ApplicationUser

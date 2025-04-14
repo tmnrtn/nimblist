@@ -359,5 +359,112 @@ namespace Nimblist.test.Controllers
                 Assert.Equal("User ID claim not found.", unauthorizedResult.Value);
             }
         }
+        [Fact]
+        public async Task GetUserShoppingLists_ReturnsOnlyOwnedAndSharedLists()
+        {
+            // Arrange
+            var userId = TestUserId;
+            var sharedUserId = "shared-user-id";
+            var ownedListId = Guid.NewGuid();
+            var sharedListId = Guid.NewGuid();
+
+            await SeedDataAsync(
+                new ShoppingList { Id = ownedListId, Name = "Owned List", UserId = userId },
+                new ShoppingList { Id = sharedListId, Name = "Shared List", UserId = sharedUserId, IsShared = true }
+            );
+
+            var family = new Family { Id = Guid.NewGuid(), Name = "Family" };
+            var familyMember = new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, UserId = userId };
+            var otherFamilyMember = new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, UserId = sharedUserId };
+
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                context.Families.Add(family);
+                context.FamilyMembers.Add(familyMember);
+                context.FamilyMembers.Add(otherFamilyMember);
+                await context.SaveChangesAsync();
+
+                var controller = CreateControllerWithContext(context);
+
+                // Act
+                var result = await controller.GetShoppingLists();
+
+                // Assert
+                var okResult = Assert.IsType<OkObjectResult>(result.Result);
+                var returnValue = Assert.IsAssignableFrom<IEnumerable<ShoppingList>>(okResult.Value);
+                Assert.Equal(2, returnValue.Count());
+                Assert.Contains(returnValue, list => list.Id == ownedListId);
+                Assert.Contains(returnValue, list => list.Id == sharedListId);
+            }
+        }
+        [Fact]
+        public async Task GetShoppingList_ReturnsSharedList_WhenUserHasAccess()
+        {
+            // Arrange
+            var sharedUserId = "shared-user-id";
+            var sharedListId = Guid.NewGuid();
+            await SeedDataAsync(new ShoppingList { Id = sharedListId, Name = "Shared List", UserId = sharedUserId, IsShared = true });
+
+            var family = new Family { Id = Guid.NewGuid(), Name = "Family" };
+            var familyMember = new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, UserId = TestUserId };
+            var otherFamilyMember = new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, UserId = sharedUserId };
+
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                context.Families.Add(family);
+                context.FamilyMembers.Add(familyMember);
+                context.FamilyMembers.Add(otherFamilyMember);
+                await context.SaveChangesAsync();
+
+                var controller = CreateControllerWithContext(context);
+
+                // Act
+                var result = await controller.GetShoppingList(sharedListId);
+
+                // Assert
+                var okResult = Assert.IsType<OkObjectResult>(result.Result);
+                var returnValue = Assert.IsType<ShoppingList>(okResult.Value);
+                Assert.Equal(sharedListId, returnValue.Id);
+            }
+        }
+        [Fact]
+        public async Task DeleteShoppingList_ReturnsNotFound_WhenDeletingSharedList()
+        {
+            // Arrange
+            var sharedUserId = "shared-user-id";
+            var sharedListId = Guid.NewGuid();
+            await SeedDataAsync(new ShoppingList { Id = sharedListId, Name = "Shared List", UserId = sharedUserId, IsShared = true });
+
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var controller = CreateControllerWithContext(context);
+
+                // Act
+                var result = await controller.DeleteShoppingList(sharedListId);
+
+                // Assert
+                Assert.IsType<NotFoundResult>(result);
+            }
+        }
+        [Fact]
+        public async Task PostShoppingList_CreatesListWithCorrectUserId()
+        {
+            // Arrange
+            var newListDto = new ShoppingListInputDto { Name = "New List" };
+
+            using (var context = new NimblistContext(_dbOptions))
+            {
+                var controller = CreateControllerWithContext(context);
+
+                // Act
+                var result = await controller.PostShoppingList(newListDto);
+
+                // Assert
+                var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(result.Result);
+                var returnValue = Assert.IsType<ShoppingList>(createdAtActionResult.Value);
+                Assert.Equal(TestUserId, returnValue.UserId);
+                Assert.Equal(newListDto.Name, returnValue.Name);
+            }
+        }
     }
 }
