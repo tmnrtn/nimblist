@@ -12,6 +12,8 @@ namespace Nimblist.Data
         // These represent the tables in your database.
         public virtual DbSet<ShoppingList> ShoppingLists { get; set; }
         public virtual DbSet<Item> Items { get; set; }
+        public virtual DbSet<Family> Families { get; set; }
+        public virtual DbSet<FamilyMember> FamilyMembers { get; set; }
 
         // Constructor needed for dependency injection.
         // It accepts DbContextOptions, allowing the configuration (like connection string)
@@ -65,6 +67,27 @@ namespace Nimblist.Data
                 entity.HasIndex(i => i.ShoppingListId).HasDatabaseName("IX_Items_ShoppingListId");
             });
 
+            // Family to FamilyMember relationship
+            builder.Entity<Family>()
+                .HasMany(f => f.Members)
+                .WithOne(m => m.Family)
+                .HasForeignKey(m => m.FamilyId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ApplicationUser to FamilyMember relationship
+            builder.Entity<ApplicationUser>()
+                .HasMany(u => u.Families)
+                .WithOne(m => m.User)
+                .HasForeignKey(m => m.UserId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Index for performance
+            builder.Entity<FamilyMember>()
+                .HasIndex(m => new { m.UserId, m.FamilyId })
+                .IsUnique()
+                .HasDatabaseName("IX_FamilyMembers_UserId_FamilyId");
 
             // === PostgreSQL Specific Configuration (Optional Examples) ===
 

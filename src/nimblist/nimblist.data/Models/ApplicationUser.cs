@@ -10,8 +10,9 @@ namespace Nimblist.Data.Models
         // e.g., public string? FirstName { get; set; }
 
         // Navigation property: A user can have multiple shopping lists
-        // 'virtual' enables lazy loading (though explicit loading with .Include() is often preferred)
-        // Initialize collection properties to avoid null reference exceptions
         public virtual ICollection<ShoppingList> ShoppingLists { get; set; } = new List<ShoppingList>();
+
+        // Navigation property for the many-to-many relationship with Family
+        public virtual ICollection<FamilyMember> Families { get; set; } = new List<FamilyMember>();
     }
 }

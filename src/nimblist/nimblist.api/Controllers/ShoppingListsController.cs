@@ -25,6 +25,34 @@ namespace Nimblist.api.Controllers
             _context = context;
         }
 
+        private async Task<List<ShoppingList>> GetUserShoppingLists(string userId)
+        {
+            var userLists =  await _context.ShoppingLists
+                .Where(sl => sl.UserId == userId)
+                .Include(sl => sl.Items) // Include items if needed
+                .ToListAsync();
+
+            var sharedLists = await _context.ShoppingLists
+                .Join(_context.FamilyMembers,
+                    sl => sl.UserId,
+                    fm => fm.UserId,
+                    (sl, fm) => new { sl, fm })
+                .Join(_context.FamilyMembers,
+                    lfm => lfm.fm.FamilyId,
+                    ofm => ofm.FamilyId,
+                    (sfm, ofm) => new { sfm.sl, ofm })
+                .Where(slofm => slofm.ofm.UserId == userId && slofm.sl.UserId != userId)
+                .Select(slofm => slofm.sl)
+                .Distinct()
+                .Include(sl => sl.Items) // Include items if needed
+                .ToListAsync();
+
+            return userLists.Concat(sharedLists)
+                .Distinct()
+                .OrderByDescending(sl => sl.CreatedAt)
+                .ToList();
+        }
+
         // GET: api/ShoppingLists
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ShoppingList>>> GetShoppingLists()
@@ -32,10 +60,7 @@ namespace Nimblist.api.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
 
-            var userShoppingLists = await _context.ShoppingLists
-                                        .Where(sl => sl.UserId == userId) // <<< Filter by UserId
-                                        .OrderByDescending(sl => sl.CreatedAt) // Optional: Order them
-                                        .ToListAsync();
+            var userShoppingLists = await GetUserShoppingLists(userId);
 
             return Ok(userShoppingLists);
         }
@@ -47,10 +72,11 @@ namespace Nimblist.api.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
 
+            var userShoppingLists = await GetUserShoppingLists(userId);
+
             // Find the list matching ID AND UserId
-            var shoppingList = await _context.ShoppingLists
-                                        .Include(sl => sl.Items) // Still optionally include children
-                                        .FirstOrDefaultAsync(sl => sl.Id == id && sl.UserId == userId); // <<< Filter by Id AND UserId
+            var shoppingList = userShoppingLists        
+                                        .FirstOrDefault(sl => sl.Id == id); // <<< Filter by Id AND UserId
 
             if (shoppingList == null)
             {
@@ -69,9 +95,11 @@ namespace Nimblist.api.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
 
-            // Find the list matching Id AND UserId to ensure ownership
-            var existingList = await _context.ShoppingLists
-                                         .FirstOrDefaultAsync(sl => sl.Id == id && sl.UserId == userId); // <<< Ownership check
+            var userShoppingLists = await GetUserShoppingLists(userId);
+
+            // Find the list matching ID AND UserId
+            var existingList = userShoppingLists
+                                        .FirstOrDefault(sl => sl.Id == id); // <<< Filter by Id AND UserId
 
             if (existingList == null)
             {
@@ -122,8 +150,11 @@ namespace Nimblist.api.Controllers
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
 
             // Find the list matching Id AND UserId to ensure ownership
-            var shoppingList = await _context.ShoppingLists
-                                        .FirstOrDefaultAsync(sl => sl.Id == id && sl.UserId == userId); // <<< Ownership check
+            var userShoppingLists = await GetUserShoppingLists(userId);
+
+            // Find the list matching ID AND UserId
+            var shoppingList = userShoppingLists
+                                        .FirstOrDefault(sl => sl.Id == id); // <<< Filter by Id AND UserId
 
             if (shoppingList == null)
             {
