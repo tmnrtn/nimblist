@@ -14,5 +14,7 @@ namespace Nimblist.Data.Models
 
         // Navigation property for the many-to-many relationship with Family
         public virtual ICollection<FamilyMember> Families { get; set; } = new List<FamilyMember>();
+
+        public virtual ICollection<ListShare> ListShares { get; set; } = new List<ListShare>();
     }
 }
