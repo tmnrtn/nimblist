@@ -95,7 +95,6 @@ namespace Nimblist.Data
                 .HasMany(f => f.ListShares)
                 .WithOne(m => m.Family)
                 .HasForeignKey(m => m.FamilyId)
-                .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
 
             // ApplicationUser to FamilyMember relationship
@@ -103,7 +102,6 @@ namespace Nimblist.Data
                 .HasMany(u => u.ListShares)
                 .WithOne(m => m.User)
                 .HasForeignKey(m => m.UserId)
-                .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<ShoppingList>()

@@ -9,11 +9,10 @@ namespace Nimblist.Data.Models
         [Key]
         public Guid Id { get; set; }
 
+        public string? UserId { get; set; } // Made nullable
 
-        public string UserId { get; set; } = string.Empty;
+        public Guid? FamilyId { get; set; } // Made nullable
 
-
-        public Guid FamilyId { get; set; }
         public Guid ListId { get; set; }
 
         [ForeignKey(nameof(UserId))]
@@ -21,10 +20,10 @@ namespace Nimblist.Data.Models
 
         [ForeignKey(nameof(FamilyId))]
         public virtual Family? Family { get; set; }
+
         [ForeignKey(nameof(ListId))]
         public virtual ShoppingList? List { get; set; }
 
-        // When the user joined the family
         public DateTimeOffset SharedAt { get; set; } = DateTimeOffset.UtcNow;
     }
 }
