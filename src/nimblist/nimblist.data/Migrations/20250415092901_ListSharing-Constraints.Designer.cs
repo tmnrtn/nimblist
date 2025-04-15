@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Nimblist.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nimblist.data.Migrations
 {
     [DbContext(typeof(NimblistContext))]
-    partial class NimblistContextModelSnapshot : ModelSnapshot
+    [Migration("20250415092901_ListSharing-Constraints")]
+    partial class ListSharingConstraints
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -310,7 +313,7 @@ namespace Nimblist.data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("FamilyId")
+                    b.Property<Guid>("FamilyId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("ListId")
@@ -320,6 +323,7 @@ namespace Nimblist.data.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UserId")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -445,7 +449,8 @@ namespace Nimblist.data.Migrations
                     b.HasOne("Nimblist.Data.Models.Family", "Family")
                         .WithMany("ListShares")
                         .HasForeignKey("FamilyId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Nimblist.Data.Models.ShoppingList", "List")
                         .WithMany("ListShares")
@@ -456,7 +461,8 @@ namespace Nimblist.data.Migrations
                     b.HasOne("Nimblist.Data.Models.ApplicationUser", "User")
                         .WithMany("ListShares")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Family");
 
