@@ -27,27 +27,33 @@ namespace Nimblist.api.Controllers
 
         private async Task<List<ShoppingList>> GetUserShoppingLists(string userId)
         {
-            var userLists =  await _context.ShoppingLists
-                .Where(sl => sl.UserId == userId)
-                .Include(sl => sl.Items) // Include items if needed
-                .ToListAsync();
-
-            var sharedLists = await _context.ShoppingLists
-                .Join(_context.FamilyMembers,
-                    sl => sl.UserId,
-                    fm => fm.UserId,
-                    (sl, fm) => new { sl, fm })
-                .Join(_context.FamilyMembers,
-                    lfm => lfm.fm.FamilyId,
-                    ofm => ofm.FamilyId,
-                    (sfm, ofm) => new { sfm.sl, ofm })
-                .Where(slofm => slofm.ofm.UserId == userId && slofm.sl.UserId != userId)
-                .Select(slofm => slofm.sl)
+            var userSharedLists = await _context.ShoppingLists
+                .Join(_context.ListShares,
+                    sl => sl.Id,
+                    ls => ls.ListId,
+                    (sl, ls) => new { sl, ls })
+                .Where(sls => sls.ls.UserId == userId)
+                .Select(sls => sls.sl)
                 .Distinct()
                 .Include(sl => sl.Items) // Include items if needed
                 .ToListAsync();
 
-            return userLists.Concat(sharedLists)
+            var famiySharedLists = await _context.ShoppingLists
+                .Join(_context.ListShares,
+                    sl => sl.Id,
+                    ls => ls.ListId,
+                    (sl, ls) => new { sl, ls })
+                .Join(_context.FamilyMembers,
+                    sls => sls.ls.FamilyId,
+                    fm => fm.FamilyId,
+                    (sls, fm) => new { sls.sl, fm })
+                .Where(slfm => slfm.fm.UserId == userId)
+                .Select(slfm => slfm.sl)
+                .Distinct()
+                .Include(sl => sl.Items) // Include items if needed
+                .ToListAsync();
+
+            return userSharedLists.Concat(famiySharedLists)
                 .Distinct()
                 .OrderByDescending(sl => sl.CreatedAt)
                 .ToList();
@@ -75,7 +81,7 @@ namespace Nimblist.api.Controllers
             var userShoppingLists = await GetUserShoppingLists(userId);
 
             // Find the list matching ID AND UserId
-            var shoppingList = userShoppingLists        
+            var shoppingList = userShoppingLists
                                         .FirstOrDefault(sl => sl.Id == id); // <<< Filter by Id AND UserId
 
             if (shoppingList == null)
@@ -136,6 +142,15 @@ namespace Nimblist.api.Controllers
             // EF Core generates the Guid Id automatically
 
             _context.ShoppingLists.Add(shoppingList);
+            await _context.SaveChangesAsync();
+
+            var listShare = new ListShare
+            {
+                UserId = userId,
+                ListId = shoppingList.Id
+            };
+
+            _context.ListShares.Add(listShare);
             await _context.SaveChangesAsync();
 
             // Important: Return the fully created entity, not the DTO

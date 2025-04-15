@@ -36,11 +36,11 @@ namespace Nimblist.test.Controllers
         }
 
         // Helper method to seed data into a fresh context instance
-        private async Task SeedDataAsync(params ShoppingList[] shoppingLists)
+        private async Task SeedDataAsync(params object[] entities)
         {
             using (var context = new NimblistContext(_dbOptions))
             {
-                context.ShoppingLists.AddRange(shoppingLists);
+                context.AddRange(entities);
                 await context.SaveChangesAsync();
             }
         }
@@ -76,6 +76,8 @@ namespace Nimblist.test.Controllers
                 new ShoppingList { Id = userListId, Name = "My Test List", UserId = TestUserId },
                 new ShoppingList { Id = otherUserListId, Name = "Other User's List", UserId = otherUserId }
             );
+
+            await SeedDataAsync(new ListShare { Id = Guid.NewGuid(), ListId = userListId, UserId = TestUserId });
 
             using (var context = new NimblistContext(_dbOptions))
             {
@@ -141,6 +143,7 @@ namespace Nimblist.test.Controllers
             // Arrange
             var listId = Guid.NewGuid();
             await SeedDataAsync(new ShoppingList { Id = listId, Name = "My Specific List", UserId = TestUserId });
+            await SeedDataAsync(new ListShare { Id = Guid.NewGuid(), ListId = listId, UserId = TestUserId });
 
             using (var context = new NimblistContext(_dbOptions))
             {
@@ -197,6 +200,7 @@ namespace Nimblist.test.Controllers
             // Arrange
             var listIdToDelete = Guid.NewGuid();
             await SeedDataAsync(new ShoppingList { Id = listIdToDelete, Name = "List To Delete", UserId = TestUserId });
+            await SeedDataAsync(new ListShare { Id = Guid.NewGuid(), ListId = listIdToDelete, UserId = TestUserId });
 
             using (var context = new NimblistContext(_dbOptions)) // Context for Act
             {
@@ -274,6 +278,7 @@ namespace Nimblist.test.Controllers
             var updatedName = "Updated List Name";
 
             await SeedDataAsync(new ShoppingList { Id = listId, Name = initialName, UserId = TestUserId });
+            await SeedDataAsync(new ListShare { Id = Guid.NewGuid(), ListId = listId, UserId = TestUserId });
 
             using (var context = new NimblistContext(_dbOptions))
             {
@@ -370,20 +375,15 @@ namespace Nimblist.test.Controllers
 
             await SeedDataAsync(
                 new ShoppingList { Id = ownedListId, Name = "Owned List", UserId = userId },
-                new ShoppingList { Id = sharedListId, Name = "Shared List", UserId = sharedUserId, IsShared = true }
+                new ShoppingList { Id = sharedListId, Name = "Shared List", UserId = sharedUserId }
             );
 
-            var family = new Family { Id = Guid.NewGuid(), Name = "Family" };
-            var familyMember = new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, UserId = userId };
-            var otherFamilyMember = new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, UserId = sharedUserId };
+            await SeedDataAsync(new ListShare { Id = Guid.NewGuid(), ListId = ownedListId, UserId = TestUserId });
+            await SeedDataAsync(new ListShare { Id = Guid.NewGuid(), ListId = sharedListId, UserId = TestUserId });
+
 
             using (var context = new NimblistContext(_dbOptions))
             {
-                context.Families.Add(family);
-                context.FamilyMembers.Add(familyMember);
-                context.FamilyMembers.Add(otherFamilyMember);
-                await context.SaveChangesAsync();
-
                 var controller = CreateControllerWithContext(context);
 
                 // Act
@@ -403,19 +403,12 @@ namespace Nimblist.test.Controllers
             // Arrange
             var sharedUserId = "shared-user-id";
             var sharedListId = Guid.NewGuid();
-            await SeedDataAsync(new ShoppingList { Id = sharedListId, Name = "Shared List", UserId = sharedUserId, IsShared = true });
-
-            var family = new Family { Id = Guid.NewGuid(), Name = "Family" };
-            var familyMember = new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, UserId = TestUserId };
-            var otherFamilyMember = new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, UserId = sharedUserId };
+            await SeedDataAsync(new ShoppingList { Id = sharedListId, Name = "Shared List", UserId = sharedUserId });
+            await SeedDataAsync(new ListShare { Id = Guid.NewGuid(), ListId = sharedListId, UserId = TestUserId });
+            await SeedDataAsync(new ListShare { Id = Guid.NewGuid(), ListId = sharedListId, UserId = sharedUserId });
 
             using (var context = new NimblistContext(_dbOptions))
             {
-                context.Families.Add(family);
-                context.FamilyMembers.Add(familyMember);
-                context.FamilyMembers.Add(otherFamilyMember);
-                await context.SaveChangesAsync();
-
                 var controller = CreateControllerWithContext(context);
 
                 // Act
@@ -433,7 +426,7 @@ namespace Nimblist.test.Controllers
             // Arrange
             var sharedUserId = "shared-user-id";
             var sharedListId = Guid.NewGuid();
-            await SeedDataAsync(new ShoppingList { Id = sharedListId, Name = "Shared List", UserId = sharedUserId, IsShared = true });
+            await SeedDataAsync(new ShoppingList { Id = sharedListId, Name = "Shared List", UserId = sharedUserId });
 
             using (var context = new NimblistContext(_dbOptions))
             {
