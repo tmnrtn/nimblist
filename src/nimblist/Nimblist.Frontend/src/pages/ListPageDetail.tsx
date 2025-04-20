@@ -180,6 +180,9 @@ const ListPageDetail: React.FC = () => {
         setList((prevList) => {
           if (!prevList) return null; // Safety check
           // Create a new list object with the new item appended
+          if (prevList.items.some((item) => item.id === newItemData.id)) {
+            return prevList;
+          }
           return {
             ...prevList,
             items: [...prevList.items, newItemData],
