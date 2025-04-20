@@ -106,7 +106,7 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
 
     // --- API Call ---
     try {
-      const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/items/${itemIdToDelete}`;
+      const apiUrl = `/api/items/${itemIdToDelete}`;
       await authenticatedFetch(apiUrl, { method: 'DELETE' });
 
       // ** Update UI State on Success **
