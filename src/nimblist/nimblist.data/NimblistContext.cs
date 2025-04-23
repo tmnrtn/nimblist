@@ -14,8 +14,9 @@ namespace Nimblist.Data
         public virtual DbSet<Item> Items { get; set; }
         public virtual DbSet<Family> Families { get; set; }
         public virtual DbSet<FamilyMember> FamilyMembers { get; set; }
-
         public virtual DbSet<ListShare> ListShares { get; set; } = null!; // Initialize to avoid null warnings
+        public virtual DbSet<Category> Categories { get; set; } = null!; // Initialize to avoid null warnings
+        public virtual DbSet<SubCategory> SubCategories { get; set; } = null!; // Initialize to avoid null warnings
 
         // Constructor needed for dependency injection.
         // It accepts DbContextOptions, allowing the configuration (like connection string)
@@ -116,6 +117,25 @@ namespace Nimblist.Data
                 .HasIndex(m => new { m.UserId, m.FamilyId })
                 .IsUnique()
                 .HasDatabaseName("IX_FamilyMembers_UserId_FamilyId");
+
+            builder.Entity<Category>()
+                .HasMany(u => u.SubCategories)
+                .WithOne(m => m.ParentCategory)
+                .HasForeignKey(m => m.ParentCategoryId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<SubCategory>()
+                .HasMany(u => u.Items)
+                .WithOne(m => m.SubCategory)
+                .HasForeignKey(m => m.SubCategoryId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<Category>()
+                .HasMany(u => u.Items)
+                .WithOne(m => m.Category)
+                .HasForeignKey(m => m.CategoryId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // === PostgreSQL Specific Configuration (Optional Examples) ===
 
