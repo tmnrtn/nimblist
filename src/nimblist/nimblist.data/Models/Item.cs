@@ -24,8 +24,16 @@ namespace Nimblist.Data.Models
         // --- Relationship with ShoppingList ---
         public Guid ShoppingListId { get; set; } // Foreign key property
 
+        public Guid? CategoryId { get; set; } // Foreign key property for category
+        public Guid? SubCategoryId { get; set; } // Foreign key property for subcategory
+
         // Navigation property back to the list this item belongs to
         [ForeignKey(nameof(ShoppingListId))]
         public virtual ShoppingList? List { get; set; } // Reference to the related ShoppingList
+
+        [ForeignKey(nameof(CategoryId))]
+        public virtual Category? Category { get; set; } // Reference to the related Category
+        [ForeignKey(nameof(SubCategoryId))]
+        public virtual SubCategory? SubCategory { get; set; } // Reference to the related SubCategory
     }
 }
