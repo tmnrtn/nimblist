@@ -33,14 +33,14 @@ COPY ["src/nimblist/docker-compose.dcproj", "nimblist/"]
 RUN dotnet restore "nimblist/nimblist.sln"
 
 # Copy the rest of the source code
-COPY . .
+COPY src/nimblist/. nimblist/.
 
 # Publish the API project
 # Path is relative to WORKDIR /src
 RUN dotnet publish "./nimblist/nimblist.api/Nimblist.api.csproj" \
     -c Release \
     -o /app/publish \
-    --no-restore \
+    #--no-restore \
     /p:UseAppHost=false
 
 # --- Final Stage ---
