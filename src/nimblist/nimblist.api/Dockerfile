@@ -21,23 +21,23 @@ ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
 # Copy solution and ALL necessary project files first
 # Paths are relative TO THE BUILD CONTEXT (solution root)
 # Destination paths are relative TO THE WORKDIR (/src)
-COPY ["src/nimblist/nimblist.sln", "src/nimblist/"]
-COPY ["src/nimblist/nimblist.api/Nimblist.api.csproj", "src/nimblist/nimblist.api/"]
-COPY ["src/nimblist/nimblist.data/Nimblist.data.csproj", "src/nimblist/nimblist.data/"]
+COPY ["src/nimblist/nimblist.sln", "nimblist/"]
+COPY ["src/nimblist/nimblist.api/Nimblist.api.csproj", "nimblist/nimblist.api/"]
+COPY ["src/nimblist/nimblist.data/Nimblist.data.csproj", "nimblist/nimblist.data/"]
 # --- ADD COPY FOR TEST PROJECT ---
-COPY ["src/nimblist/Nimblist.test/Nimblist.test.csproj", "src/nimblist/Nimblist.test/"]
+COPY ["src/nimblist/Nimblist.test/Nimblist.test.csproj", "nimblist/Nimblist.test/"]
 # --- (Optional: Copy dcproj if restore *really* needs it, but likely not) ---
-COPY ["src/nimblist/docker-compose.dcproj", "src/nimblist/"]
+COPY ["src/nimblist/docker-compose.dcproj", "nimblist/"]
 
 # Restore dependencies for the solution, using its path inside the container
-RUN dotnet restore "src/nimblist/nimblist.sln"
+RUN dotnet restore "nimblist/nimblist.sln"
 
 # Copy the rest of the source code
 COPY . .
 
 # Publish the API project
 # Path is relative to WORKDIR /src
-RUN dotnet publish "./src/nimblist/nimblist.api/Nimblist.api.csproj" \
+RUN dotnet publish "./nimblist/nimblist.api/Nimblist.api.csproj" \
     -c Release \
     -o /app/publish \
     --no-restore \
