@@ -177,7 +177,7 @@ namespace Nimblist.test.Controllers
 
                 // Assert (Result Check)
                 var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-                var returnValue = Assert.IsType<ShoppingList>(createdAtActionResult.Value);
+                var returnValue = Assert.IsType<ShoppingListWithItemsDto>(createdAtActionResult.Value);
                 Assert.Equal(newListDto.Name, returnValue.Name);
                 Assert.Equal(TestUserId, returnValue.UserId); // Ensure user ID is set correctly
                 Assert.Equal(nameof(controller.GetShoppingList), createdAtActionResult.ActionName); // Check action name
@@ -454,7 +454,7 @@ namespace Nimblist.test.Controllers
 
                 // Assert
                 var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-                var returnValue = Assert.IsType<ShoppingList>(createdAtActionResult.Value);
+                var returnValue = Assert.IsType<ShoppingListWithItemsDto>(createdAtActionResult.Value);
                 Assert.Equal(TestUserId, returnValue.UserId);
                 Assert.Equal(newListDto.Name, returnValue.Name);
             }
