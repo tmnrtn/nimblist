@@ -60,7 +60,8 @@ namespace Nimblist.api.Controllers
                 CategoryId = item.CategoryId,
                 CategoryName = item.Category?.Name,
                 SubCategoryId = item.SubCategoryId,
-                SubCategoryName = item.SubCategory?.Name
+                SubCategoryName = item.SubCategory?.Name,
+                List = item.List
             };
         }
 

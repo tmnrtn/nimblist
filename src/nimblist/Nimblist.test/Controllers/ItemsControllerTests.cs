@@ -137,7 +137,7 @@ namespace Nimblist.test.Controllers
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var items = Assert.IsAssignableFrom<IEnumerable<Item>>(okResult.Value);
+            var items = Assert.IsAssignableFrom<IEnumerable<ItemWithCategoryDto>>(okResult.Value);
             Assert.Equal(expectedCount, items.Count());
             Assert.All(items, item => Assert.Equal(_testUserId, item.List.UserId)); // Filter should work
             Assert.Equal("Eggs", items.OrderByDescending(i => i.AddedAt).First().Name); // OrderBy should work
@@ -181,9 +181,9 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetItem(testItemId);
 
                 // Assert
-                var actionResult = Assert.IsType<ActionResult<Item>>(result);
+                var actionResult = Assert.IsType<ActionResult<ItemWithCategoryDto>>(result);
                 var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
-                var itemResult = Assert.IsType<Item>(okResult.Value);
+                var itemResult = Assert.IsType<ItemWithCategoryDto>(okResult.Value);
                 Assert.Equal(testItemId, itemResult.Id);
                 Assert.Equal(_testUserId, itemResult.List.UserId); // Verify correct user
             }
@@ -203,7 +203,7 @@ namespace Nimblist.test.Controllers
             var result = await controller.GetItem(nonExistentId);
 
             // Assert
-            var actionResult = Assert.IsType<ActionResult<Item>>(result);
+            var actionResult = Assert.IsType<ActionResult<ItemWithCategoryDto>>(result);
             Assert.IsType<NotFoundResult>(actionResult.Result);
         }
 
@@ -228,7 +228,7 @@ namespace Nimblist.test.Controllers
 
                 // Assert
                 // InMemory provider respects the Where clause (i.List.UserId == userId)
-                var actionResult = Assert.IsType<ActionResult<Item>>(result);
+                var actionResult = Assert.IsType<ActionResult<ItemWithCategoryDto>>(result);
                 Assert.IsType<NotFoundResult>(actionResult.Result);
             }
         }
@@ -278,13 +278,13 @@ namespace Nimblist.test.Controllers
 
             // Assert
             // 1. Check Result Type and Location Header
-            var actionResult = Assert.IsType<ActionResult<Item>>(result);
+            var actionResult = Assert.IsType<ActionResult<ItemWithCategoryDto>>(result);
             var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(actionResult.Result);
             Assert.Equal(nameof(ItemsController.GetItem), createdAtActionResult.ActionName);
             var routeValueId = Assert.IsType<Guid>(createdAtActionResult.RouteValues["id"]);
 
             // 2. Check Response Body
-            var itemResult = Assert.IsType<Item>(createdAtActionResult.Value);
+            var itemResult = Assert.IsType<ItemWithCategoryDto>(createdAtActionResult.Value);
             Assert.Equal(newItemDto.Name, itemResult.Name);
             Assert.Equal(newItemDto.ShoppingListId, itemResult.ShoppingListId);
             Assert.Equal(routeValueId, itemResult.Id); // Ensure returned item ID matches route value ID
@@ -297,7 +297,7 @@ namespace Nimblist.test.Controllers
 
             // 4. Verify SignalR Call
             _mockClientProxy.Verify(
-                x => x.SendCoreAsync("ReceiveItemAdded", It.Is<object[]>(o => o != null && o.Length == 1 && (o[0] as Item).Id == addedItem.Id), It.IsAny<CancellationToken>()),
+                x => x.SendCoreAsync("ReceiveItemAdded", It.Is<object[]>(o => o != null && o.Length == 1 && (o[0] as ItemWithCategoryDto).Id == addedItem.Id), It.IsAny<CancellationToken>()),
                 Times.Once);
             _mockClients.Verify(c => c.Group(expectedGroupName), Times.Once);
         }
@@ -339,7 +339,7 @@ namespace Nimblist.test.Controllers
 
                 // 3. Verify SignalR Call
                 _mockClientProxy.Verify(
-                    x => x.SendCoreAsync("ReceiveItemUpdated", It.Is<object[]>(o => o != null && o.Length == 1 && (o[0] as Item).Id == existingItemId && (o[0] as Item).Name == updateDto.Name), It.IsAny<CancellationToken>()),
+                    x => x.SendCoreAsync("ReceiveItemUpdated", It.Is<object[]>(o => o != null && o.Length == 1 && (o[0] as ItemWithCategoryDto).Id == existingItemId && (o[0] as ItemWithCategoryDto).Name == updateDto.Name), It.IsAny<CancellationToken>()),
                     Times.Once);
                 _mockClients.Verify(c => c.Group(expectedGroupName), Times.Once);
             }

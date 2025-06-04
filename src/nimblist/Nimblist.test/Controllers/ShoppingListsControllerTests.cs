@@ -88,7 +88,7 @@ namespace Nimblist.test.Controllers
 
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var returnValue = Assert.IsAssignableFrom<IEnumerable<ShoppingList>>(okResult.Value); // Use IEnumerable
+                var returnValue = Assert.IsAssignableFrom<IEnumerable<ShoppingListWithItemsDto>>(okResult.Value); // Use IEnumerable
                 Assert.Single(returnValue); // Should only contain the list for TestUserId
                 Assert.Equal("My Test List", returnValue.First().Name);
                 Assert.Equal(userListId, returnValue.First().Id);
@@ -154,7 +154,7 @@ namespace Nimblist.test.Controllers
 
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var returnValue = Assert.IsType<ShoppingList>(okResult.Value);
+                var returnValue = Assert.IsType<ShoppingListWithItemsDto>(okResult.Value);
                 Assert.Equal(listId, returnValue.Id);
                 Assert.Equal(TestUserId, returnValue.UserId);
             }
@@ -391,7 +391,7 @@ namespace Nimblist.test.Controllers
 
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var returnValue = Assert.IsAssignableFrom<IEnumerable<ShoppingList>>(okResult.Value);
+                var returnValue = Assert.IsAssignableFrom<IEnumerable<ShoppingListWithItemsDto>>(okResult.Value);
                 Assert.Equal(2, returnValue.Count());
                 Assert.Contains(returnValue, list => list.Id == ownedListId);
                 Assert.Contains(returnValue, list => list.Id == sharedListId);
@@ -416,7 +416,7 @@ namespace Nimblist.test.Controllers
 
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var returnValue = Assert.IsType<ShoppingList>(okResult.Value);
+                var returnValue = Assert.IsType<ShoppingListWithItemsDto>(okResult.Value);
                 Assert.Equal(sharedListId, returnValue.Id);
             }
         }

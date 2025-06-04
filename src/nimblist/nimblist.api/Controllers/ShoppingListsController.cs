@@ -83,9 +83,22 @@ namespace Nimblist.api.Controllers
             }).ToList();
         }
 
+        // Helper method to convert ShoppingList to ShoppingListWithItemsDto
+        private ShoppingListWithItemsDto ConvertToShoppingListDto(ShoppingList shoppingList)
+        {
+            return new ShoppingListWithItemsDto
+            {
+                Id = shoppingList.Id,
+                Name = shoppingList.Name,
+                UserId = shoppingList.UserId,
+                CreatedAt = shoppingList.CreatedAt,
+                Items = ConvertToItemDtos(shoppingList.Items)
+            };
+        }
+
         // GET: api/ShoppingLists
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<object>>> GetShoppingLists()
+        public async Task<ActionResult<IEnumerable<ShoppingListWithItemsDto>>> GetShoppingLists()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
@@ -93,21 +106,14 @@ namespace Nimblist.api.Controllers
             var userShoppingLists = await GetUserShoppingLists(userId);
 
             // Transform the shopping lists to include the category names
-            var result = userShoppingLists.Select(list => new
-            {
-                Id = list.Id,
-                Name = list.Name,
-                UserId = list.UserId,
-                CreatedAt = list.CreatedAt,
-                Items = ConvertToItemDtos(list.Items)
-            });
+            var result = userShoppingLists.Select(list => ConvertToShoppingListDto(list)).ToList();
 
             return Ok(result);
         }
 
         // GET: api/ShoppingLists/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<object>> GetShoppingList(Guid id)
+        public async Task<ActionResult<ShoppingListWithItemsDto>> GetShoppingList(Guid id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
@@ -125,14 +131,7 @@ namespace Nimblist.api.Controllers
             }
 
             // Transform the shopping list to include the category names
-            var result = new
-            {
-                Id = shoppingList.Id,
-                Name = shoppingList.Name,
-                UserId = shoppingList.UserId,
-                CreatedAt = shoppingList.CreatedAt,
-                Items = ConvertToItemDtos(shoppingList.Items)
-            };
+            var result = ConvertToShoppingListDto(shoppingList);
 
             return Ok(result);
         }
@@ -171,7 +170,7 @@ namespace Nimblist.api.Controllers
         // POST: api/ShoppingLists
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<ShoppingList>> PostShoppingList(ShoppingListInputDto listDto) // Accept DTO
+        public async Task<ActionResult<ShoppingListWithItemsDto>> PostShoppingList(ShoppingListInputDto listDto) // Accept DTO
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
@@ -197,8 +196,17 @@ namespace Nimblist.api.Controllers
             _context.ListShares.Add(listShare);
             await _context.SaveChangesAsync();
 
-            // Important: Return the fully created entity, not the DTO
-            return CreatedAtAction(nameof(GetShoppingList), new { id = shoppingList.Id }, shoppingList);
+            // Convert to DTO before returning
+            var shoppingListDto = new ShoppingListWithItemsDto
+            {
+                Id = shoppingList.Id,
+                Name = shoppingList.Name,
+                UserId = shoppingList.UserId,
+                CreatedAt = shoppingList.CreatedAt,
+                Items = new List<ItemWithCategoryDto>() // Empty list for a new shopping list
+            };
+
+            return CreatedAtAction(nameof(GetShoppingList), new { id = shoppingList.Id }, shoppingListDto);
         }
 
         // DELETE: api/ShoppingLists/5
