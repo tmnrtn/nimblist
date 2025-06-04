@@ -8,7 +8,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore; // Add this
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
@@ -20,36 +22,39 @@ using Xunit;
 namespace Nimblist.test.Controllers
 {
 
-    public class ItemsControllerInMemoryTests : IDisposable // Implement IDisposable if needed for shared context cleanup, though unique DB per test is often cleaner
+    public class ItemsControllerInMemoryTests : IDisposable
     {
         // Mocks for dependencies that are NOT the DbContext
         private readonly Mock<UserManager<ApplicationUser>> _mockUserManager;
         private readonly Mock<IHubContext<ShoppingListHub>> _mockHubContext;
         private readonly Mock<IHubClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
+        private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
+        private readonly Mock<IConfiguration> _mockConfiguration;
+        private readonly Mock<ILogger<ItemsController>> _mockLogger;
 
         private readonly string _testUserId = "test-user-id";
         private readonly string _otherUserId = "other-user-id";
         private readonly Guid _testListId = Guid.NewGuid();
         private readonly Guid _otherListId = Guid.NewGuid();
 
-        // No DbContext mock needed here anymore
-
         public ItemsControllerInMemoryTests()
         {
-            // Still mock UserManager
+            // Set up UserManager mock
             var store = new Mock<IUserStore<ApplicationUser>>();
             _mockUserManager = new Mock<UserManager<ApplicationUser>>(store.Object, null, null, null, null, null, null, null, null);
 
-            // Still mock SignalR Hub Context
+            // Set up SignalR Hub Context mock
             _mockHubContext = new Mock<IHubContext<ShoppingListHub>>();
             _mockClients = new Mock<IHubClients>();
             _mockClientProxy = new Mock<IClientProxy>();
             _mockHubContext.Setup(h => h.Clients).Returns(_mockClients.Object);
             _mockClients.Setup(c => c.Group(It.IsAny<string>())).Returns(_mockClientProxy.Object);
 
-
-
+            // Set up the additional mocks required by the updated constructor
+            _mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            _mockConfiguration = new Mock<IConfiguration>();
+            _mockLogger = new Mock<ILogger<ItemsController>>();
         }
 
         // Helper to create DbContextOptions with a unique InMemory database name
@@ -85,7 +90,13 @@ namespace Nimblist.test.Controllers
         // Helper to setup Controller with context and user identity
         private ItemsController SetupController(NimblistContext context, string userId)
         {
-            var controller = new ItemsController(context, _mockUserManager.Object, _mockHubContext.Object);
+            var controller = new ItemsController(
+                context, 
+                _mockUserManager.Object, 
+                _mockHubContext.Object, 
+                _mockHttpClientFactory.Object,
+                _mockConfiguration.Object,
+                _mockLogger.Object);
 
             if (!string.IsNullOrEmpty(userId))
             {
@@ -470,7 +481,6 @@ namespace Nimblist.test.Controllers
         }
 
         // Implement IDisposable if you need cleanup *after* all tests in the class run
-        // (less common when using unique DB per test method)
         public void Dispose()
         {
             // Cleanup if necessary (e.g., if using a shared context instance)

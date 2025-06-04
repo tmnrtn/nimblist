@@ -77,14 +77,23 @@ def sanitize_filename(name):
 # --- Flask App ---
 app = Flask(__name__)
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "ok"})
+
 @app.route('/predict', methods=['POST'])
 def predict():
     if not primary_model or not primary_vectorizer:
          return jsonify({"error": "Models not loaded properly"}), 500
 
-    data = request.get_json()
-    if not data or 'product_name' not in data:
-        return jsonify({"error": "Missing 'product_name' in JSON payload"}), 400
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Request must contain valid JSON"}), 400
+        if 'product_name' not in data:
+            return jsonify({"error": "Missing 'product_name' in JSON payload"}), 400
+    except Exception:
+        return jsonify({"error": "Invalid JSON format"}), 400
 
     product_name = data['product_name']
 
@@ -134,14 +143,6 @@ def predict():
         "predicted_sub_category": predicted_sub_cat
     }
     return jsonify(result)
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    # Basic health check endpoint
-    # Can be expanded to check model loading status
-    status = "OK" if primary_model and primary_vectorizer else "Error: Models not loaded"
-    return jsonify({"status": status})
-
 
 # Run directly for development (python app.py)
 # Use Gunicorn for production (see Dockerfile CMD)

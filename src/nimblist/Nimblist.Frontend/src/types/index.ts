@@ -5,6 +5,8 @@ export interface Item {
     isChecked: boolean;
     addedAt: string; // Or Date
     shoppingListId: string;
+    categoryName: string; // Ensure this is defined
+    subCategoryName: string; // Ensure this is defined
   }
   
   export interface ShoppingList {

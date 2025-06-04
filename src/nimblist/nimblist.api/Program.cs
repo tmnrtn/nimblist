@@ -246,6 +246,8 @@ namespace Nimblist.api
                        .SetApplicationName("NimblistApp");
             }
 
+            builder.Services.AddHttpClient();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

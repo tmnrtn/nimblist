@@ -35,7 +35,10 @@ namespace Nimblist.api.Controllers
                 .Where(sls => sls.ls.UserId == userId)
                 .Select(sls => sls.sl)
                 .Distinct()
-                .Include(sl => sl.Items) // Include items if needed
+                .Include(sl => sl.Items)
+                    .ThenInclude(i => i.Category) // Include Category information
+                .Include(sl => sl.Items)
+                    .ThenInclude(i => i.SubCategory) // Include SubCategory information
                 .ToListAsync();
 
             var famiySharedLists = await _context.ShoppingLists
@@ -50,7 +53,10 @@ namespace Nimblist.api.Controllers
                 .Where(slfm => slfm.fm.UserId == userId)
                 .Select(slfm => slfm.sl)
                 .Distinct()
-                .Include(sl => sl.Items) // Include items if needed
+                .Include(sl => sl.Items)
+                    .ThenInclude(i => i.Category) // Include Category information
+                .Include(sl => sl.Items)
+                    .ThenInclude(i => i.SubCategory) // Include SubCategory information
                 .ToListAsync();
 
             return userSharedLists.Concat(famiySharedLists)
@@ -59,21 +65,49 @@ namespace Nimblist.api.Controllers
                 .ToList();
         }
 
+        // Helper method to convert regular Items to ItemWithCategoryDto
+        private List<ItemWithCategoryDto> ConvertToItemDtos(ICollection<Item> items)
+        {
+            return items.Select(item => new ItemWithCategoryDto
+            {
+                Id = item.Id,
+                Name = item.Name,
+                Quantity = item.Quantity,
+                IsChecked = item.IsChecked,
+                AddedAt = item.AddedAt,
+                ShoppingListId = item.ShoppingListId,
+                CategoryId = item.CategoryId,
+                CategoryName = item.Category?.Name,
+                SubCategoryId = item.SubCategoryId,
+                SubCategoryName = item.SubCategory?.Name
+            }).ToList();
+        }
+
         // GET: api/ShoppingLists
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ShoppingList>>> GetShoppingLists()
+        public async Task<ActionResult<IEnumerable<object>>> GetShoppingLists()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
 
             var userShoppingLists = await GetUserShoppingLists(userId);
 
-            return Ok(userShoppingLists);
+            // Transform the shopping lists to include the category names
+            var result = userShoppingLists.Select(list => new
+            {
+                Id = list.Id,
+                Name = list.Name,
+                UserId = list.UserId,
+                CreatedAt = list.CreatedAt,
+                Items = ConvertToItemDtos(list.Items)
+            });
+
+            return Ok(result);
         }
 
         // GET: api/ShoppingLists/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<ShoppingList>> GetShoppingList(Guid id)
+        public async Task<ActionResult<object>> GetShoppingList(Guid id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
@@ -90,7 +124,17 @@ namespace Nimblist.api.Controllers
                 return NotFound();
             }
 
-            return Ok(shoppingList);
+            // Transform the shopping list to include the category names
+            var result = new
+            {
+                Id = shoppingList.Id,
+                Name = shoppingList.Name,
+                UserId = shoppingList.UserId,
+                CreatedAt = shoppingList.CreatedAt,
+                Items = ConvertToItemDtos(shoppingList.Items)
+            };
+
+            return Ok(result);
         }
 
         // PUT: api/ShoppingLists/5
@@ -181,6 +225,5 @@ namespace Nimblist.api.Controllers
 
             return NoContent();
         }
-
     }
 }
