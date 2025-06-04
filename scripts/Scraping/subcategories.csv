@@ -1,164 +1,146 @@
 Id,Name,ParentCategoryId
-6aed5989-9de8-4afd-a7c3-0d46a049d690,Baby Food,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-e213fd22-9874-4493-bee2-2f84845e044e,Baby Milk & Formula,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-67145a1b-788f-4b67-b1a4-c27f187e5804,Baby Toiletries,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-1f9a6397-8de5-4bd2-abdc-1df19a0e0ec8,Baby Wipes & Changing,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-0e9eef1b-9af1-4190-a418-ca2ac9aae244,Feeding Accessories,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-d76d541a-c23b-4f21-8c8c-caf275131fd2,Baby Laundry,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-afa0b6dc-a19f-4eb1-aa66-d07f6c57cc53,Baby Healthcare,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-abe1fb7e-a956-41f1-8483-9c991ebccbdd,Dummies & Teethers,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-870833ff-976c-458f-835d-7f0d676b9971,Maternity,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-38e791fa-a7f3-48d8-9a48-514f605fc7b4,Nappies & Training,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-25b405c0-0d48-45d0-89fa-3bf09b16a937,Nursery,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-932be226-83d1-4727-bad3-8ca5e71ee5b7,Travel Systems,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-972f5dd0-f911-42b9-8b0d-6a0ac1b3bde6,Sterilising,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-2ddb692c-4bd5-4e2e-8f69-97aa4e8e5982,Baby Toys & Accessories,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-843e0b81-cb2d-47eb-893b-cb4e4f3165a3,Waitrose Mini,3d6bc8ae-0b9b-4ded-badc-c4047b39e081
-d684ade0-bea5-4b84-9266-cab09aa5c910,Bread & Rolls,21373bc4-0361-452d-9a05-a6d9e81a3f3a
-eecc4fdf-b5f4-4fb2-9595-1b85cd3dd772,Cakes & Patisserie,21373bc4-0361-452d-9a05-a6d9e81a3f3a
-5e011762-d5b0-4ef1-aeeb-4b348064eb2b,Pastries,21373bc4-0361-452d-9a05-a6d9e81a3f3a
-41e27b34-107d-4272-aa13-8a15307db52b,Breakfast Bakery,21373bc4-0361-452d-9a05-a6d9e81a3f3a
-d9d6a4f5-c5fd-4a26-958a-f7816793eaf0,"Doughnuts, Cookies & Muffins",21373bc4-0361-452d-9a05-a6d9e81a3f3a
-017db8fa-f5a9-4a04-b869-b8251654db6d,Premium Bakery,21373bc4-0361-452d-9a05-a6d9e81a3f3a
-3b9668a3-11cc-43ac-ac3f-51b17716e700,Free From Bakery,21373bc4-0361-452d-9a05-a6d9e81a3f3a
-23d6a215-4041-49ac-a4ff-a0a7f353f99d,Wraps & Flatbreads,21373bc4-0361-452d-9a05-a6d9e81a3f3a
-5b890f39-bf09-4f50-b800-9dce2e9046f5,Low & No Alcohol,95ba94ba-e070-4350-977e-95b732ed3021
-d9922f13-fa48-4d1e-be38-f86002ab8915,Beer & Cider,95ba94ba-e070-4350-977e-95b732ed3021
-99f11c6a-184b-4594-b43a-24674565917b,Sparkling Wine & Champagne,95ba94ba-e070-4350-977e-95b732ed3021
-9ef6b70c-5287-4277-a1c0-4631d9b84dc4,Alcohol Gifts,95ba94ba-e070-4350-977e-95b732ed3021
-32ac93c1-5347-4a85-a430-fe3ab47aa797,Spirits & Liqueurs,95ba94ba-e070-4350-977e-95b732ed3021
-8fbf8081-2c5b-45db-8aa6-871028b3937d,Mixers & Adult Soft Drinks,b451869b-93c4-4b9d-ab04-5aa05e72a319
-78e44d31-0553-4593-b10c-a91589509507,Wine,95ba94ba-e070-4350-977e-95b732ed3021
-261d4b19-95ad-47b3-baf2-20b5b433077e,Coffee,b451869b-93c4-4b9d-ab04-5aa05e72a319
-2b1c333d-100d-4eba-89c7-bdbc8802683f,Finest Drinks,b451869b-93c4-4b9d-ab04-5aa05e72a319
-d64d9af9-90e1-4156-b87e-c2c023af9a7d,Fizzy Drinks,b451869b-93c4-4b9d-ab04-5aa05e72a319
-b9efcea8-3336-4af9-a1af-729c05cac5d0,Hot Chocolate & Malt Drinks,b451869b-93c4-4b9d-ab04-5aa05e72a319
-67adf1ff-e7fd-4200-9cde-8523f7047ad4,Functional & Wellness Drinks,b451869b-93c4-4b9d-ab04-5aa05e72a319
-d9eaf403-4e1d-42f0-8820-b1426babbc6f,Kids Drinks,b451869b-93c4-4b9d-ab04-5aa05e72a319
-ad1ff12d-40e1-49d2-8cc0-3f5ba058e5c9,Milkshakes & Flavoured Milk,b451869b-93c4-4b9d-ab04-5aa05e72a319
-fe57ecbf-5c4f-4cb4-8a83-fa5bee8c4a2b,"Mugs, Glasses & Water Bottles",b451869b-93c4-4b9d-ab04-5aa05e72a319
-243a376d-28c3-4bb3-8e29-b22fd912e2e1,On The Go Drinks,b451869b-93c4-4b9d-ab04-5aa05e72a319
-705e0ccb-3021-4e4e-a0c8-3587ef4825fa,Ready to Drink,95ba94ba-e070-4350-977e-95b732ed3021
-5aef1503-71bd-480c-9c64-d780c6b7cf44,Sports & Energy Drinks,b451869b-93c4-4b9d-ab04-5aa05e72a319
-56b63264-ab20-4d33-9da6-4d14cb8f8469,Squash & Cordials,b451869b-93c4-4b9d-ab04-5aa05e72a319
-90def533-b590-45c3-a7b0-ebfc6b3d5632,Tea,b451869b-93c4-4b9d-ab04-5aa05e72a319
-c1d08da1-a58f-4cde-8325-d8afdf223d0d,Water,b451869b-93c4-4b9d-ab04-5aa05e72a319
-7d9c2936-a311-48d4-994c-a9c0abc0b05c,"Biscuits, Crackers & Cereal Bars",9602ff1f-7545-480f-913d-bd929004af34
-43e51bf6-12a0-4625-8ac3-c006a56c8b1b,Cereals,5546ca87-5091-4263-a7a2-feb08626bcdb
-47025bf7-ba92-4f1d-be67-1d6b9235cba0,Chocolate & Sweets,9602ff1f-7545-480f-913d-bd929004af34
-8c7ec98d-760a-438d-bf9e-0fd6fe07cc5a,Baking Ingredients,5546ca87-5091-4263-a7a2-feb08626bcdb
-62cf4f6b-e2d7-46a2-ae9c-28eba97c9b47,Cooking Sauces & Meal Kits,5546ca87-5091-4263-a7a2-feb08626bcdb
-c1e53df8-46c1-4f9e-ba27-42612c1e7e6e,"Crisps, Snacks & Nuts",9602ff1f-7545-480f-913d-bd929004af34
-da8a3a66-2e7f-4cd3-a620-103f5944db12,Frozen Desserts & Ice Cream,5546ca87-5091-4263-a7a2-feb08626bcdb
-49933826-a4c2-4bf2-80c4-e2cdb0a90277,"Nuts, Seeds & Dried Fruit (Snacks)",5546ca87-5091-4263-a7a2-feb08626bcdb
-95995030-c52a-456c-9f17-50855603082d,"Pasta, Rice & Grains",5546ca87-5091-4263-a7a2-feb08626bcdb
-229dc76b-241b-4f1d-8d38-6ba275960c9b,Premium Food Cupboard,5546ca87-5091-4263-a7a2-feb08626bcdb
-a40cf37f-4316-4c34-85af-9b137b2b68b7,Free From (Cupboard),5546ca87-5091-4263-a7a2-feb08626bcdb
-24a31b45-2fca-44ff-b669-9fe872ef25b2,Instant Meals & Noodles,5546ca87-5091-4263-a7a2-feb08626bcdb
-46cc362a-8c77-432f-b271-3d7caa942c51,Jams & Spreads,5546ca87-5091-4263-a7a2-feb08626bcdb
-516eb7f1-de40-4a7a-9d9d-fbf16fbdd3c6,"Pickles, Olives & Chutney",5546ca87-5091-4263-a7a2-feb08626bcdb
-209f8146-caeb-459f-ac37-320638cca3df,Canned Goods & Packets,5546ca87-5091-4263-a7a2-feb08626bcdb
-80743fb4-2b93-4662-a576-e3dc502c1a5c,World Foods (Chilled),5546ca87-5091-4263-a7a2-feb08626bcdb
-62240e72-a6e0-491a-ba1b-e155dba6b671,"Condiments, Sauces & Oils",5546ca87-5091-4263-a7a2-feb08626bcdb
-78cb65f7-8b81-4cd9-9aa6-fa7b19dd594e,Cheese,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-42cf49a9-ce90-443b-92d7-3561996dc1b4,Chilled Fish & Seafood,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-769ad6ec-563e-41d1-8b3e-5b175d0a137b,Chilled Juice & Smoothies,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-c79c23ea-6b6a-426c-91ed-142a8f3c946c,"Cooked Meats, Deli & Dips",08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-30a5893c-9941-4f3b-ab31-e081cab3e47a,Frozen Desserts & Ice Cream,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-c0786829-03eb-4502-bb8f-b8e9cb5253d8,Ready Meals & Easy Cook,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-a24032ce-e66b-4762-8027-46f2ea699f54,Food To Go & Soups,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-325c3946-27c2-4d5e-b67c-5cc89f837567,Fresh Meat & Poultry,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-f2637fce-67e3-436b-a1ee-e204e4dfb74a,Fresh Fruit,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-d2b1d34a-cd97-40a8-8ae2-62791d84b37e,"Fresh Pizza, Pasta & Sauces",08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-9e75b409-17c7-427c-8d9b-ddaf4dcdc639,Fresh Salads & Herbs,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-561bf3d9-3fe8-4fc9-8f41-1f2a510e3ef6,Fresh Vegetables,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-0295bfc7-f829-4f08-b4bd-8afed0c5bbd2,Fresh Fruit & Vegetables,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-9ba1752f-9501-40b4-ada0-e8e0720ff3ea,"Milk, Butter & Eggs",08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-54681edd-99f6-4964-a4bd-a9c9d3676732,Frozen Ready Meals,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-7181d856-53fa-4ac8-aec7-8197e21834c4,Frozen Vegetarian & Vegan,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-e589dd9d-6f87-404e-acda-9108e6c139e4,Chilled Vegetarian & Vegan,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-8ff8ac5a-4c72-4637-b5eb-988dc39eaf46,Yogurts (Snacks),08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-421bb027-a965-4591-98a1-14e0d5d30bff,Chilled Desserts,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-d78be4a1-64e6-42f3-8d1f-a51c2eba405b,Dairy Alternatives,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-4e3b8cbe-3671-43ad-84ed-ca8aa65e79cb,Premium Fresh Food,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-473fdd48-a1e3-479b-89de-16366492ef81,"Pies, Quiches & Savoury Snacks",08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-790809d8-3115-4edd-a5a6-24bfb0d97200,Taste Discoveries,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-90de8a87-b99e-4fdb-a6ab-56ac25b772c6,Uptown Diner ,08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-6b46a327-1343-4aae-9728-47e9ee891dae,World Foods (Chilled),08eaccd7-df1e-4f88-8a80-6f7b88cbb09a
-89e9589f-93bd-4476-93aa-34f04a306dfa,Frozen Sides & Potatoes,999db8b6-27f9-4531-aaa5-747a55173283
-51b68148-8e0b-41c9-bb6e-cdf6c5d192bb,Frozen Desserts & Ice Cream,999db8b6-27f9-4531-aaa5-747a55173283
-4e0ea456-7d7f-45bd-8823-9ac036603b3d,Premium Frozen Food,999db8b6-27f9-4531-aaa5-747a55173283
-5d7d2fc2-1196-42fc-8498-28f79546ca1d,Frozen Fish & Seafood,999db8b6-27f9-4531-aaa5-747a55173283
-856bd841-4cb2-487a-bf4e-93d77432b659,Frozen Free From,999db8b6-27f9-4531-aaa5-747a55173283
-4c44e0b5-f371-4593-a3c9-51d19f703a23,Frozen Fruit & Pastry,999db8b6-27f9-4531-aaa5-747a55173283
-4febe834-ce96-496d-86e6-c3ebceac08de,Ice Cubes,999db8b6-27f9-4531-aaa5-747a55173283
-f016ea75-6f79-4635-926f-d7be2b318b9f,Frozen Meat & Poultry,999db8b6-27f9-4531-aaa5-747a55173283
-b58b1eed-4fdf-44e7-a129-01379eeb66f8,Frozen Party Food,999db8b6-27f9-4531-aaa5-747a55173283
-d13c8cc8-1b12-46d5-b2b8-f39f34eccef5,Frozen Pies & Pastry,999db8b6-27f9-4531-aaa5-747a55173283
-f620db23-a9d6-4b2a-8d0e-c7bac0575fcd,Frozen Pizza & Garlic Bread,999db8b6-27f9-4531-aaa5-747a55173283
-a6ba25c7-f743-46fe-a090-2cccba6e062c,Frozen Ready Meals,999db8b6-27f9-4531-aaa5-747a55173283
-14495f47-7e9b-4216-b5f7-dc0910fd179e,Frozen Vegetarian & Vegan,999db8b6-27f9-4531-aaa5-747a55173283
-78377b6d-78ac-4ecf-bbe8-ed0d9d8aa364,Frozen Vegetables,999db8b6-27f9-4531-aaa5-747a55173283
-d68f8915-c0d7-4b97-8ad7-2cc26617df8d,Frozen World Foods & Halal,999db8b6-27f9-4531-aaa5-747a55173283
-9ab578c5-73cf-4d9f-bc63-730fc96bf176,"Bath, Shower & Body Care",457d987c-f722-438d-9ba9-29b6db62b48a
-6d25115d-8858-4965-9621-227eec6c6caf,Hair Care,457d987c-f722-438d-9ba9-29b6db62b48a
-ed44b053-a571-4616-94a3-3dc9b32dedf4,Deodorants & Body Sprays,457d987c-f722-438d-9ba9-29b6db62b48a
-8e3c0477-64cd-4219-9faf-ad7e595cd3d9,Facial Skincare,457d987c-f722-438d-9ba9-29b6db62b48a
-1d436ebf-124b-485c-8606-196853344c05,Kid's Zone,457d987c-f722-438d-9ba9-29b6db62b48a
-39d03cda-9c83-4112-a478-7e4aa14b0641,Health & Pharmacy,457d987c-f722-438d-9ba9-29b6db62b48a
-0be9d493-1b31-49b4-95db-214f0039fabc,Makeup & Accessories,457d987c-f722-438d-9ba9-29b6db62b48a
-d38ae523-b42c-4e08-9660-e8222ea474c8,Men's Toiletries,457d987c-f722-438d-9ba9-29b6db62b48a
-a2d28878-d9d9-4b2b-9284-b5f9a2e8d299,Women's Health & Toiletries,457d987c-f722-438d-9ba9-29b6db62b48a
-d6b6b4ba-de2e-47a8-8565-60d9351590c1,Fragrance & Gifting,457d987c-f722-438d-9ba9-29b6db62b48a
-27212538-d2f6-4854-87b7-7b590e709de8,Suncare & Travel,457d987c-f722-438d-9ba9-29b6db62b48a
-b60faaf6-bb93-497c-b413-08222deb1518,Dental Care,457d987c-f722-438d-9ba9-29b6db62b48a
-283791c9-5c26-403d-96d0-8f3efc28f5ca,Bathroom Accessories & Towels,fb821f98-381f-42fb-a5fd-24494e4426e4
-6921eae3-0262-42e4-a65d-f3f27657bda4,Bedding,fb821f98-381f-42fb-a5fd-24494e4426e4
-eb62ae56-4171-4ec6-8f6c-fadcfb03f571,Home Fragrance,fb821f98-381f-42fb-a5fd-24494e4426e4
-1c9820c4-0877-421c-bc39-c5f6f9e7f97d,"Cards, Gifts & Party",fb821f98-381f-42fb-a5fd-24494e4426e4
-59a4884c-acbb-46c0-a6b1-14851360a931,Cookware & Dining,fb821f98-381f-42fb-a5fd-24494e4426e4
-37503ea6-94ff-428b-ad39-dfed384fecc4,Electricals & Office,fb821f98-381f-42fb-a5fd-24494e4426e4
-cdac7f5d-a233-4058-9ae6-6776b94c9dff,"Flowers, Plants & Outdoor",fb821f98-381f-42fb-a5fd-24494e4426e4
-d34b34d4-3ff3-4f5a-8dfa-35dfcd4049bc,Home Accessories,fb821f98-381f-42fb-a5fd-24494e4426e4
-36fb6793-d87a-43cc-8fdd-9811a68b2eae,"News, Books & Tobacco",fb821f98-381f-42fb-a5fd-24494e4426e4
-470e104a-0f96-4d1b-9779-6c60aaa4297f,Reusable Bags,fb821f98-381f-42fb-a5fd-24494e4426e4
-ad1497c2-fdfe-454a-8f28-7709e50a3757,Utility & Clothes Care,fb821f98-381f-42fb-a5fd-24494e4426e4
-a734b908-46dd-4a78-919d-d48608c03cc2,Toys & Games,fb821f98-381f-42fb-a5fd-24494e4426e4
-cc47740a-e16c-48bc-a992-31d44baf99bf,Batteries,fb821f98-381f-42fb-a5fd-24494e4426e4
-56c6732b-4bd2-4781-85c2-1694bfd8f39f,DIY & Car Care,fb821f98-381f-42fb-a5fd-24494e4426e4
-925d99c4-1c8c-414b-8b13-dc12d2847471,F&F Home,fb821f98-381f-42fb-a5fd-24494e4426e4
-dbd1e09c-8d67-4a0d-9098-ee2f96eee616,Furniture,fb821f98-381f-42fb-a5fd-24494e4426e4
-2bad5a25-f6da-4d69-88e8-a3b5cf426a9e,Paperchase,fb821f98-381f-42fb-a5fd-24494e4426e4
-78f7822b-36da-4865-b992-966cdfd74eeb,Sports & Leisure,fb821f98-381f-42fb-a5fd-24494e4426e4
-3b694cd8-c39a-4ae5-acdd-2dc1917c3f4c,Stationery & Crafts,fb821f98-381f-42fb-a5fd-24494e4426e4
-7df385d4-df82-4908-b06f-2b5964e417d6,Air Fresheners,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-7598dc7e-bc31-420c-9317-f7bffce2e110,Toilet & Bathroom Cleaners,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-32452e6a-1b79-408c-907c-0ba3e0a43283,Cleaning Equipment,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-a16690b9-9ec8-46e7-a79d-99e02f3197bf,Household Cleaning,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-13bc5ad5-04a7-423f-a11e-7e30557e0c75,Dishwashing,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-e9b74265-02ad-43ce-a76c-d478f34e399a,Tissues & Wipes,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-7cbf9aa1-b14b-49bb-8247-1bdfe23891aa,Food Storage & Wraps,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-0e191272-5710-48e7-aec7-c2217bed111f,Kitchen Roll,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-81e87c32-7043-41ac-aa51-681d2e58f3f0,Laundry,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-ec03161e-2af8-4ee5-9564-fa556bd9854a,Lightbulbs,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-455cd00f-cb93-4bc5-b248-f8b63d90c756,Passover,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-c30b3fd6-ef7c-4415-bdb5-889f0db1a98c,Toilet Roll,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-b8301b0e-f137-4263-b559-45a48dd9dfe8,Bin Bags,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-4be3ba30-5f97-4a3a-8ab0-1835c5bd2854,Eco Friendly Cleaning,73babb45-4307-4fd7-8fd9-c8e79cc0830d
-480735ba-86bd-47fe-9553-981930104ed4,Small Pet & Bird Supplies,a87897ce-6d20-4a77-8d5e-3de3da4ff1e9
-cd0db09d-fee3-453b-8cd2-8556d653f80c,Cat Supplies,a87897ce-6d20-4a77-8d5e-3de3da4ff1e9
-45000493-8404-4f90-9d77-75a21c772415,Dog Supplies,a87897ce-6d20-4a77-8d5e-3de3da4ff1e9
-96517c22-7568-4ad8-81c8-88343bd80d2f,Shop By Brand,a87897ce-6d20-4a77-8d5e-3de3da4ff1e9
-1be88fa1-5fb3-44ea-b396-79b420176682,Pet Treats,a87897ce-6d20-4a77-8d5e-3de3da4ff1e9
-e91a4442-f538-4aed-9900-982ffb2f8ba7,Pet Cleaning,a87897ce-6d20-4a77-8d5e-3de3da4ff1e9
-bd31dcf5-2953-435e-b6e1-b29bdc331b25,Juice,b451869b-93c4-4b9d-ab04-5aa05e72a319
-cdfa7a4b-a8fe-4bcc-9a88-704283984312,Natural Beauty,457d987c-f722-438d-9ba9-29b6db62b48a
-b76d749f-b65a-4851-990a-b527bb34bafa,Incontinence Care,457d987c-f722-438d-9ba9-29b6db62b48a
-d05d2a96-3065-4d6a-b80a-70917e1c59af,Shaving & Hair Removal,457d987c-f722-438d-9ba9-29b6db62b48a
-85052071-14a8-4373-95ad-ad30824fe8fb,Hosiery,457d987c-f722-438d-9ba9-29b6db62b48a
-8b0e4933-8947-4f39-85a0-aaca88271733,Tissues & Wipes,457d987c-f722-438d-9ba9-29b6db62b48a
-5d57bbcd-9491-4f61-8c7c-0b31c5240bb2,Cake Bars & Slices,9602ff1f-7545-480f-913d-bd929004af34
-3d7bc78f-eb2e-48b3-89a3-012a0cc89e63,"Nuts, Seeds & Dried Fruit (Snacks)",9602ff1f-7545-480f-913d-bd929004af34
-b4f02eee-2520-4cbf-aa99-41dc89180fee,Great Night In,9602ff1f-7545-480f-913d-bd929004af34
-11b0afde-bca8-461a-8771-43ebcf4829d7,Meat & Cheese Snacks,9602ff1f-7545-480f-913d-bd929004af34
-744005ac-1a5e-4d58-ab40-581e4919f42b,Yogurts (Snacks),9602ff1f-7545-480f-913d-bd929004af34
+9d7a8c89-f46d-4e55-8fd4-0b3d81e23415,Yogurts (Snacks),27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+a352fe8c-cd12-4b79-a934-6ecf574dbbc5,Yogurts (Snacks),a2f0ca2b-9b15-458c-8cf2-310f69eb5899
+00c17cf2-1db4-494a-bb15-e5d1b1d42df0,Wraps & Flatbreads,4a4df996-2d61-424d-9af1-7fdfef76e63e
+d760320f-113a-4c30-bd99-9b190ed70b65,World Foods (Chilled),96607918-0fb6-406e-8198-292c5febc1fb
+2f0495b3-3a8f-490e-9577-5233612efea6,World Foods (Chilled),27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+4b39be22-28d9-48a3-8dc3-d9dd1576f474,Wine,85ca5c67-e914-4edf-b7b4-02bd515ad729
+16833785-2e3d-43e0-8d00-f3ed5bc1a66a,Water,bd2051a0-23d7-463c-847c-037c6603fc5c
+6ece4499-a4ca-4041-b8ac-0b4afc58ba60,Waitrose Mini,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+c03d90fd-7f5f-40fa-8502-ed3baeb0babb,Utility & Clothes Care,5999b5b0-6d49-4648-b6ef-eae2f512641d
+ae84fb11-66d2-4dd1-895c-47615865ed5b,Travel Systems,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+28bc42fa-e660-4c05-a5dd-bb61fe037604,Toys & Games,5999b5b0-6d49-4648-b6ef-eae2f512641d
+71cd27bf-8202-4655-9341-cce5755dc19e,Toilet Roll,37e98de1-ff36-4701-b43a-8e050f64a71b
+49e5acc2-1c60-414d-948c-8345be4df472,Toilet & Bathroom Cleaners,37e98de1-ff36-4701-b43a-8e050f64a71b
+16fa0871-c2c4-4167-968f-4d6f738e616e,Tissues & Wipes,37e98de1-ff36-4701-b43a-8e050f64a71b
+6442baf0-cf81-4d30-984e-d3717911dd6e,Tissues & Wipes,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+ab5e5951-c6ab-4e9c-b376-46008c759e9f,Tea,bd2051a0-23d7-463c-847c-037c6603fc5c
+3efc4952-5753-41a1-86cb-6c2f7248da4f,Suncare & Travel,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+ad71c727-fb5b-46b3-bcb3-0cad9a8e95c2,Sterilising,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+45f99a41-3022-42da-9dea-0dce28a14654,Stationery & Crafts,5999b5b0-6d49-4648-b6ef-eae2f512641d
+fd1c196e-ba5b-4bc2-9aec-cba3ebefa048,Squash & Cordials,bd2051a0-23d7-463c-847c-037c6603fc5c
+34588a77-8f7f-4cc3-8889-1b9238c71cbd,Sports & Leisure,5999b5b0-6d49-4648-b6ef-eae2f512641d
+f631833e-55af-4396-a592-7d47e3a04f72,Sports & Energy Drinks,bd2051a0-23d7-463c-847c-037c6603fc5c
+80804df3-171b-4e56-b2d8-4d3cb259dd62,Spirits & Liqueurs,85ca5c67-e914-4edf-b7b4-02bd515ad729
+0df174cb-eb13-42c9-82ca-39490d8f02af,Sparkling Wine & Champagne,85ca5c67-e914-4edf-b7b4-02bd515ad729
+cc92a2cd-0663-4f61-971c-7857c8f37403,Small Pet & Bird Supplies,051f4a18-58ca-438b-8a3c-242c32f41748
+9ed2a8a7-7f47-4e3d-9e71-5ab44d019b07,Shaving & Hair Removal,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+7a2258a0-8cdb-414b-9650-5cbac1eb6a04,Reusable Bags,5999b5b0-6d49-4648-b6ef-eae2f512641d
+6d0ade41-cefe-4208-a234-235e8e030722,Ready to Drink,85ca5c67-e914-4edf-b7b4-02bd515ad729
+eb6c2478-edf4-4238-9840-0b56d2be5ecd,Ready Meals & Easy Cook,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+47de107b-91e2-4ce3-842f-94b3935ac772,"Pies, Quiches & Savoury Snacks",27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+482c2830-9c82-4975-b4cf-8bae97d84a31,"Pickles, Olives & Chutney",96607918-0fb6-406e-8198-292c5febc1fb
+ae35b465-b208-4b60-93da-7bd2e3ee27da,Pet Treats,051f4a18-58ca-438b-8a3c-242c32f41748
+83889d24-561d-493f-bbd0-013d022052f5,Pet Cleaning,051f4a18-58ca-438b-8a3c-242c32f41748
+6c866f5f-3493-44ea-aca3-b69e1adc4e80,Pastries,4a4df996-2d61-424d-9af1-7fdfef76e63e
+dff6bd02-2784-46a4-bb5d-b9a25446541e,"Pasta, Rice & Grains",96607918-0fb6-406e-8198-292c5febc1fb
+e80a4b6f-119d-437b-817e-184ed611753c,Paperchase,5999b5b0-6d49-4648-b6ef-eae2f512641d
+6d915a96-8d95-436c-b67a-9af6b20b4606,On The Go Drinks,bd2051a0-23d7-463c-847c-037c6603fc5c
+3a3a4c3a-9337-4b78-8c82-7f0adeb2f6b8,"Nuts, Seeds & Dried Fruit (Snacks)",96607918-0fb6-406e-8198-292c5febc1fb
+9d6327ad-ebcc-4116-95c7-d8286971a484,"Nuts, Seeds & Dried Fruit (Snacks)",a2f0ca2b-9b15-458c-8cf2-310f69eb5899
+302d52ee-d1d9-46d0-9217-f86907be9139,Nursery,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+db57dbaf-88d9-41d3-8c07-8b2997c2333f,"News, Books & Tobacco",5999b5b0-6d49-4648-b6ef-eae2f512641d
+eb6ea0bd-6620-4a7b-80f6-9b1adeab83c5,Natural Beauty,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+a9720c28-8197-4709-a6d6-47d8b055ff82,Nappies & Training,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+c433942c-4e50-4f04-80ce-640dd1835c33,"Mugs, Glasses & Water Bottles",bd2051a0-23d7-463c-847c-037c6603fc5c
+b9910c2b-5086-476d-8513-673ae998cf28,Mixers & Adult Soft Drinks,bd2051a0-23d7-463c-847c-037c6603fc5c
+06d92900-d4d2-4067-85bf-3e7600b313f6,Milkshakes & Flavoured Milk,bd2051a0-23d7-463c-847c-037c6603fc5c
+f8df97fc-e45a-4c27-b586-febc4bdcb28c,"Milk, Butter & Eggs",27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+5158b1f6-a816-4ff4-9376-b4d8715ccdcc,Men's Toiletries,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+86817a8c-fcc9-4d70-820e-5d56f16a8eab,Meat & Cheese Snacks,a2f0ca2b-9b15-458c-8cf2-310f69eb5899
+62b3c884-0881-432d-a095-dc64ec31ea21,Maternity,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+1b30cc89-6b24-46f6-bd0f-fabf24bd9b8a,Makeup & Accessories,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+30b722bc-29b3-475a-94ee-6993e55512b2,Low & No Alcohol,85ca5c67-e914-4edf-b7b4-02bd515ad729
+7d53aba6-b888-4c76-9f40-45c9636a62e5,Lightbulbs,37e98de1-ff36-4701-b43a-8e050f64a71b
+f0329fda-ec04-4255-9e14-c27b40bc0d16,Laundry,37e98de1-ff36-4701-b43a-8e050f64a71b
+600d8f0a-efdd-42fd-98df-016372293384,Kitchen Roll,37e98de1-ff36-4701-b43a-8e050f64a71b
+de551c2b-62bd-4a6e-aeb1-2e4a9dda5d3f,Kid's Zone,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+6e630ae6-5fac-4f33-953c-ffb22abeb240,Kids Drinks,bd2051a0-23d7-463c-847c-037c6603fc5c
+56c397e9-a85c-4a6b-b5b4-2d34aa628d0e,Juice,bd2051a0-23d7-463c-847c-037c6603fc5c
+406766c1-1137-4ad0-abe7-46fc6b428dd5,Jams & Spreads,96607918-0fb6-406e-8198-292c5febc1fb
+291237f8-dc5c-4ba0-ab65-aa33343152a2,Instant Meals & Noodles,96607918-0fb6-406e-8198-292c5febc1fb
+6e00b681-e1ee-48e0-97af-5130f035fe96,Incontinence Care,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+926c7eb5-6d06-4be3-8994-59197af3f2c9,Ice Cubes,63de893f-68f8-4f68-afe5-9096263a9c55
+40b1946b-a00d-4d55-ad71-65dfd67ee630,Household Cleaning,37e98de1-ff36-4701-b43a-8e050f64a71b
+68811e4a-ee51-4153-ba91-ea664e595ee6,Hot Chocolate & Malt Drinks,bd2051a0-23d7-463c-847c-037c6603fc5c
+dce70b0b-18b4-4e27-89e1-71088063cd9c,Hosiery,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+56fb5af7-283d-49bd-b6d2-c3866c75ccea,Home Accessories,5999b5b0-6d49-4648-b6ef-eae2f512641d
+e300f847-6237-4db5-b0ec-8d8a06861abd,Health & Pharmacy,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+bbbb612c-f11b-4a58-880d-b001558c86f4,Hair Care,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+97771343-52f5-4080-988c-39fcd86a06cd,Furniture,5999b5b0-6d49-4648-b6ef-eae2f512641d
+c64c3a17-3b16-4fce-b6b6-faca97ece64b,Frozen World Foods & Halal,63de893f-68f8-4f68-afe5-9096263a9c55
+5da1f8d5-974b-456a-ad22-60d7f556b081,Frozen Vegetarian & Vegan,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+bff82aa2-9527-43b7-bc12-a285c5ac343e,Frozen Vegetarian & Vegan,63de893f-68f8-4f68-afe5-9096263a9c55
+e397912a-f732-43aa-afda-24390f621bdb,Frozen Vegetables,63de893f-68f8-4f68-afe5-9096263a9c55
+59a6287f-e4ba-4dbd-9582-c127fd8285fe,Frozen Sides & Potatoes,63de893f-68f8-4f68-afe5-9096263a9c55
+a268b61b-39a1-4b25-b29f-f85884eb7988,Frozen Ready Meals,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+46c2a4a5-4e3b-493f-9f1c-3dcaf0bf39d2,Frozen Ready Meals,63de893f-68f8-4f68-afe5-9096263a9c55
+95c5eeca-fd08-44ab-a47e-4256cb8beb35,Frozen Pizza & Garlic Bread,63de893f-68f8-4f68-afe5-9096263a9c55
+4fa96cc2-f896-45c6-bfc6-4a31c0b473e6,Frozen Pies & Pastry,63de893f-68f8-4f68-afe5-9096263a9c55
+3f2c47c8-7a57-4b3c-be5c-10947a10da31,Frozen Party Food,63de893f-68f8-4f68-afe5-9096263a9c55
+4ff8e467-4200-41ad-9587-280b23c9eb0d,Frozen Meat & Poultry,63de893f-68f8-4f68-afe5-9096263a9c55
+b83fa0c3-2349-4477-8d3e-0528dcf305ed,Frozen Fruit & Pastry,63de893f-68f8-4f68-afe5-9096263a9c55
+0c2ee03b-86f1-4862-95cc-45eac66f4e3b,Frozen Free From,63de893f-68f8-4f68-afe5-9096263a9c55
+a2b82dfd-4a95-41b9-bcf1-12aaa2125703,Frozen Fish & Seafood,63de893f-68f8-4f68-afe5-9096263a9c55
+5b10fc41-ca1e-462e-8462-f020acf7bac5,Frozen Desserts & Ice Cream,63de893f-68f8-4f68-afe5-9096263a9c55
+b6310e24-6c72-4f26-a41b-cf65ed64ae94,Fresh Vegetables,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+aef8dbd5-f4f0-4cc1-85c3-41b9da193b81,Fresh Salads & Herbs,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+91f6a440-5bd4-40f9-ad8e-999820281a5a,"Fresh Pizza, Pasta & Sauces",27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+b94406df-be02-4f1a-ae50-886093988cc3,Fresh Meat & Poultry,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+6f6f6644-8439-4822-b1e2-84bbd7268239,Fresh Fruit,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+dfe4b2d7-0ca7-481d-9b97-0b7981f0ef03,Free From Bakery,4a4df996-2d61-424d-9af1-7fdfef76e63e
+1138dbb5-5055-47ab-9e54-df18a1bfd28f,Free From (Cupboard),96607918-0fb6-406e-8198-292c5febc1fb
+47d598ae-2a57-4cfa-b34f-902804269eb5,Fragrance & Gifting,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+8a476d64-c728-4b6e-99f5-9f0094191e9b,Food To Go & Soups,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+fa68a842-58b3-4547-9bcc-535bb852466e,Food Storage & Wraps,37e98de1-ff36-4701-b43a-8e050f64a71b
+d5e23573-37f9-46b4-a110-c98cd8169a58,"Flowers, Plants & Outdoor",5999b5b0-6d49-4648-b6ef-eae2f512641d
+53e76188-3fb9-4698-b238-e2b21aa87675,Fizzy Drinks,bd2051a0-23d7-463c-847c-037c6603fc5c
+7a4856fd-70c6-44f9-a06b-4c4a08613179,Feeding Accessories,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+482ff083-617f-4228-8bd0-51a59fb8899d,Facial Skincare,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+7530501c-4b04-4d49-a8cb-f88b613e1718,Electricals & Office,5999b5b0-6d49-4648-b6ef-eae2f512641d
+42782df5-8747-4717-b8bc-1ef8e7752c06,Dummies & Teethers,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+e584ba62-5fc5-4f45-8d85-11c43dc10856,"Doughnuts, Cookies & Muffins",4a4df996-2d61-424d-9af1-7fdfef76e63e
+fcd23277-db43-4aa6-a3ea-f9a577377d26,Dog Supplies,051f4a18-58ca-438b-8a3c-242c32f41748
+a5f41506-53b8-445f-a034-df689256679f,DIY & Car Care,5999b5b0-6d49-4648-b6ef-eae2f512641d
+ac1bdebc-6fc4-45f5-8cde-816dc810ba68,Dishwashing,37e98de1-ff36-4701-b43a-8e050f64a71b
+cfb771e8-3bbe-4c1c-8559-c6fb1b2973d2,Deodorants & Body Sprays,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+db9a1f6f-b10b-43db-a93c-bf0f06845db0,Dental Care,c44bbe12-558d-4a90-97c0-ef08c01abe5f
+df6ca835-0e9e-4b49-994e-d6dd15e87011,Dairy Alternatives,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+792402fb-bb1b-403e-a5c3-a25012f15aca,"Crisps, Snacks & Nuts",a2f0ca2b-9b15-458c-8cf2-310f69eb5899
+0a533253-5ed1-437b-9ccb-ecfe842d2b1c,Cookware & Dining,5999b5b0-6d49-4648-b6ef-eae2f512641d
+8f54e134-2897-44d9-aee5-9fa7fe195f21,Cooking Sauces & Meal Kits,96607918-0fb6-406e-8198-292c5febc1fb
+4cbd15e3-1d81-4466-a069-92cbcf38703b,"Cooked Meats, Deli & Dips",27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+9f3f7660-e71b-4031-8073-d6c6c649f5fd,"Condiments, Sauces & Oils",96607918-0fb6-406e-8198-292c5febc1fb
+9c23ec50-da94-4a80-88b3-3c8f0685da50,Coffee,bd2051a0-23d7-463c-847c-037c6603fc5c
+c5397540-32d8-470a-83a6-f4fc7f07ecc2,Cleaning Equipment,37e98de1-ff36-4701-b43a-8e050f64a71b
+db4f8bea-1607-4cd0-9e35-a6563d8c50f3,Chocolate & Sweets,a2f0ca2b-9b15-458c-8cf2-310f69eb5899
+9accb935-1b31-4c78-9bff-10a2f3fdb10f,Chilled Vegetarian & Vegan,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+e29a2450-6898-49c4-8afe-c3062605da67,Chilled Juice & Smoothies,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+27cf7aeb-d92d-422d-8c5e-0e564c2741ba,Chilled Fish & Seafood,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+ce97303d-3c04-410d-9d86-6bfc4e94ecbe,Chilled Desserts,96607918-0fb6-406e-8198-292c5febc1fb
+261e5dcd-548d-4b79-a531-5093a1438f3b,Chilled Desserts,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+e50a4953-da0e-4ff9-a249-c3cef14e7b74,Cheese,27dbcc1a-5d2b-4a40-9e24-50fbfce59aae
+8f772b64-ef08-41ac-8576-6bc9143dd5f8,Cereals,96607918-0fb6-406e-8198-292c5febc1fb
+20637ae8-0120-430c-b002-9d717ebfbf79,Cat Supplies,051f4a18-58ca-438b-8a3c-242c32f41748
+b173b3b1-e794-4117-998e-e92494761065,"Cards, Gifts & Party",5999b5b0-6d49-4648-b6ef-eae2f512641d
+061b31ff-efe7-4759-89e3-536565ce91e6,Canned Goods & Packets,96607918-0fb6-406e-8198-292c5febc1fb
+4ff47b17-bc58-44b2-ae9b-053d2445d7e7,Cakes & Patisserie,4a4df996-2d61-424d-9af1-7fdfef76e63e
+82cc38d5-2b1e-4f36-8414-d1880d894153,Cake Bars & Slices,a2f0ca2b-9b15-458c-8cf2-310f69eb5899
+7a5069e5-d756-4c3a-9c18-0e5cc2c9bf1a,Breakfast Bakery,4a4df996-2d61-424d-9af1-7fdfef76e63e
+08f5fe93-8a26-46ae-bb04-b300749ad272,Bread & Rolls,4a4df996-2d61-424d-9af1-7fdfef76e63e
+e57bd335-e3d1-4e63-ba80-7f957947dbd8,"Biscuits, Crackers & Cereal Bars",a2f0ca2b-9b15-458c-8cf2-310f69eb5899
+f164a866-7355-432d-b17c-16af26af770f,Bin Bags,37e98de1-ff36-4701-b43a-8e050f64a71b
+993782f0-54c7-4161-830e-820f7e13349b,Beer & Cider,85ca5c67-e914-4edf-b7b4-02bd515ad729
+6f73a67c-bea0-4dfd-8e63-7eaa206164fa,Bedding,5999b5b0-6d49-4648-b6ef-eae2f512641d
+e7a066d7-dd8d-48b5-a9ac-a2509cf24727,Batteries,5999b5b0-6d49-4648-b6ef-eae2f512641d
+528451a8-b3e7-4627-aeb2-ca46cfd64a57,Bathroom Accessories & Towels,5999b5b0-6d49-4648-b6ef-eae2f512641d
+103ef7c5-aed1-44cb-a77e-e4dbcab58a56,"Bath, Shower & Body Care",c44bbe12-558d-4a90-97c0-ef08c01abe5f
+923ea56f-e352-4a46-bd54-335e9167d36e,Baking Ingredients,96607918-0fb6-406e-8198-292c5febc1fb
+875489ab-8daf-4319-8408-41a8004d744a,Baby Wipes & Changing,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+73466ffe-00d7-4d45-9048-847e5df97677,Baby Toys & Accessories,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+e8b1f05c-9bf0-4879-9167-2836599e4020,Baby Toiletries,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+07e4d749-d36d-4e06-993e-93a07f8fb328,Baby Milk & Formula,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+29a8f47a-8ba1-4804-b943-7361d4587bcb,Baby Laundry,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+c09f2588-261c-4526-be64-1152cbf84d0b,Baby Healthcare,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+04d1557c-b3b9-40c7-b600-0db3318185ec,Baby Food,cfd69fdf-9c35-47e6-bf8b-fc99e0ab1e1a
+58d51a39-139f-46d2-b877-3f39fc4b07d5,Air Fresheners,37e98de1-ff36-4701-b43a-8e050f64a71b

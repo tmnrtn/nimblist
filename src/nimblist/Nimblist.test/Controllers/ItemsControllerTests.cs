@@ -8,7 +8,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore; // Add this
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
@@ -20,36 +22,39 @@ using Xunit;
 namespace Nimblist.test.Controllers
 {
 
-    public class ItemsControllerInMemoryTests : IDisposable // Implement IDisposable if needed for shared context cleanup, though unique DB per test is often cleaner
+    public class ItemsControllerInMemoryTests : IDisposable
     {
         // Mocks for dependencies that are NOT the DbContext
         private readonly Mock<UserManager<ApplicationUser>> _mockUserManager;
         private readonly Mock<IHubContext<ShoppingListHub>> _mockHubContext;
         private readonly Mock<IHubClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
+        private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
+        private readonly Mock<IConfiguration> _mockConfiguration;
+        private readonly Mock<ILogger<ItemsController>> _mockLogger;
 
         private readonly string _testUserId = "test-user-id";
         private readonly string _otherUserId = "other-user-id";
         private readonly Guid _testListId = Guid.NewGuid();
         private readonly Guid _otherListId = Guid.NewGuid();
 
-        // No DbContext mock needed here anymore
-
         public ItemsControllerInMemoryTests()
         {
-            // Still mock UserManager
+            // Set up UserManager mock
             var store = new Mock<IUserStore<ApplicationUser>>();
             _mockUserManager = new Mock<UserManager<ApplicationUser>>(store.Object, null, null, null, null, null, null, null, null);
 
-            // Still mock SignalR Hub Context
+            // Set up SignalR Hub Context mock
             _mockHubContext = new Mock<IHubContext<ShoppingListHub>>();
             _mockClients = new Mock<IHubClients>();
             _mockClientProxy = new Mock<IClientProxy>();
             _mockHubContext.Setup(h => h.Clients).Returns(_mockClients.Object);
             _mockClients.Setup(c => c.Group(It.IsAny<string>())).Returns(_mockClientProxy.Object);
 
-
-
+            // Set up the additional mocks required by the updated constructor
+            _mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            _mockConfiguration = new Mock<IConfiguration>();
+            _mockLogger = new Mock<ILogger<ItemsController>>();
         }
 
         // Helper to create DbContextOptions with a unique InMemory database name
@@ -85,7 +90,13 @@ namespace Nimblist.test.Controllers
         // Helper to setup Controller with context and user identity
         private ItemsController SetupController(NimblistContext context, string userId)
         {
-            var controller = new ItemsController(context, _mockUserManager.Object, _mockHubContext.Object);
+            var controller = new ItemsController(
+                context, 
+                _mockUserManager.Object, 
+                _mockHubContext.Object, 
+                _mockHttpClientFactory.Object,
+                _mockConfiguration.Object,
+                _mockLogger.Object);
 
             if (!string.IsNullOrEmpty(userId))
             {
@@ -126,7 +137,7 @@ namespace Nimblist.test.Controllers
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var items = Assert.IsAssignableFrom<IEnumerable<Item>>(okResult.Value);
+            var items = Assert.IsAssignableFrom<IEnumerable<ItemWithCategoryDto>>(okResult.Value);
             Assert.Equal(expectedCount, items.Count());
             Assert.All(items, item => Assert.Equal(_testUserId, item.List.UserId)); // Filter should work
             Assert.Equal("Eggs", items.OrderByDescending(i => i.AddedAt).First().Name); // OrderBy should work
@@ -170,9 +181,9 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetItem(testItemId);
 
                 // Assert
-                var actionResult = Assert.IsType<ActionResult<Item>>(result);
+                var actionResult = Assert.IsType<ActionResult<ItemWithCategoryDto>>(result);
                 var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
-                var itemResult = Assert.IsType<Item>(okResult.Value);
+                var itemResult = Assert.IsType<ItemWithCategoryDto>(okResult.Value);
                 Assert.Equal(testItemId, itemResult.Id);
                 Assert.Equal(_testUserId, itemResult.List.UserId); // Verify correct user
             }
@@ -192,7 +203,7 @@ namespace Nimblist.test.Controllers
             var result = await controller.GetItem(nonExistentId);
 
             // Assert
-            var actionResult = Assert.IsType<ActionResult<Item>>(result);
+            var actionResult = Assert.IsType<ActionResult<ItemWithCategoryDto>>(result);
             Assert.IsType<NotFoundResult>(actionResult.Result);
         }
 
@@ -217,7 +228,7 @@ namespace Nimblist.test.Controllers
 
                 // Assert
                 // InMemory provider respects the Where clause (i.List.UserId == userId)
-                var actionResult = Assert.IsType<ActionResult<Item>>(result);
+                var actionResult = Assert.IsType<ActionResult<ItemWithCategoryDto>>(result);
                 Assert.IsType<NotFoundResult>(actionResult.Result);
             }
         }
@@ -267,13 +278,13 @@ namespace Nimblist.test.Controllers
 
             // Assert
             // 1. Check Result Type and Location Header
-            var actionResult = Assert.IsType<ActionResult<Item>>(result);
+            var actionResult = Assert.IsType<ActionResult<ItemWithCategoryDto>>(result);
             var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(actionResult.Result);
             Assert.Equal(nameof(ItemsController.GetItem), createdAtActionResult.ActionName);
             var routeValueId = Assert.IsType<Guid>(createdAtActionResult.RouteValues["id"]);
 
             // 2. Check Response Body
-            var itemResult = Assert.IsType<Item>(createdAtActionResult.Value);
+            var itemResult = Assert.IsType<ItemWithCategoryDto>(createdAtActionResult.Value);
             Assert.Equal(newItemDto.Name, itemResult.Name);
             Assert.Equal(newItemDto.ShoppingListId, itemResult.ShoppingListId);
             Assert.Equal(routeValueId, itemResult.Id); // Ensure returned item ID matches route value ID
@@ -286,7 +297,7 @@ namespace Nimblist.test.Controllers
 
             // 4. Verify SignalR Call
             _mockClientProxy.Verify(
-                x => x.SendCoreAsync("ReceiveItemAdded", It.Is<object[]>(o => o != null && o.Length == 1 && (o[0] as Item).Id == addedItem.Id), It.IsAny<CancellationToken>()),
+                x => x.SendCoreAsync("ReceiveItemAdded", It.Is<object[]>(o => o != null && o.Length == 1 && (o[0] as ItemWithCategoryDto).Id == addedItem.Id), It.IsAny<CancellationToken>()),
                 Times.Once);
             _mockClients.Verify(c => c.Group(expectedGroupName), Times.Once);
         }
@@ -328,7 +339,7 @@ namespace Nimblist.test.Controllers
 
                 // 3. Verify SignalR Call
                 _mockClientProxy.Verify(
-                    x => x.SendCoreAsync("ReceiveItemUpdated", It.Is<object[]>(o => o != null && o.Length == 1 && (o[0] as Item).Id == existingItemId && (o[0] as Item).Name == updateDto.Name), It.IsAny<CancellationToken>()),
+                    x => x.SendCoreAsync("ReceiveItemUpdated", It.Is<object[]>(o => o != null && o.Length == 1 && (o[0] as ItemWithCategoryDto).Id == existingItemId && (o[0] as ItemWithCategoryDto).Name == updateDto.Name), It.IsAny<CancellationToken>()),
                     Times.Once);
                 _mockClients.Verify(c => c.Group(expectedGroupName), Times.Once);
             }
@@ -470,7 +481,6 @@ namespace Nimblist.test.Controllers
         }
 
         // Implement IDisposable if you need cleanup *after* all tests in the class run
-        // (less common when using unique DB per test method)
         public void Dispose()
         {
             // Cleanup if necessary (e.g., if using a shared context instance)

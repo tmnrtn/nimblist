@@ -1,0 +1,6 @@
+Flask>=2.0
+scikit-learn>=1.0  # Ensure version compatibility with saved models
+joblib>=1.1
+gunicorn>=20.0     # Production WSGI server
+numpy
+pandas          # Useful for potential future data handling
