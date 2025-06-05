@@ -68,7 +68,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest pytest-cov flake8 pytest-xunit
+          pip install pytest pytest-cov flake8
         working-directory: ${{ env.PYTHON_DIR }}
 
       - name: Run Python linting
