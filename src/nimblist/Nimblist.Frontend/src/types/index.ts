@@ -7,6 +7,8 @@ export interface Item {
     shoppingListId: string;
     categoryName: string; // Ensure this is defined
     subCategoryName: string; // Ensure this is defined
+    categoryId?: string | null; // <-- PATCHED: for edit support
+    subCategoryId?: string | null; // <-- PATCHED: for edit support
   }
   
   export interface ShoppingList {

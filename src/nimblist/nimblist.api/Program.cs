@@ -111,6 +111,10 @@ namespace Nimblist.api
                     }
                 };
 
+                // Set cookie expiration to 30 days and enable sliding expiration
+                options.ExpireTimeSpan = TimeSpan.FromDays(30);
+                options.SlidingExpiration = true;
+
                 // Other cookie settings like LoginPath, LogoutPath, AccessDeniedPath
                 // are usually configured by AddIdentity/AddDefaultIdentity automatically.
             });
@@ -143,15 +147,15 @@ namespace Nimblist.api
                     googleOptions.ClientId = googleAuthNSection["ClientId"]!; // Use null-forgiving operator if confident or check nulls properly
                     googleOptions.ClientSecret = googleAuthNSection["ClientSecret"]!;
 
+                    // Save tokens to allow refresh if needed
+                    googleOptions.SaveTokens = true;
+
                     // Optional: Configure callback path if different from default /signin-google
                     // googleOptions.CallbackPath = "/your-custom-signin-google";
 
                     // Optional: Request specific scopes (profile and email are often default/included)
                     // googleOptions.Scope.Add("profile");
                     // googleOptions.Scope.Add("email");
-
-                    // Optional: Save tokens if needed for calling Google APIs later
-                    // googleOptions.SaveTokens = true;
                 }
             });
 

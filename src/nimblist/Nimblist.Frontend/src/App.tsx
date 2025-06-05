@@ -10,6 +10,7 @@ import HomePage from './pages/HomePage';
 import ShoppingListsPage from './pages/ShoppingListsPage';
 import ListPageDetail from './pages/ListPageDetail';
 import NotFoundPage from './pages/NotFoundPage';
+import PreviousItemNamesPage from './pages/PreviousItemNamesPage'; // Import the new page
 
 function App() {
     // Get state and actions from the store
@@ -45,6 +46,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
             <Route path="lists" element={<ShoppingListsPage />} />
             <Route path="lists/:listId" element={<ListPageDetail />} />
+            <Route path="previous-item-names" element={<PreviousItemNamesPage />} /> {/* New route here */}
         </Route>
 
         {/* Catch-all route for any paths not matched above */}

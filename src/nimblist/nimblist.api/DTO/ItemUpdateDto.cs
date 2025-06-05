@@ -17,5 +17,8 @@ namespace Nimblist.api.DTO
 
         public Guid ShoppingListId { get; set; } // Foreign key property
 
+        public Guid? CategoryId { get; set; } // Optional category
+        public Guid? SubCategoryId { get; set; } // Optional subcategory
+
     }
 }
