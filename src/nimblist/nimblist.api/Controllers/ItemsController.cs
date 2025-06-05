@@ -76,7 +76,7 @@ namespace Nimblist.api.Controllers
                                         .Include(i => i.List) // Include the parent list
                                         .Include(i => i.Category) // Include Category information
                                         .Include(i => i.SubCategory) // Include SubCategory information
-                                        .Where(i => i.List.UserId == userId) // Filter by UserId
+                                        .Where(i => i.List != null && i.List.UserId == userId) // Defensive: check List is not null
                                         .OrderByDescending(i => i.AddedAt) // Order by AddedAt
                                         .ToListAsync();
 
@@ -95,7 +95,7 @@ namespace Nimblist.api.Controllers
                 .Include(i => i.List) // Include the parent list
                 .Include(i => i.Category) // Include Category information
                 .Include(i => i.SubCategory) // Include SubCategory information
-                .FirstOrDefaultAsync(i => i.Id == id && i.List.UserId == userId);
+                .FirstOrDefaultAsync(i => i.Id == id && i.List != null && i.List.UserId == userId); // Defensive: check List is not null
 
             if (item == null)
             {
@@ -118,20 +118,29 @@ namespace Nimblist.api.Controllers
                 .Include(i => i.List) // Include the parent list
                 .Include(i => i.Category) // Include Category information
                 .Include(i => i.SubCategory) // Include SubCategory information
-                .FirstOrDefaultAsync(i => i.Id == id && i.List.UserId == userId);
+                .FirstOrDefaultAsync(i => i.Id == id && i.List != null && i.List.UserId == userId); // Defensive: check List is not null
 
             if (existingItem == null)
             {
                 return NotFound();
             }
-
             existingItem.Name = itemDto.Name;
             existingItem.Quantity = itemDto.Quantity;
             existingItem.IsChecked = itemDto.IsChecked;
             existingItem.ShoppingListId = itemDto.ShoppingListId;
+            // Clear category associations when updating - they can be re-set via classification if needed
+            existingItem.CategoryId = null;
+            existingItem.SubCategoryId = null;
 
             try
             {
+                // Check if the shopping list exists
+                var shoppingListExists = await _context.ShoppingLists.AnyAsync(sl => sl.Id == itemDto.ShoppingListId && sl.UserId == userId);
+                if (!shoppingListExists)
+                {
+                    throw new InvalidOperationException("The required data for completing this operation was not found. The shopping list does not exist.");
+                }
+                
                 await _context.SaveChangesAsync();
 
                 // --- Send SignalR Update ---
@@ -165,11 +174,9 @@ namespace Nimblist.api.Controllers
                 _logger.LogInformation("Attempting to classify item: {ItemName}", itemDto.Name);
                 try
                 {
-                    var httpClient = _httpClientFactory.CreateClient("ClassificationServiceClient"); // Named client (optional)
+                    var httpClient = _httpClientFactory.CreateClient("ClassificationServiceClient");
                     var classificationRequest = new { product_name = itemDto.Name };
-
                     var response = await httpClient.PostAsJsonAsync(classificationServiceUrl, classificationRequest);
-
                     if (response.IsSuccessStatusCode)
                     {
                         var classificationResult = await response.Content.ReadFromJsonAsync<ClassificationResponseDto>();
@@ -181,7 +188,6 @@ namespace Nimblist.api.Controllers
                             if (!string.IsNullOrEmpty(classificationResult.PredictedPrimaryCategory) && classificationResult.PredictedPrimaryCategory != "Unknown")
                             {
                                 var categoryName = classificationResult.PredictedPrimaryCategory;
-                                // Using ToLowerInvariant for case-insensitive comparison
                                 var category = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToLower() == categoryName.ToLower());
                                 if (category != null)
                                 {
@@ -201,14 +207,30 @@ namespace Nimblist.api.Controllers
                                         }
                                         else
                                         {
+                                            // Defensive: log warning and do NOT throw if subcategory not found
                                             _logger.LogWarning("SubCategory '{SubCategoryName}' not found in database for CategoryId {CategoryId}.", subCategoryName, foundCategoryId);
+                                            foundSubCategoryId = null;
                                         }
+                                    }
+                                    else
+                                    {
+                                        // Defensive: subcategory not provided or is a special value
+                                        foundSubCategoryId = null;
                                     }
                                 }
                                 else
                                 {
+                                    // Defensive: log warning and do NOT throw if category not found
                                     _logger.LogWarning("Category '{CategoryName}' not found in database.", categoryName);
+                                    foundCategoryId = null;
+                                    foundSubCategoryId = null;
                                 }
+                            }
+                            else
+                            {
+                                // Defensive: if classification result is missing or unknown, do not set category/subcategory
+                                foundCategoryId = null;
+                                foundSubCategoryId = null;
                             }
                         }
                         else
@@ -224,12 +246,36 @@ namespace Nimblist.api.Controllers
                 }
                 catch (Exception ex)
                 {
+                    // Defensive: always log error, but do NOT throw
                     _logger.LogError(ex, "Exception occurred while calling classification service for item: {ItemName}", itemDto.Name);
+                    foundCategoryId = null;
+                    foundSubCategoryId = null;
                 }
             }
             else if (string.IsNullOrWhiteSpace(itemDto.Name))
             {
                 _logger.LogWarning("Item name is empty, skipping classification.");
+            }
+
+            // Defensive: ensure IDs are only set if the corresponding entity exists
+            if (foundCategoryId != null)
+            {
+                var categoryExists = await _context.Categories.AnyAsync(c => c.Id == foundCategoryId);
+                if (!categoryExists)
+                {
+                    _logger.LogWarning("CategoryId {CategoryId} was set but does not exist in database. Clearing.", foundCategoryId);
+                    foundCategoryId = null;
+                    foundSubCategoryId = null;
+                }
+            }
+            if (foundSubCategoryId != null)
+            {
+                var subCategoryExists = await _context.SubCategories.AnyAsync(sc => sc.Id == foundSubCategoryId);
+                if (!subCategoryExists)
+                {
+                    _logger.LogWarning("SubCategoryId {SubCategoryId} was set but does not exist in database. Clearing.", foundSubCategoryId);
+                    foundSubCategoryId = null;
+                }
             }
 
             var item = new Item
@@ -270,7 +316,7 @@ namespace Nimblist.api.Controllers
 
             var item = await _context.Items
                 .Include(i => i.List) // Optionally include the parent list
-                .FirstOrDefaultAsync(i => i.Id == id && i.List.UserId == userId);
+                .FirstOrDefaultAsync(i => i.Id == id && i.List != null && i.List.UserId == userId); // Defensive: check List is not null
             if (item == null)
             {
                 return NotFound();

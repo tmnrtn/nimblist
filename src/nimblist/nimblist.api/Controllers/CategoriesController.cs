@@ -26,10 +26,12 @@ namespace Nimblist.api.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
         {
-            return await _context.Categories
+            var result = await _context.Categories
                                  .Include(c => c.SubCategories) //
                                  .OrderBy(c => c.Name)
                                  .ToListAsync();
+
+            return Ok(result);
         }
 
         // GET: api/Categories/{id}
