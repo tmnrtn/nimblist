@@ -34,7 +34,9 @@ describe("ListPageDetail Component", () => {
     items: [{
       id: "item1", name: "Item 1", quantity: "2", isChecked: false,
       addedAt: "",
-      shoppingListId: "list-123"
+      shoppingListId: "list-123",
+      categoryName: "",
+      subCategoryName: ""
     }],
     createdAt: "",
     userId: "user-xyz"

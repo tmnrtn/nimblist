@@ -23,6 +23,8 @@ describe('ItemList Component', () => {
       quantity: '1',
       addedAt: '2023-01-01T00:00:00Z',
       shoppingListId: 'list-1',
+      categoryName: '',
+      subCategoryName: ''
     },
     {
       id: '2',
@@ -31,6 +33,8 @@ describe('ItemList Component', () => {
       quantity: '2',
       addedAt: '2023-01-02T00:00:00Z',
       shoppingListId: 'list-1',
+      categoryName: '',
+      subCategoryName: ''
     },
   ];
 
