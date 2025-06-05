@@ -68,7 +68,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest pytest-cov flake8
+          pip install pytest pytest-cov flake8 pytest-xunit
         working-directory: ${{ env.PYTHON_DIR }}
 
       - name: Run Python linting
@@ -170,8 +170,8 @@ jobs:
       - name: Build and push Classification Service image
         uses: docker/build-push-action@v5
         with:
-          context: ./src/nimblist/Nimblist.classification
-          file: ./Dockerfile
+          context: .
+          file: ./src/nimblist/Nimblist.classification/Dockerfile
           push: true
           tags: |
             ${{ env.CLASSIFICATION_IMAGE_NAME }}:latest

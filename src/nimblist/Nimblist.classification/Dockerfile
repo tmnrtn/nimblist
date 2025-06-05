@@ -2,26 +2,29 @@
 FROM python:3.9-slim
 
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies if needed (e.g., for certain ML libraries)
-# RUN apt-get update && apt-get install -y --no-install-recommends some-package && rm -rf /var/lib/apt/lists/*
+# Install system dependencies needed for building Python packages with C extensions
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file first to leverage Docker cache
-COPY requirements.txt .
+COPY src/nimblist/Nimblist.classification/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code and models
-COPY app.py .
-COPY supermarket_classifier_logreg.joblib .
-COPY tfidf_vectorizer_logreg.joblib .
-COPY sub_category_models/ ./sub_category_models/
+COPY src/nimblist/Nimblist.classification/app.py .
+COPY src/nimblist/Nimblist.classification/supermarket_classifier_logreg.joblib .
+COPY src/nimblist/Nimblist.classification/tfidf_vectorizer_logreg.joblib .
+COPY src/nimblist/Nimblist.classification/sub_category_models/ ./sub_category_models/
 
 # Make port 5000 available to the world outside this container
 EXPOSE 5000

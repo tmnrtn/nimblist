@@ -25,8 +25,8 @@ services:
   Nimblist.classification:
     image: ${DOCKER_REGISTRY-}nimblistclassification
     build:
-      context: ./Nimblist.classification # Adjust path to your classification service
-      dockerfile: ./Dockerfile
+      context: .
+      dockerfile: Nimblist.classification/Dockerfile
     ports:
       - "5000:5000"
     networks: # Optional but recommended: define explicit network
