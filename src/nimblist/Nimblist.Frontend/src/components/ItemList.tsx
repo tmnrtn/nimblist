@@ -102,14 +102,9 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
         if (!res.ok) throw new Error("Failed to fetch categories");
         return res.json();
       })
-      .then((data) => {
-        console.log(
-          "ItemList: Categories fetched, count:",
-          data.length,
-          "Setting categories & loading=false"
-        );
+      .then((data: { id: string; name: string }[]) => {
         setCategories(
-          data.map((cat: any) => ({ value: cat.id, label: cat.name }))
+          data.map((cat) => ({ value: cat.id, label: cat.name }))
         );
         setCategoryLoading(false);
       })
@@ -147,9 +142,9 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
           if (!res.ok) throw new Error("Failed to fetch subcategories");
           return res.json();
         })
-        .then((data) => {
+        .then((data: { id: string; name: string }[]) => {
           setSubcategories(
-            data.map((sub: any) => ({ value: sub.id, label: sub.name }))
+            data.map((sub) => ({ value: sub.id, label: sub.name }))
           );
           setSubcategoryLoading(false);
         })
@@ -366,7 +361,7 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
       {
         accessorKey: "isChecked",
         header: () => <span className="sr-only">Checked</span>,
-        cell: (info: any) => (
+        cell: (info: import("@tanstack/react-table").CellContext<Item, unknown>) => (
           <input
             type="checkbox"
             checked={info.row.original.isChecked}
@@ -382,7 +377,7 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
       {
         accessorKey: "name",
         header: () => "Item Name",
-        cell: (info: any) => {
+        cell: (info: import("@tanstack/react-table").CellContext<Item, unknown>) => {
           if (editingItemId === info.row.original.id) {
             // *****************************************************************
             // **** CRITICAL TEST BLOCK ****
@@ -434,7 +429,7 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
                   options={[{ value: "", label: "(None)" }, ...categories]}
                   value={selectedCategory || noneCategoryOption}
                   onChange={(option) => {
-                    if (!option || !(option as any).value) {
+                    if (!option || !(option as CategoryOption).value) {
                       setSelectedCategory(null);
                       setSelectedSubcategory(null);
                     } else {
@@ -453,7 +448,7 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
                   value={selectedSubcategory || noneSubcategoryOption}
                   onChange={(option) => {
                     setSelectedSubcategory(
-                      option && (option as any).value
+                      option && (option as SubcategoryOption).value
                         ? (option as SubcategoryOption)
                         : null
                     );
@@ -501,7 +496,7 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
       {
         accessorKey: "quantity",
         header: () => "Quantity",
-        cell: (info: any) =>
+        cell: (info: import("@tanstack/react-table").CellContext<Item, unknown>) =>
           info.row.original.quantity ? (
             <span className="text-sm text-gray-500">
               {info.row.original.quantity}
@@ -512,19 +507,19 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
       {
         accessorKey: "categoryName",
         header: () => "Category",
-        cell: (info: any) => info.row.original.categoryName,
+        cell: (info: import("@tanstack/react-table").CellContext<Item, unknown>) => info.row.original.categoryName,
         enableSorting: true,
       },
       {
         accessorKey: "subCategoryName",
         header: () => "Subcategory",
-        cell: (info: any) => info.row.original.subCategoryName,
+        cell: (info: import("@tanstack/react-table").CellContext<Item, unknown>) => info.row.original.subCategoryName,
         enableSorting: true,
       },
       {
         id: "actions",
         header: () => "Actions",
-        cell: (info: any) =>
+        cell: (info: import("@tanstack/react-table").CellContext<Item, unknown>) =>
           editingItemId === info.row.original.id ? null : (
             <>
               <button
@@ -685,7 +680,7 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
                       : "opacity-100"
                   }
                 >
-                  {row.getVisibleCells().map((cell: Cell<Item, any>) => {
+                  {row.getVisibleCells().map((cell: Cell<Item, unknown>) => {
                     // console.log('[ItemList] rendering cell', cell.id); // Removed noisy log
                     return (
                       <td key={cell.id} className="px-4 py-2 align-middle">

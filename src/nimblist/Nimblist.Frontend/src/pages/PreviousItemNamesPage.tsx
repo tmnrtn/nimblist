@@ -18,7 +18,7 @@ const PreviousItemNamesPage: React.FC = () => {
       if (!res.ok) throw new Error("Failed to fetch previous item names");
       const data = await res.json();
       setNames(Array.isArray(data) ? [...data].sort((a, b) => a.localeCompare(b)) : []);
-    } catch (err) {
+    } catch {
       setError("Failed to load previous item names.");
     } finally {
       setLoading(false);
@@ -39,7 +39,7 @@ const PreviousItemNamesPage: React.FC = () => {
       });
       if (!res.ok) throw new Error("Failed to delete");
       setNames((prev) => prev.filter((n) => n !== name).sort((a, b) => a.localeCompare(b)));
-    } catch (err) {
+    } catch {
       setError("Failed to delete previous item name.");
     } finally {
       setDeleting(null);
