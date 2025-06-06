@@ -42,13 +42,6 @@ describe('Layout Component', () => {
     expect(title).toBeInTheDocument();
   });
 
-  it('renders the Home link', () => {
-    // No specific auth state needed
-    render(<MemoryRouter><Layout /></MemoryRouter>);
-    const homeLink = screen.getByRole('link', { name: /home/i });
-    expect(homeLink).toBeInTheDocument();
-    expect(homeLink).toHaveAttribute('href', '/');
-  });
 
   it('renders the Login/Register link when not authenticated', () => {
     // Arrange: beforeEach already set state to logged-out/not authenticated

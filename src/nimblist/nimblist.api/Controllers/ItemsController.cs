@@ -128,9 +128,9 @@ namespace Nimblist.api.Controllers
             existingItem.Quantity = itemDto.Quantity;
             existingItem.IsChecked = itemDto.IsChecked;
             existingItem.ShoppingListId = itemDto.ShoppingListId;
-            // Clear category associations when updating - they can be re-set via classification if needed
-            existingItem.CategoryId = null;
-            existingItem.SubCategoryId = null;
+            // Set category and subcategory if provided
+            existingItem.CategoryId = itemDto.CategoryId;
+            existingItem.SubCategoryId = itemDto.SubCategoryId;
 
             try
             {
@@ -142,6 +142,10 @@ namespace Nimblist.api.Controllers
                 }
                 
                 await _context.SaveChangesAsync();
+
+                // Reload navigation properties to ensure names are up-to-date
+                await _context.Entry(existingItem).Reference(i => i.Category).LoadAsync();
+                await _context.Entry(existingItem).Reference(i => i.SubCategory).LoadAsync();
 
                 // --- Send SignalR Update ---
                 string groupName = $"list_{existingItem.ShoppingListId}";
@@ -304,6 +308,18 @@ namespace Nimblist.api.Controllers
             Console.WriteLine($"--> SignalR: Sent ReceiveItemAdded to {groupName} for item {item.Id}");
             // --------------------------
 
+            // Record or update the previous item name usage
+            var prevName = await _context.PreviousItemNames.FirstOrDefaultAsync(p => p.UserId == userId && p.Name == itemDto.Name);
+            if (prevName == null)
+            {
+                _context.PreviousItemNames.Add(new PreviousItemName { Name = itemDto.Name, UserId = userId, LastUsed = DateTimeOffset.UtcNow });
+            }
+            else
+            {
+                prevName.LastUsed = DateTimeOffset.UtcNow;
+            }
+            await _context.SaveChangesAsync();
+
             return CreatedAtAction(nameof(GetItem), new { id = item.Id }, itemWithCategory);
         }
 
@@ -334,6 +350,20 @@ namespace Nimblist.api.Controllers
             // --------------------------
 
             return NoContent();
+        }
+
+        // GET: api/Items/previous-names
+        [HttpGet("previous-names")]
+        public async Task<ActionResult<IEnumerable<string>>> GetPreviousItemNames()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
+            var names = await _context.PreviousItemNames
+                .Where(p => p.UserId == userId)
+                .OrderByDescending(p => p.LastUsed)
+                .Select(p => p.Name)
+                .ToListAsync();
+            return Ok(names);
         }
     }
 }

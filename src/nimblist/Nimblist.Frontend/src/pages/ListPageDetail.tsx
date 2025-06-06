@@ -5,7 +5,8 @@ import useAuthStore from "../store/authStore";
 import { ShoppingList, Item } from "../types";
 import ItemList from "../components/ItemList";
 import useShoppingListHub from "../hooks/useShoppingListHub"; // <-- Import the hook
-import {authenticatedFetch} from "../components/HttpHelper"; // Adjust path as needed
+import { authenticatedFetch } from "../components/HttpHelper"; // Adjust path as needed
+import ItemNameAutocomplete from "../components/ItemNameAutocomplete";
 
 const ListPageDetail: React.FC = () => {
   const { listId } = useParams<{ listId: string }>();
@@ -25,6 +26,13 @@ const ListPageDetail: React.FC = () => {
   // Pass the listId. The hook manages connect/disconnect/join/leave.
   const { connection, isConnected: isSignalRConnected } =
     useShoppingListHub(listId);
+
+  useEffect(() => {
+    console.log("ListPageDetail MOUNTED with listId:", listId);
+    return () => {
+      console.log("ListPageDetail UNMOUNTING with listId:", listId);
+    };
+  }, []);
 
   // --- Fetching Logic (useEffect for getting list details - as before) ---
   useEffect(() => {
@@ -52,6 +60,7 @@ const ListPageDetail: React.FC = () => {
 
         if (response.ok) {
           const data: ShoppingList = await response.json();
+          //console.log("ListPageDetail: Fetched list details, about to setList. New items count:", data.items.length);
           setList(data);
         } else if (response.status === 401) {
           setError("Authentication error. Please log in again.");
@@ -78,11 +87,9 @@ const ListPageDetail: React.FC = () => {
 
       // Handler for when a new item is added by *another* user
       const handleItemAdded = (newItem: Item) => {
-        console.log("SignalR: ReceiveItemAdded", newItem);
         setList((prevList) => {
           if (!prevList || !prevList.items) return prevList;
           // Avoid adding duplicate if this client was the one who added it
-          // (assuming handleAddItem already updated state)
           if (prevList.items.some((item) => item.id === newItem.id)) {
             return prevList;
           }
@@ -92,9 +99,12 @@ const ListPageDetail: React.FC = () => {
 
       // Handler for when an item is deleted by *another* user
       const handleItemDeleted = (deletedItemId: string) => {
-        console.log("SignalR: ReceiveItemDeleted", deletedItemId);
         setList((prevList) => {
           if (!prevList || !prevList.items) return prevList;
+          // Only update if the item actually exists
+          if (!prevList.items.some((item) => item.id === deletedItemId)) {
+            return prevList;
+          }
           return {
             ...prevList,
             items: prevList.items.filter((item) => item.id !== deletedItemId),
@@ -104,10 +114,16 @@ const ListPageDetail: React.FC = () => {
 
       // Handler for when an item is updated (e.g., name/quantity change via PUT)
       const handleItemUpdated = (updatedItem: Item) => {
-        // Assuming backend sends full Item
-        console.log("SignalR: ReceiveItemUpdated", updatedItem);
+        console.log("ListPageDetail: SignalR handleItemAdded. Current list items:", list?.items?.length, "New item:", updatedItem.id);
         setList((prevList) => {
           if (!prevList || !prevList.items) return prevList;
+          const existing = prevList.items.find(
+            (item) => item.id === updatedItem.id
+          );
+          if (!existing) return prevList;
+          // Only update if the item is actually different
+          if (JSON.stringify(existing) === JSON.stringify(updatedItem))
+            return prevList;
           return {
             ...prevList,
             items: prevList.items.map((item) =>
@@ -214,6 +230,7 @@ const ListPageDetail: React.FC = () => {
     }
   };
 
+
   // --- Render Logic ---
   // Handle Error State
   if (error) {
@@ -273,16 +290,29 @@ const ListPageDetail: React.FC = () => {
           </p>
         )}
         <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
-          <input
-            type="text"
-            value={newItemName}
-            onChange={(e) => setNewItemName(e.target.value)}
-            placeholder="Item Name (required)"
-            aria-label="New item name"
-            required // HTML5 validation
-            className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-200"
-            disabled={isAdding} // Disable input while submitting
-          />
+          <div className="flex-grow">
+            <ItemNameAutocomplete
+              value={newItemName}
+              onChange={setNewItemName}
+              disabled={isAdding}
+              onKeyDown={(e: React.KeyboardEvent) => {
+                if (e.key === "Enter" && newItemName.trim()) {
+                  // Prevent AsyncCreatableSelect from handling Enter
+                  e.preventDefault();
+                  // Find the form element and submit
+                  const form = (e.target as HTMLElement).closest("form");
+                  if (form) {
+                    // Create a synthetic submit event
+                    const submitEvent = new Event("submit", {
+                      bubbles: true,
+                      cancelable: true,
+                    });
+                    form.dispatchEvent(submitEvent);
+                  }
+                }
+              }}
+            />
+          </div>
           <input
             type="text"
             value={newItemQuantity}
@@ -307,10 +337,9 @@ const ListPageDetail: React.FC = () => {
 
       {/* --- Items List (remains mostly the same) --- */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        {/* Pass the items array and listId down as props */}
-        {/* Use '?? []' to safely handle case where list.items might be initially null/undefined */}
-        {/* Use non-null assertion '!' for listId because we check for list earlier */}
-        <ItemList initialItems={list.items ?? []} listId={listId!} />
+
+          <ItemList initialItems={list.items ? list.items : []} listId={listId!} />
+
       </div>
     </div>
   );

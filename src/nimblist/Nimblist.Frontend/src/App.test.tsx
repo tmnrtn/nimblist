@@ -163,7 +163,7 @@ describe("App Component", () => {
       mockAuthFetch.mockResolvedValue(mockSuccessResponse);
 
     render(
-      <MemoryRouter initialEntries={["/lists/123"]}>
+      <MemoryRouter initialEntries={["/lists/1"]}>
         <App />
       </MemoryRouter>
     );

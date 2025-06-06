@@ -17,6 +17,7 @@ namespace Nimblist.Data
         public virtual DbSet<ListShare> ListShares { get; set; } = null!; // Initialize to avoid null warnings
         public virtual DbSet<Category> Categories { get; set; } = null!; // Initialize to avoid null warnings
         public virtual DbSet<SubCategory> SubCategories { get; set; } = null!; // Initialize to avoid null warnings
+        public virtual DbSet<PreviousItemName> PreviousItemNames { get; set; } // New DbSet for PreviousItemName
 
         // Constructor needed for dependency injection.
         // It accepts DbContextOptions, allowing the configuration (like connection string)
@@ -136,6 +137,14 @@ namespace Nimblist.Data
                 .WithOne(m => m.Category)
                 .HasForeignKey(m => m.CategoryId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<PreviousItemName>(entity =>
+            {
+                entity.HasKey(p => p.Id);
+                entity.Property(p => p.Name).HasMaxLength(200).IsRequired();
+                entity.Property(p => p.UserId).IsRequired();
+                entity.HasIndex(p => new { p.UserId, p.Name }).IsUnique();
+            });
 
             // === PostgreSQL Specific Configuration (Optional Examples) ===
 
