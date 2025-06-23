@@ -1,8 +1,8 @@
 // src/components/ItemList.tsx
 import React, { useState, useEffect } from "react";
-import { Item } from "../types"; // Adjust path as needed
+import { Item } from "../types/index";
+import { authenticatedFetch } from "./HttpHelper";
 import clsx from "clsx";
-import { authenticatedFetch } from "../components/HttpHelper"; // Adjust path as needed
 import Select from "react-select";
 import {
   useReactTable,
@@ -16,16 +16,38 @@ import {
 // --- Props Interface ---
 interface ItemListProps {
   initialItems: Item[];
-  listId: string; // Assuming listId is passed down for context/API calls if needed
-  // Optional callback if parent needs notification of changes
-  // onItemToggled?: (itemId: string, newState: boolean) => void;
+  listId: string;
+  // Parent-provided mutation handlers (for optimistic updates)
+  onDeleteItem: (itemId: string, itemName: string) => void;
+  onEditItem: (item: Item, update: { name: string; quantity: string | null; categoryId: string | null; subCategoryId: string | null }) => void;
+  onDeleteAllChecked: () => void;
+  error?: string | null;
+  bulkDeleteLoading?: boolean;
 }
 
+// --- Category/Subcategory fetch types ---
+interface CategoryApi {
+  id: string;
+  name: string;
+}
+interface SubCategoryApi {
+  id: string;
+  name: string;
+  parentCategoryId: string;
+}
 // --- End Helper ---
 
-const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
+const ItemList: React.FC<ItemListProps> = ({
+  initialItems,
+  onDeleteItem,
+  onEditItem,
+  onDeleteAllChecked,
+  error,
+  bulkDeleteLoading = false,
+}) => {
   // --- State ---
-  const [error, setError] = useState<string | null>(null);
+  // Remove error state, keep only UI state
+  // const [error, setError] = useState<string | null>(null);
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>("");
@@ -92,33 +114,18 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
 
   // Fetch categories on mount or when editing starts
   useEffect(() => {
-    console.log("ItemList: Categories effect - STARTING FETCH");
     setCategoryLoading(true);
     authenticatedFetch("/api/categories", {
       method: "GET",
-      headers: { Accept: "application/json" },
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch categories");
-        return res.json();
+      .then((res: Response) => res.json())
+      .then((data: CategoryApi[]) => {
+        setCategories(data.map((cat) => ({ value: cat.id, label: cat.name })));
       })
-      .then((data: { id: string; name: string }[]) => {
-        setCategories(
-          data.map((cat) => ({ value: cat.id, label: cat.name }))
-        );
-        setCategoryLoading(false);
-      })
-      .catch((err) => {
-        console.error("ItemList: Category fetch error", err);
-        //setCategoryLoading(false);
-        //setCategories([]);
-        setError("Failed to load categories");
-        console.error("Category fetch error:", err);
+      .catch(() => {
+        setEditError("Failed to load categories");
       })
       .finally(() => {
-        console.log(
-          "ItemList: Categories effect - FETCH COMPLETE, setLoading=false"
-        );
         setCategoryLoading(false);
       });
   }, []);
@@ -126,137 +133,69 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
   // Fetch subcategories when a category is selected
   useEffect(() => {
     if (selectedCategory) {
-      console.log(
-        "ItemList: Subcategories effect - STARTING FETCH for category:",
-        selectedCategory.value
-      );
       setSubcategoryLoading(true);
       authenticatedFetch(
         `/api/subcategories?parentCategoryId=${selectedCategory.value}`,
         {
           method: "GET",
-          headers: { Accept: "application/json" },
         }
       )
-        .then((res) => {
-          if (!res.ok) throw new Error("Failed to fetch subcategories");
-          return res.json();
+        .then((res: Response) => res.json())
+        .then((data: SubCategoryApi[]) => {
+          setSubcategories(data.map((sub) => ({ value: sub.id, label: sub.name })));
         })
-        .then((data: { id: string; name: string }[]) => {
-          setSubcategories(
-            data.map((sub) => ({ value: sub.id, label: sub.name }))
-          );
-          setSubcategoryLoading(false);
+        .catch(() => {
+          setEditError("Failed to load subcategories");
         })
-        .catch((err) => {
+        .finally(() => {
           setSubcategoryLoading(false);
-          setSubcategories([]);
-          setError("Failed to load subcategories");
-          console.error("Subcategory fetch error:", err);
         });
     } else {
-      console.log(
-        "ItemList: Subcategories effect - no selected category, clearing subcategories."
-      );
-      //setSubcategories([]);
+      setSubcategories([]);
     }
   }, [selectedCategory]);
 
   // --- Toggle Handler ---
-  const handleToggleCheck = async (itemId: string): Promise<void> => {
-    console.log("[ItemList] handleToggleCheck called", itemId);
-    if (loadingItemId === itemId) return;
-
+  const handleToggleCheck = (itemId: string): void => {
     setLoadingItemId(itemId);
-    setError(null);
-
-    const originalItem = initialItems.find((i) => i.id === itemId);
-    if (!originalItem) {
-      setLoadingItemId(null);
-      console.warn(`Item with id ${itemId} not found in current state.`);
-      return;
-    }
-
-    // Determine the new state and create the updated item for UI and API
-    const newCheckedState = !originalItem.isChecked;
-    const updatedItem = { ...originalItem, isChecked: newCheckedState };
-
-    // --- API Call ---
-    try {
-      // Use the standard PUT endpoint for the item resource
-      const apiUrl = `/api/items/${itemId}`;
-
-      // Prepare the payload - send the updated item object
-      // Ensure this matches what your backend PUT endpoint expects!
-      // It might expect the full item or just certain fields.
-      // Using the 'updatedItem' assumes PUT replaces/updates based on this representation.
-      const payload = updatedItem;
-
-      await authenticatedFetch(apiUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json" // Often good practice
-        },
-        body: JSON.stringify(payload) // Send the updated item data
-      });
-
-      console.log(`Item ${itemId} updated successfully on backend.`);
-      // Optional: Notify parent if needed
-      // onItemToggled?.(itemId, newCheckedState);
-    } catch (err) {
-      // ** Rollback UI on Error **
-      setError(
-        `Failed to update item '${originalItem.name}'. Please refresh or try again.`
-      );
-      console.error("Update item API failed:", err);
-      // Revert UI state back to the original item state
-      // Filter and map to restore the original array state
-      // const revertedItems = initialItems.map((item) => (item.id === itemId ? originalItem : item));
-    } finally {
-      // --- Clear Loading State ---
-      setLoadingItemId(null);
-    }
+    // Find the item to get its current state
+    const item = initialItems.find((i) => i.id === itemId);
+    if (!item) return;
+    // Call onEditItem with isChecked toggled
+    onEditItem(item, {
+      name: item.name,
+      quantity: item.quantity || null,
+      categoryId: item.categoryId || null,
+      subCategoryId: item.subCategoryId || null,
+      isChecked: !item.isChecked,
+    } as any); // Cast to any to allow isChecked, parent must handle it
+    // Parent will clear loading state via props update
   };
 
   // --- Delete Handler ---
-  const handleDeleteItem = async (
+  const handleDeleteItem = (
     itemIdToDelete: string,
     itemName: string
-  ): Promise<void> => {
-    console.log("[ItemList] handleDeleteItem called", itemIdToDelete);
-    // Prevent running if another operation is in progress for this item
-    if (loadingItemId === itemIdToDelete) return;
-
-    // ** Confirmation Dialog ** (Good Practice)
+  ): void => {
     if (!window.confirm(`Are you sure you want to delete "${itemName}"?`)) {
-      return; // Stop if user cancels
+      return;
     }
-
-    setLoadingItemId(itemIdToDelete); // Set loading state for feedback/disabling buttons
-    setError(null);
-
-    // --- API Call ---
-    try {
-      const apiUrl = `/api/items/${itemIdToDelete}`;
-      await authenticatedFetch(apiUrl, { method: "DELETE" });
-
-      // ** Update UI State on Success **
-      // Filter out the deleted item from the local state *after* successful deletion
-      // This creates a new array reference without the deleted item
-    } catch (err) {
-      setError(`Failed to delete item '${itemName}'. Please try again.`);
-      console.error("Delete item API failed:", err);
-      // No UI rollback needed here because we update state *after* success
-    } finally {
-      // --- Clear Loading State ---
-      setLoadingItemId(null);
-    }
+    setLoadingItemId(itemIdToDelete);
+    onDeleteItem(itemIdToDelete, itemName);
+    // Parent will clear loading state via props update
   };
 
   // --- Edit Handlers ---
+  // Track the last saved values when entering edit mode
+  const [lastSaved, setLastSaved] = useState<{
+    id: string;
+    name: string;
+    quantity: string | null;
+    categoryId: string | null | undefined;
+    subCategoryId: string | null | undefined;
+  } | null>(null);
+
   const startEdit = (item: Item) => {
-    console.log("[ItemList] startEdit called", item.id);
     setEditingItemId(item.id);
     setEditName(item.name);
     setEditQuantity(item.quantity || "");
@@ -271,6 +210,13 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
         ? { value: item.subCategoryId, label: item.subCategoryName }
         : null
     );
+    setLastSaved({
+      id: item.id,
+      name: item.name,
+      quantity: item.quantity || "",
+      categoryId: item.categoryId,
+      subCategoryId: item.subCategoryId,
+    });
   };
 
   const cancelEdit = () => {
@@ -281,9 +227,13 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
     setEditError(null);
     setSelectedCategory(null);
     setSelectedSubcategory(null);
+    setLastSaved(null);
   };
 
-  const handleEditSubmit = async (e: React.FormEvent, item: Item) => {
+  const handleEditSubmit = (
+    e: React.FormEvent,
+    item: Item
+  ) => {
     console.log("[ItemList] handleEditSubmit called", item.id);
     e.preventDefault();
     if (!editName.trim()) {
@@ -291,60 +241,27 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
       return;
     }
     setLoadingItemId(item.id);
-    setEditError(null);
-    try {
-      const apiUrl = `/api/items/${item.id}`;
-      // Only send fields expected by backend DTO
-      const payload = {
-        name: editName.trim(),
-        quantity: editQuantity.trim() || null,
-        isChecked: item.isChecked,
-        shoppingListId: item.shoppingListId,
-        categoryId: selectedCategory?.value || null,
-        subCategoryId: selectedSubcategory?.value || null,
-      };
-      await authenticatedFetch(apiUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-      // No local state update needed, parent/SignalR will handle it
-      setEditingItemId(null);
-    } catch (err) {
-      setEditError("Failed to update item. Please try again.");
-      console.error("Edit item API failed:", err);
-    } finally {
-      setLoadingItemId(null);
-    }
+    onEditItem(item, {
+      name: editName.trim(),
+      quantity: editQuantity.trim() || null,
+      categoryId: selectedCategory?.value || null,
+      subCategoryId: selectedSubcategory?.value || null,
+    });
+    // Parent will clear loading state via props update
   };
 
   // --- Bulk Delete Checked Items Handler ---
-  const handleDeleteAllChecked = async () => {
-    const checkedItems = initialItems.filter((item) => item.isChecked);
-    if (checkedItems.length === 0) return;
+  const handleDeleteAllChecked = () => {
     if (
       !window.confirm(
-        `Are you sure you want to delete all ${checkedItems.length} checked item(s)? This cannot be undone.`
+        `Are you sure you want to delete all checked item(s)? This cannot be undone.`
       )
     ) {
       return;
     }
     setLoadingItemId("__bulk__");
-    setError(null);
-    try {
-      // Delete each checked item sequentially (could be parallelized if needed)
-      for (const item of checkedItems) {
-        await authenticatedFetch(`/api/items/${item.id}`, { method: "DELETE" });
-      }
-    } catch (err) {
-      setError("Failed to delete one or more checked items. Please try again.");
-      console.error("Bulk delete checked items failed:", err);
-    } finally {
-      setLoadingItemId(null);
-    }
+    onDeleteAllChecked();
+    // Parent will clear loading state via props update
   };
 
   // --- Table Columns ---
@@ -379,129 +296,23 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
         header: () => "Item Name",
         cell: (info: import("@tanstack/react-table").CellContext<Item, unknown>) => {
           if (editingItemId === info.row.original.id) {
-            // *****************************************************************
-            // **** CRITICAL TEST BLOCK ****
-            // *****************************************************************
-            if (subcategoryLoading) {
-              // If subcategories are loading for the item being edited,
-              // render a very simple placeholder INSTEAD of the full form.
-              console.log(
-                `[ITEMLIST CELL RENDER] Item: ${info.row.original.id} - EDITING & SUBCATEGORY LOADING. Rendering placeholder.`
-              );
-              return (
-                <div style={{ padding: "10px", border: "2px solid red" }}>
-                  Simplified: Subcategories Loading for {editName}...
-                </div>
-              );
-            }
-            // *****************************************************************
-            // **** END OF CRITICAL TEST BLOCK ****
-            // *****************************************************************
-
-            // If not subcategoryLoading, render the full form
-            console.log(
-              `[ITEMLIST CELL RENDER] Item: ${info.row.original.id} - EDITING. Rendering full form. SubcategoryLoading: ${subcategoryLoading}`
-            );
-            return (
-              <form
-                onSubmit={(e) => handleEditSubmit(e, info.row.original)}
-                className="flex items-center space-x-2"
-              >
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="px-2 py-1 border rounded"
-                  disabled={loadingItemId === info.row.original.id}
-                  required
-                />
-                <input
-                  type="text"
-                  value={editQuantity}
-                  onChange={(e) => setEditQuantity(e.target.value)}
-                  className="px-2 py-1 border rounded"
-                  disabled={loadingItemId === info.row.original.id}
-                  placeholder="Quantity"
-                />
-                <Select
-                  className="category-select"
-                  isLoading={categoryLoading}
-                  options={[{ value: "", label: "(None)" }, ...categories]}
-                  value={selectedCategory || noneCategoryOption}
-                  onChange={(option) => {
-                    if (!option || !(option as CategoryOption).value) {
-                      setSelectedCategory(null);
-                      setSelectedSubcategory(null);
-                    } else {
-                      setSelectedCategory(option as CategoryOption);
-                      setSelectedSubcategory(null);
-                    }
-                  }}
-                  placeholder="Select category..."
-                  isClearable
-                  isDisabled={loadingItemId === info.row.original.id}
-                />
-                <Select
-                  className="subcategory-select"
-                  isLoading={subcategoryLoading}
-                  options={[{ value: "", label: "(None)" }, ...subcategories]}
-                  value={selectedSubcategory || noneSubcategoryOption}
-                  onChange={(option) => {
-                    setSelectedSubcategory(
-                      option && (option as SubcategoryOption).value
-                        ? (option as SubcategoryOption)
-                        : null
-                    );
-                  }}
-                  placeholder="Select subcategory..."
-                  isClearable
-                  isDisabled={
-                    !selectedCategory || loadingItemId === info.row.original.id
-                  }
-                />
-                <button
-                  type="submit"
-                  className="px-2 py-1 bg-blue-600 text-white rounded"
-                  disabled={loadingItemId === info.row.original.id}
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className="px-2 py-1 bg-gray-300 text-gray-800 rounded"
-                  onClick={cancelEdit}
-                  disabled={loadingItemId === info.row.original.id}
-                >
-                  Cancel
-                </button>
-                {editError && (
-                  <span className="text-red-600 ml-2">{editError}</span>
-                )}
-              </form>
-            );
+            // Instead of rendering the form in just this cell, render the form spanning the whole row
+            // We'll handle this in the row rendering below
+            return null;
           }
+          // --- Normal cell: show name, and quantity in small text if present ---
           return (
-            <span
-              className={clsx(
-                "text-sm font-medium text-gray-900",
-                info.row.original.isChecked && "line-through text-gray-500"
-              )}
-            >
+            <span className={clsx(
+              "text-sm font-medium text-gray-900",
+              info.row.original.isChecked && "line-through text-gray-500"
+            )}>
               {info.row.original.name}
+              {info.row.original.quantity && (
+                <span className="ml-1 text-xs text-gray-500">({info.row.original.quantity})</span>
+              )}
             </span>
           );
         },
-        enableSorting: true,
-      },
-      {
-        accessorKey: "quantity",
-        header: () => "Quantity",
-        cell: (info: import("@tanstack/react-table").CellContext<Item, unknown>) =>
-          info.row.original.quantity ? (
-            <span className="text-sm text-gray-500">
-              {info.row.original.quantity}
-            </span>
-          ) : null,
         enableSorting: true,
       },
       {
@@ -581,6 +392,39 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
     getSubRows: undefined,
   });
 
+  // --- Auto-close edit form when the item is updated in initialItems
+  useEffect(() => {
+    if (!editingItemId || !lastSaved) return;
+    const edited = initialItems.find((i) => i.id === editingItemId);
+    if (!edited) {
+      setEditingItemId(null);
+      setEditName("");
+      setEditQuantity("");
+      setEditError(null);
+      setSelectedCategory(null);
+      setSelectedSubcategory(null);
+      setLoadingItemId(null);
+      setLastSaved(null);
+      return;
+    }
+    // Only close if the item in the list is different from the last saved values
+    if (
+      edited.name !== lastSaved.name ||
+      (edited.quantity || "") !== (lastSaved.quantity || "") ||
+      (edited.categoryId || "") !== (lastSaved.categoryId || "") ||
+      (edited.subCategoryId || "") !== (lastSaved.subCategoryId || "")
+    ) {
+      setEditingItemId(null);
+      setEditName("");
+      setEditQuantity("");
+      setEditError(null);
+      setSelectedCategory(null);
+      setSelectedSubcategory(null);
+      setLoadingItemId(null);
+      setLastSaved(null);
+    }
+  }, [initialItems, editingItemId, lastSaved]);
+
   // --- Render Logic with Tailwind ---
   return (
     <div className="bg-white shadow overflow-hidden sm:rounded-md">
@@ -615,11 +459,12 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
           onClick={handleDeleteAllChecked}
           disabled={
             !initialItems || initialItems.filter((item) => item.isChecked).length === 0 ||
-            loadingItemId === "__bulk__"
+            loadingItemId === "__bulk__" ||
+            bulkDeleteLoading
           }
           title="Delete all checked items"
         >
-          Delete All Checked
+          {bulkDeleteLoading ? "Deleting..." : "Delete All Checked"}
         </button>
       </div>
       {error && (
@@ -670,7 +515,105 @@ const ItemList: React.FC<ItemListProps> = ({ initialItems }) => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {table.getRowModel().rows.map((row: Row<Item>) => {
-              // console.log('[ItemList] rendering row', row.id); // Removed noisy log
+              if (editingItemId === row.original.id) {
+                // Render a single cell spanning all columns with the edit form
+                return (
+                  <tr key={row.id}>
+                    <td colSpan={table.getAllColumns().length} className="px-4 py-2 align-middle bg-blue-50">
+                      {/* 4-row stacked edit form as before */}
+                      <form
+                        onSubmit={(e) => handleEditSubmit(e, row.original)}
+                        className="flex flex-col gap-2 w-full"
+                      >
+                        {/* Row 1: Item name and quantity */}
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="px-2 py-1 border rounded flex-1"
+                            disabled={loadingItemId === row.original.id}
+                            required
+                            placeholder="Item name"
+                          />
+                          <input
+                            type="text"
+                            value={editQuantity}
+                            onChange={(e) => setEditQuantity(e.target.value)}
+                            className="px-2 py-1 border rounded flex-1"
+                            disabled={loadingItemId === row.original.id}
+                            placeholder="Quantity"
+                          />
+                        </div>
+                        {/* Row 2: Category */}
+                        <div>
+                          <Select
+                            className="category-select"
+                            isLoading={categoryLoading}
+                            options={[{ value: "", label: "(None)" }, ...categories]}
+                            value={selectedCategory || noneCategoryOption}
+                            onChange={(option) => {
+                              if (!option || !(option as CategoryOption).value) {
+                                setSelectedCategory(null);
+                                setSelectedSubcategory(null);
+                              } else {
+                                setSelectedCategory(option as CategoryOption);
+                                setSelectedSubcategory(null);
+                              }
+                            }}
+                            placeholder="Select category..."
+                            isClearable
+                            isDisabled={loadingItemId === row.original.id}
+                          />
+                        </div>
+                        {/* Row 3: Subcategory */}
+                        <div>
+                          <Select
+                            className="subcategory-select"
+                            isLoading={subcategoryLoading}
+                            options={[{ value: "", label: "(None)" }, ...subcategories]}
+                            value={selectedSubcategory || noneSubcategoryOption}
+                            onChange={(option) => {
+                              setSelectedSubcategory(
+                                option && (option as SubcategoryOption).value
+                                  ? (option as SubcategoryOption)
+                                  : null
+                              );
+                            }}
+                            placeholder="Select subcategory..."
+                            isClearable
+                            isDisabled={
+                              !selectedCategory || loadingItemId === row.original.id
+                            }
+                          />
+                        </div>
+                        {/* Row 4: Save/Cancel buttons */}
+                        <div className="flex gap-2">
+                          <button
+                            type="submit"
+                            className="px-2 py-1 bg-blue-600 text-white rounded flex-1"
+                            disabled={loadingItemId === row.original.id}
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            className="px-2 py-1 bg-gray-300 text-gray-800 rounded flex-1"
+                            onClick={cancelEdit}
+                            disabled={loadingItemId === row.original.id}
+                          >
+                            Cancel
+                          </button>
+                          {editError && (
+                            <span className="text-red-600 ml-2">{editError}</span>
+                          )}
+                        </div>
+                      </form>
+                    </td>
+                  </tr>
+                );
+              }
+              // ...existing code for normal row rendering...
               return (
                 <tr
                   key={row.id}
