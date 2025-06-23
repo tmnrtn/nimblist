@@ -22,6 +22,9 @@ const ListPageDetail: React.FC = () => {
   const [isAdding, setIsAdding] = useState<boolean>(false); // Loading state for add operation
   const [addError, setAddError] = useState<string | null>(null); // Error specific to adding
 
+  // --- Optimistic UI Error State ---
+  const [optimisticError, setOptimisticError] = useState<string | null>(null);
+
   // *** Use the SignalR Hook ***
   // Pass the listId. The hook manages connect/disconnect/join/leave.
   const { connection, isConnected: isSignalRConnected } =
@@ -230,6 +233,93 @@ const ListPageDetail: React.FC = () => {
     }
   };
 
+  // --- Optimistic Handlers ---
+  // Delete item
+  const handleDeleteItem = async (itemId: string) => {
+    if (!list) return;
+    setOptimisticError(null);
+    const prevItems = list.items;
+    setList({ ...list, items: prevItems.filter((i) => i.id !== itemId) });
+    try {
+      const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/items/${itemId}`;
+      const response = await fetch(apiUrl, { method: "DELETE", credentials: "include" });
+      if (!response.ok) throw new Error();
+    } catch {
+      setList((l) => l ? { ...l, items: prevItems } : l);
+      setOptimisticError("Failed to delete item. Please try again.");
+    }
+  };
+
+  // Edit item
+  const handleEditItem = async (item: Item, update: { name: string; quantity: string | null; categoryId: string | null; subCategoryId: string | null; isChecked?: boolean; }) => {
+    if (!list) return;
+    setOptimisticError(null);
+    const prevItems = list.items;
+    const idx = prevItems.findIndex((i) => i.id === item.id);
+    if (idx === -1) return;
+    // Use isChecked from update if present, otherwise keep existing
+    const updated: Item = {
+      ...prevItems[idx],
+      ...update,
+      isChecked: update.isChecked !== undefined ? update.isChecked : prevItems[idx].isChecked,
+      shoppingListId: prevItems[idx].shoppingListId,
+    };
+    setList({
+      ...list,
+      items: [
+        ...prevItems.slice(0, idx),
+        updated,
+        ...prevItems.slice(idx + 1),
+      ],
+    });
+    try {
+      const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/items/${item.id}`;
+      const response = await fetch(apiUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          ...update,
+          isChecked: updated.isChecked,
+          shoppingListId: prevItems[idx].shoppingListId,
+        }),
+      });
+      if (!response.ok) throw new Error();
+    } catch {
+      setList((l) => (l ? { ...l, items: prevItems } : l));
+      setOptimisticError("Failed to update item. Please try again.");
+    }
+  };
+
+  // Delete all checked
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
+
+  const handleDeleteAllChecked = async () => {
+    if (!list) return;
+    setOptimisticError(null);
+    setBulkDeleteLoading(true);
+    const prevItems = list.items;
+    const checkedItems = prevItems.filter((i) => i.isChecked);
+    if (checkedItems.length === 0) {
+      setBulkDeleteLoading(false);
+      return;
+    }
+    setList({ ...list, items: prevItems.filter((i) => !i.isChecked) });
+    try {
+      // Delete each checked item in parallel
+      const apiBase = import.meta.env.VITE_API_BASE_URL;
+      const deletePromises = checkedItems.map((item) =>
+        fetch(`${apiBase}/api/items/${item.id}`, { method: "DELETE", credentials: "include" })
+      );
+      const results = await Promise.all(deletePromises);
+      if (results.some((res) => !res.ok)) throw new Error();
+    } catch {
+      setList((l) => (l ? { ...l, items: prevItems } : l));
+      setOptimisticError("Failed to delete checked items. Please try again.");
+    } finally {
+      setBulkDeleteLoading(false);
+    }
+  };
 
   // --- Render Logic ---
   // Handle Error State
@@ -338,7 +428,15 @@ const ListPageDetail: React.FC = () => {
       {/* --- Items List (remains mostly the same) --- */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
 
-          <ItemList initialItems={list.items ? list.items : []} listId={listId!} />
+          <ItemList
+        initialItems={list.items ? list.items : []}
+        listId={listId!}
+        onDeleteItem={(_id) => handleDeleteItem(_id)}
+        onEditItem={handleEditItem}
+        onDeleteAllChecked={handleDeleteAllChecked}
+        error={optimisticError}
+        bulkDeleteLoading={bulkDeleteLoading}
+      />
 
       </div>
     </div>
