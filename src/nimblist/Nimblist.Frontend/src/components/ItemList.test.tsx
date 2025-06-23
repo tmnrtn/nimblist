@@ -39,26 +39,14 @@ describe('ItemList Component', () => {
   ];
 
   it('renders the list of items', () => {
-    render(<ItemList initialItems={mockItems} listId="list-1" onDeleteItem={function (_itemId: string, _itemName: string): void {
-      throw new Error('Function not implemented.');
-    } } onEditItem={function (_item: Item, _update: { name: string; quantity: string | null; categoryId: string | null; subCategoryId: string | null; }): void {
-      throw new Error('Function not implemented.');
-    } } onDeleteAllChecked={function (): void {
-      throw new Error('Function not implemented.');
-    } } />);
+    render(<ItemList initialItems={mockItems} listId="list-1" onDeleteItem={() => { throw new Error('Function not implemented.'); }} onEditItem={() => { throw new Error('Function not implemented.'); }} onDeleteAllChecked={() => { throw new Error('Function not implemented.'); }} />);
     expect(screen.getByText('Item 1')).toBeInTheDocument();
     expect(screen.getByText('Item 2')).toBeInTheDocument();
 
   });
 
   it('displays a message when the list is empty', () => {
-    render(<ItemList initialItems={[]} listId="test-list-id" onDeleteItem={function (_itemId: string, _itemName: string): void {
-      throw new Error('Function not implemented.');
-    } } onEditItem={function (_item: Item, _update: { name: string; quantity: string | null; categoryId: string | null; subCategoryId: string | null; }): void {
-      throw new Error('Function not implemented.');
-    } } onDeleteAllChecked={function (): void {
-      throw new Error('Function not implemented.');
-    } } />);
+    render(<ItemList initialItems={[]} listId="test-list-id" onDeleteItem={() => { throw new Error('Function not implemented.'); }} onEditItem={() => { throw new Error('Function not implemented.'); }} onDeleteAllChecked={() => { throw new Error('Function not implemented.'); }} />);
     expect(screen.getByText('This list is empty.')).toBeInTheDocument();
   });
 
@@ -73,14 +61,8 @@ describe('ItemList Component', () => {
 
     
     it.skip('deletes an item from the list', async () => {
-    vi.fn(authenticatedFetch).mockResolvedValueOnce('Success'); // Mock the fetch call to resolve successfully);
-    render(<ItemList initialItems={mockItems} listId="test-list-id" onDeleteItem={function (_itemId: string, _itemName: string): void {
-      throw new Error('Function not implemented.');
-    } } onEditItem={function (_item: Item): void {
-      throw new Error('Function not implemented.');
-    } } onDeleteAllChecked={function (): void {
-      throw new Error('Function not implemented.');
-    } } />);
+    vi.fn(authenticatedFetch).mockResolvedValueOnce('Success');
+    render(<ItemList initialItems={mockItems} listId="test-list-id" onDeleteItem={() => { throw new Error('Function not implemented.'); }} onEditItem={() => { throw new Error('Function not implemented.'); }} onDeleteAllChecked={() => { throw new Error('Function not implemented.'); }} />);
     const deleteButton = screen.getByTitle('Delete item "Item 1"');
     vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
     fireEvent.click(deleteButton);

@@ -431,7 +431,7 @@ const ListPageDetail: React.FC = () => {
           <ItemList
         initialItems={list.items ? list.items : []}
         listId={listId!}
-        onDeleteItem={(_id, _name) => handleDeleteItem(_id)}
+        onDeleteItem={(_id) => handleDeleteItem(_id)}
         onEditItem={handleEditItem}
         onDeleteAllChecked={handleDeleteAllChecked}
         error={optimisticError}

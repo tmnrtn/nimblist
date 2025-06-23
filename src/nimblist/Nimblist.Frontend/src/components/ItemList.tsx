@@ -19,7 +19,7 @@ interface ItemListProps {
   listId: string;
   // Parent-provided mutation handlers (for optimistic updates)
   onDeleteItem: (itemId: string, itemName: string) => void;
-  onEditItem: (item: Item, update: { name: string; quantity: string | null; categoryId: string | null; subCategoryId: string | null }) => void;
+  onEditItem: (item: Item, update: { name: string; quantity: string | null; categoryId: string | null; subCategoryId: string | null; isChecked?: boolean }) => void;
   onDeleteAllChecked: () => void;
   error?: string | null;
   bulkDeleteLoading?: boolean;
@@ -168,7 +168,7 @@ const ItemList: React.FC<ItemListProps> = ({
       categoryId: item.categoryId || null,
       subCategoryId: item.subCategoryId || null,
       isChecked: !item.isChecked,
-    } as any); // Cast to any to allow isChecked, parent must handle it
+    });
     // Parent will clear loading state via props update
   };
 
