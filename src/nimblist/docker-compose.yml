@@ -11,6 +11,8 @@ services:
       - FrontendAppSettings__BaseUrl=${FRONTEND_APP_SETTINGS__BASE_URL}
     depends_on:
       - Nimblist.db # Make the API service depend on the database service
+      - Nimblist.classification
+      - redis_cache
     networks: # Optional but recommended: define explicit network
       - nimblistnet
     volumes:
