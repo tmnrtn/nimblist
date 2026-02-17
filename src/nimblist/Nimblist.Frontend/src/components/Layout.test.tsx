@@ -102,7 +102,7 @@ describe('Layout Component', () => {
     // No specific auth state needed
     render(<MemoryRouter><Layout /></MemoryRouter>);
     // Check against current year 2025 based on context
-    const currentYear = 2025; // Or new Date().getFullYear() if context wasn't fixed
+    const currentYear = new Date().getFullYear()
     const footerText = screen.getByText(new RegExp(`© ${currentYear} Nimblist`, 'i'));
     expect(footerText).toBeInTheDocument();
   });
