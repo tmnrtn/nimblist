@@ -6,6 +6,9 @@ export default defineConfig({
     globals: true, // <--- MAKE SURE THIS IS TRUE
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts', // Your setup file path
+    env: {
+      VITE_API_BASE_URL: 'https://localhost:64213',
+    },
     // ... other test options
     coverage: {
       provider: 'v8', // or 'istanbul' if you installed that
