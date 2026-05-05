@@ -9,12 +9,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
 using Nimblist.api.Hubs;
+using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using Xunit;
@@ -29,9 +28,7 @@ namespace Nimblist.test.Controllers
         private readonly Mock<IHubContext<ShoppingListHub>> _mockHubContext;
         private readonly Mock<IHubClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
-        private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
-        private readonly Mock<IConfiguration> _mockConfiguration;
-        private readonly Mock<ILogger<ItemsController>> _mockLogger;
+        private readonly Mock<IClassificationService> _mockClassificationService;
 
         private readonly string _testUserId = "test-user-id";
         private readonly string _otherUserId = "other-user-id";
@@ -51,10 +48,10 @@ namespace Nimblist.test.Controllers
             _mockHubContext.Setup(h => h.Clients).Returns(_mockClients.Object);
             _mockClients.Setup(c => c.Group(It.IsAny<string>())).Returns(_mockClientProxy.Object);
 
-            // Set up the additional mocks required by the updated constructor
-            _mockHttpClientFactory = new Mock<IHttpClientFactory>();
-            _mockConfiguration = new Mock<IConfiguration>();
-            _mockLogger = new Mock<ILogger<ItemsController>>();
+            _mockClassificationService = new Mock<IClassificationService>();
+            _mockClassificationService
+                .Setup(s => s.ClassifyAsync(It.IsAny<string>()))
+                .ReturnsAsync(((Guid?)null, (Guid?)null));
         }
 
         // Helper to create DbContextOptions with a unique InMemory database name
@@ -91,12 +88,10 @@ namespace Nimblist.test.Controllers
         private ItemsController SetupController(NimblistContext context, string userId)
         {
             var controller = new ItemsController(
-                context, 
-                _mockUserManager.Object, 
-                _mockHubContext.Object, 
-                _mockHttpClientFactory.Object,
-                _mockConfiguration.Object,
-                _mockLogger.Object);
+                context,
+                _mockUserManager.Object,
+                _mockHubContext.Object,
+                _mockClassificationService.Object);
 
             if (!string.IsNullOrEmpty(userId))
             {
@@ -486,34 +481,18 @@ namespace Nimblist.test.Controllers
             // Arrange
             var options = CreateNewContextOptions();
             using var context = new NimblistContext(options);
-            
-            // Seed required data
+
             var categoryId = Guid.NewGuid();
             var subCategoryId = Guid.NewGuid();
-            var category = new Category { Id = categoryId, Name = "Dairy" };
-            var subCategory = new SubCategory { Id = subCategoryId, Name = "Milk", ParentCategoryId = categoryId };
             context.ShoppingLists.Add(new ShoppingList { Id = _testListId, UserId = _testUserId, Name = "Test List" });
-            context.Categories.Add(category);
-            context.SubCategories.Add(subCategory);
-            context.SaveChanges();            // Setup classification response mock
-            var mockClassificationResponse = new ClassificationResponseDto
-            {
-                PredictedPrimaryCategory = "Dairy",
-                PredictedSubCategory = "Milk"
-            };
+            context.SaveChanges();
 
-            // Mock the HttpClient and response
-            var mockHttpClient = new Mock<HttpClient>();
-            _mockHttpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(mockHttpClient.Object);
-            
-            // Configure the classification service URL
-            _mockConfiguration.Setup(c => c["ClassificationService:PredictUrl"]).Returns("http://test-classification-service/predict");
+            _mockClassificationService
+                .Setup(s => s.ClassifyAsync("Whole Milk"))
+                .ReturnsAsync((categoryId, subCategoryId));
 
             var controller = SetupController(context, _testUserId);
             var newItemDto = new ItemInputDto { Name = "Whole Milk", Quantity = "1 gallon", IsChecked = false, ShoppingListId = _testListId };
-
-            // Mock HttpClient behavior - need to override with a testing approach that works with InMemory
-            // This is a simplified mock as the actual HTTP behavior would be tested separately
 
             // Act
             var result = await controller.PostItem(newItemDto);
@@ -523,29 +502,25 @@ namespace Nimblist.test.Controllers
             var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(actionResult.Result);
             var itemResult = Assert.IsType<ItemWithCategoryDto>(createdAtActionResult.Value);
 
-            // Verify SignalR was called
+            Assert.Equal("Whole Milk", itemResult.Name);
             _mockClientProxy.Verify(
                 x => x.SendCoreAsync("ReceiveItemAdded", It.IsAny<object[]>(), It.IsAny<CancellationToken>()),
                 Times.Once);
         }
 
         [Fact]
-        public async Task PostItem_ClassificationServiceError_CreatesItemWithoutClassification()
+        public async Task PostItem_ClassificationServiceReturnsNull_CreatesItemWithoutClassification()
         {
             // Arrange
             var options = CreateNewContextOptions();
             using var context = new NimblistContext(options);
-            
-            // Seed the shopping list
+
             context.ShoppingLists.Add(new ShoppingList { Id = _testListId, UserId = _testUserId, Name = "Test List" });
             context.SaveChanges();
 
-            // Configure to return classification service URL
-            _mockConfiguration.Setup(c => c["ClassificationService:PredictUrl"]).Returns("http://test-classification-service/predict");
-            
-            // Setup HttpClient to throw exception when used
-            var mockHttpClient = new Mock<HttpClient>();
-            _mockHttpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Throws(new HttpRequestException("Test exception"));
+            _mockClassificationService
+                .Setup(s => s.ClassifyAsync(It.IsAny<string>()))
+                .ReturnsAsync(((Guid?)null, (Guid?)null));
 
             var controller = SetupController(context, _testUserId);
             var newItemDto = new ItemInputDto { Name = "Bread", Quantity = "1 loaf", IsChecked = false, ShoppingListId = _testListId };
@@ -555,43 +530,31 @@ namespace Nimblist.test.Controllers
             var result = await controller.PostItem(newItemDto);
 
             // Assert
-            // Item should still be created even if classification fails
             var actionResult = Assert.IsType<ActionResult<ItemWithCategoryDto>>(result);
             var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(actionResult.Result);
             var itemResult = Assert.IsType<ItemWithCategoryDto>(createdAtActionResult.Value);
-            
-            // Verify item was added to database
+
             Assert.Equal(initialCount + 1, await context.Items.CountAsync());
             var addedItem = await context.Items.FindAsync(itemResult.Id);
             Assert.NotNull(addedItem);
             Assert.Equal(newItemDto.Name, addedItem.Name);
-            
-            // Category should be null since classification failed
             Assert.Null(addedItem.CategoryId);
-            Assert.Null(addedItem.SubCategoryId);            // Verify error was logged
-            _mockLogger.Verify(
-                x => x.Log(
-                    It.IsAny<LogLevel>(),
-                    It.IsAny<EventId>(),
-                    It.IsAny<It.IsAnyType>(),
-                    It.IsAny<Exception>(),
-                    (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()),
-                Times.AtLeastOnce);
+            Assert.Null(addedItem.SubCategoryId);
         }
 
         [Fact]
-        public async Task PostItem_WithEmptyItemName_SkipsClassification()
+        public async Task PostItem_WithEmptyItemName_StillCallsClassificationService()
         {
             // Arrange
             var options = CreateNewContextOptions();
             using var context = new NimblistContext(options);
-            
-            // Seed the shopping list
+
             context.ShoppingLists.Add(new ShoppingList { Id = _testListId, UserId = _testUserId, Name = "Test List" });
             context.SaveChanges();
 
-            // Configure classification service
-            _mockConfiguration.Setup(c => c["ClassificationService:PredictUrl"]).Returns("http://test-classification-service/predict");
+            _mockClassificationService
+                .Setup(s => s.ClassifyAsync(It.IsAny<string>()))
+                .ReturnsAsync(((Guid?)null, (Guid?)null));
 
             var controller = SetupController(context, _testUserId);
             var newItemDto = new ItemInputDto { Name = "", Quantity = "1", IsChecked = false, ShoppingListId = _testListId };
@@ -599,21 +562,12 @@ namespace Nimblist.test.Controllers
             // Act
             var result = await controller.PostItem(newItemDto);
 
-            // Assert
+            // Assert — item created with no category (ClassificationService handles empty name internally)
             var actionResult = Assert.IsType<ActionResult<ItemWithCategoryDto>>(result);
             var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(actionResult.Result);
-              // Verify warning was logged about empty item name
-            _mockLogger.Verify(
-                x => x.Log(
-                    It.IsAny<LogLevel>(),
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v != null && v.ToString()!.Contains("Item name is empty, skipping classification")),
-                    It.IsAny<Exception>(),
-                    (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()),
-                Times.Once);
-            
-            // Verify HttpClient was not called (no classification attempt)
-            _mockHttpClientFactory.Verify(f => f.CreateClient(It.IsAny<string>()), Times.Never);
+            var itemResult = Assert.IsType<ItemWithCategoryDto>(createdAtActionResult.Value);
+            Assert.Null(itemResult.CategoryId);
+            Assert.Null(itemResult.SubCategoryId);
         }
 
         [Fact]
@@ -715,18 +669,18 @@ namespace Nimblist.test.Controllers
         }
 
         [Fact]
-        public async Task PostItem_WithNoClassificationServiceConfigured_SkipsClassification()
+        public async Task PostItem_WithNoClassificationResult_CreatesItemWithoutCategory()
         {
             // Arrange
             var options = CreateNewContextOptions();
             using var context = new NimblistContext(options);
-            
-            // Seed the shopping list
+
             context.ShoppingLists.Add(new ShoppingList { Id = _testListId, UserId = _testUserId, Name = "Test List" });
             context.SaveChanges();
 
-            // Configure classification service URL to be empty
-            _mockConfiguration.Setup(c => c["ClassificationService:PredictUrl"]).Returns("");
+            _mockClassificationService
+                .Setup(s => s.ClassifyAsync(It.IsAny<string>()))
+                .ReturnsAsync(((Guid?)null, (Guid?)null));
 
             var controller = SetupController(context, _testUserId);
             var newItemDto = new ItemInputDto { Name = "Yogurt", Quantity = "1 pack", IsChecked = false, ShoppingListId = _testListId };
@@ -737,15 +691,10 @@ namespace Nimblist.test.Controllers
             // Assert
             var actionResult = Assert.IsType<ActionResult<ItemWithCategoryDto>>(result);
             var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(actionResult.Result);
-            
-            // Verify item was created but no classification was attempted
             var itemResult = Assert.IsType<ItemWithCategoryDto>(createdAtActionResult.Value);
             Assert.Equal(newItemDto.Name, itemResult.Name);
             Assert.Null(itemResult.CategoryId);
             Assert.Null(itemResult.SubCategoryId);
-            
-            // Verify HttpClient was not called (no classification attempt)
-            _mockHttpClientFactory.Verify(f => f.CreateClient(It.IsAny<string>()), Times.Never);
         }
 
         // Implement IDisposable if you need cleanup *after* all tests in the class run

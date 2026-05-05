@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useRef, forwardRef, useImperativeHandle } from "react";
 import AsyncCreatableSelect from "react-select/async-creatable";
+import type { SelectInstance } from "react-select";
 import { authenticatedFetch } from "../components/HttpHelper";
 
 interface ItemNameAutocompleteProps {
@@ -9,69 +10,65 @@ interface ItemNameAutocompleteProps {
   onKeyDown?: (e: React.KeyboardEvent) => void;
 }
 
-const ItemNameAutocomplete: React.FC<ItemNameAutocompleteProps> = ({ value, onChange, disabled, onKeyDown }) => {
-  const [inputValue, setInputValue] = useState("");
+export interface ItemNameAutocompleteHandle {
+  focus: () => void;
+}
 
-  // Load options from backend
-  const loadOptions = async (input: string) => {
-    const res = await authenticatedFetch("/api/items/previous-names", {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    });
-    if (!res.ok) return [];
-    const names: string[] = await res.json();
-    // Filter by input
-    return names
-      .filter((n) => n.toLowerCase().includes(input.toLowerCase()))
-      .map((n) => ({ value: n, label: n }));
-  };
+type Option = { value: string; label: string };
 
-  // Always allow free text entry and submit the raw string
-  // On blur or Enter, submit the inputValue if it's not already selected
-  const handleBlurOrEnter = () => {
-    if (inputValue && inputValue !== value) {
-      onChange(inputValue);
-    }
-  };
+const ItemNameAutocomplete = forwardRef<ItemNameAutocompleteHandle, ItemNameAutocompleteProps>(
+  ({ value, onChange, disabled, onKeyDown }, ref) => {
+    const selectRef = useRef<SelectInstance<Option>>(null);
+    const cachedNamesRef = useRef<string[] | null>(null);
 
-  return (
-    <AsyncCreatableSelect
-      isClearable
-      cacheOptions
-      defaultOptions
-      loadOptions={loadOptions}
-      value={value ? { value, label: value } : null}
-      onChange={(option) => {
-        // Accept any string, whether from the list or typed by the user
-        if (typeof option === "string") {
-          onChange(option);
-        } else if (option && typeof option.value === "string") {
-          onChange(option.value);
-        } else {
-          onChange("");
-        }
-      }}
-      onInputChange={(val) => {
-        setInputValue(val);
-        return val;
-      }}
-      inputValue={inputValue}
-      placeholder="Item Name (required)"
-      isDisabled={disabled}
-      // Remove formatCreateLabel to avoid prompting to add new option
-      aria-label="New item name"
-      formatCreateLabel={undefined}
-      isValidNewOption={() => false}
-      onBlur={handleBlurOrEnter}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && inputValue && inputValue !== value) {
-          e.preventDefault();
-          onChange(inputValue);
-        }
-        if (onKeyDown) onKeyDown(e);
-      }}
-    />
-  );
-};
+    useImperativeHandle(ref, () => ({
+      focus: () => selectRef.current?.focus(),
+    }));
+
+    const loadOptions = async (input: string) => {
+      if (!cachedNamesRef.current) {
+        const res = await authenticatedFetch("/api/items/previous-names", {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) return [];
+        cachedNamesRef.current = await res.json();
+      }
+      return (cachedNamesRef.current ?? [])
+        .filter((n) => n.toLowerCase().includes(input.toLowerCase()))
+        .map((n) => ({ value: n, label: n }));
+    };
+
+    return (
+      <AsyncCreatableSelect
+        ref={selectRef}
+        isClearable
+        cacheOptions
+        defaultOptions
+        loadOptions={loadOptions}
+        value={value ? { value, label: value } : null}
+        onChange={(option) => {
+          if (option && typeof option.value === "string") {
+            onChange(option.value);
+          } else if (option === null) {
+            onChange("");
+          }
+        }}
+        onCreateOption={(inputValue) => {
+          if (inputValue) {
+            onChange(inputValue);
+          }
+        }}
+        placeholder="Item Name (required)"
+        isDisabled={disabled}
+        aria-label="New item name"
+        formatCreateLabel={(inputValue) => inputValue}
+        onKeyDown={(e) => {
+          if (onKeyDown) onKeyDown(e);
+        }}
+      />
+    );
+  }
+);
 
 export default ItemNameAutocomplete;

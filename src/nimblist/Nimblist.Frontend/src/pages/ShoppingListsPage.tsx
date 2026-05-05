@@ -1,13 +1,14 @@
 // src/pages/ShoppingListsPage.tsx
 import React, { useState, useEffect, FormEvent  } from "react";
 import { Link } from "react-router-dom";
-import useAuthStore from "../store/authStore"; // Import your Zustand auth store
-import { ShoppingList } from "../types"; // Import the interface (adjust path if needed)
-import { authenticatedFetch } from "../components/HttpHelper"; // Adjust path as needed
+import useAuthStore from "../store/authStore";
+import { ShoppingList } from "../types/index";
+import { authenticatedFetch } from "../components/HttpHelper";
+import SharePanel from "../components/SharePanel";
 
 const ShoppingListsPage: React.FC = () => {
-  // Get authentication status from the global store
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
+  const [expandedShareId, setExpandedShareId] = useState<string | null>(null);
 
   // --- Component State ---
   const [lists, setLists] = useState<ShoppingList[]>([]); // To hold the fetched lists
@@ -86,7 +87,7 @@ const ShoppingListsPage: React.FC = () => {
     setAddError(null); // Clear previous add errors
 
     try {
-      const apiUrl = `/api/shoppingLists`;
+      const apiUrl = `/api/shoppinglists`;
       const response = await authenticatedFetch(apiUrl, {
         method: "POST",
         headers: {
@@ -198,28 +199,48 @@ const ShoppingListsPage: React.FC = () => {
         </div>
       )}
       <ul className="bg-white shadow overflow-hidden sm:rounded-md divide-y divide-gray-200">
-        {lists.map((list) => (
-          <li
-            key={list.id}
-            className="px-4 py-4 sm:px-6 hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <Link
-                to={`/lists/${list.id}`} // Link to the detail page route
-                className="text-lg font-medium text-indigo-600 hover:text-indigo-800 hover:underline truncate"
-                title={list.name} // Tooltip for long names
-              >
-                {list.name}
-              </Link>
-              <div className="ml-2 flex-shrink-0 flex space-x-2">
-                {/* TODO: Add Edit/Delete buttons here */}
-                <span className="text-xs text-gray-500">
-                  Created: {new Date(list.createdAt).toLocaleDateString()}
-                </span>
+        {lists.map((list) => {
+          const isOwner = list.userId === user?.userId;
+          const shareOpen = expandedShareId === list.id;
+          return (
+            <li key={list.id} className="px-4 py-3 sm:px-6 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between gap-2">
+                <Link
+                  to={`/lists/${list.id}`}
+                  className="text-lg font-medium text-indigo-600 hover:text-indigo-800 hover:underline truncate"
+                  title={list.name}
+                >
+                  {list.name}
+                  {!isOwner && <span className="ml-2 text-xs font-normal text-gray-400">(shared)</span>}
+                </Link>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <button
+                    onClick={() => setExpandedShareId(shareOpen ? null : list.id)}
+                    className="text-xs text-indigo-500 hover:text-indigo-700 border border-indigo-200 hover:bg-indigo-50 px-2 py-0.5 rounded transition-colors"
+                    title="Manage sharing"
+                  >
+                    {shareOpen ? 'Close' : 'Share'}
+                  </button>
+                  <span className="text-xs text-gray-400">
+                    {new Date(list.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
-            </div>
-          </li>
-        ))}
+              {shareOpen && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sharing</p>
+                  <SharePanel
+                    endpoint={`/api/listshares?listId=${list.id}`}
+                    postEndpoint="/api/listshares"
+                    resourceId={list.id}
+                    resourceKey="listId"
+                    isOwner={isOwner}
+                  />
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

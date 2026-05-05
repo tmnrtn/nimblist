@@ -21,8 +21,10 @@ interface ItemListProps {
   onDeleteItem: (itemId: string, itemName: string) => void;
   onEditItem: (item: Item, update: { name: string; quantity: string | null; categoryId: string | null; subCategoryId: string | null; isChecked?: boolean }) => void;
   onDeleteAllChecked: () => void;
+  onDeleteAll?: () => void;
   error?: string | null;
   bulkDeleteLoading?: boolean;
+  deleteAllLoading?: boolean;
 }
 
 // --- Category/Subcategory fetch types ---
@@ -42,8 +44,10 @@ const ItemList: React.FC<ItemListProps> = ({
   onDeleteItem,
   onEditItem,
   onDeleteAllChecked,
+  onDeleteAll,
   error,
   bulkDeleteLoading = false,
+  deleteAllLoading = false,
 }) => {
   // --- State ---
   // Remove error state, keep only UI state
@@ -94,23 +98,6 @@ const ItemList: React.FC<ItemListProps> = ({
     return initialItems.filter((item) => item.isChecked === isCheckedValue);
   }, [initialItems, checkedFilter]);
 
-  const prevInitialItemsRef = React.useRef<Item[] | undefined>(undefined);
-  const renderCountRef = React.useRef(0);
-
-  React.useEffect(() => {
-    renderCountRef.current += 1;
-    console.log(
-      `ItemList RENDERED: ${renderCountRef.current} times. initialItems length: ${initialItems.length}`
-    );
-    if (
-      prevInitialItemsRef.current &&
-      prevInitialItemsRef.current !== initialItems
-    ) {
-      // This indicates a new array reference from the parent
-      console.warn("ItemList: initialItems prop instance CHANGED!");
-    }
-    prevInitialItemsRef.current = initialItems;
-  }, [initialItems]);
 
   // Fetch categories on mount or when editing starts
   useEffect(() => {
@@ -156,12 +143,10 @@ const ItemList: React.FC<ItemListProps> = ({
   }, [selectedCategory]);
 
   // --- Toggle Handler ---
-  const handleToggleCheck = (itemId: string): void => {
+  const handleToggleCheck = React.useCallback((itemId: string): void => {
     setLoadingItemId(itemId);
-    // Find the item to get its current state
     const item = initialItems.find((i) => i.id === itemId);
     if (!item) return;
-    // Call onEditItem with isChecked toggled
     onEditItem(item, {
       name: item.name,
       quantity: item.quantity || null,
@@ -169,11 +154,10 @@ const ItemList: React.FC<ItemListProps> = ({
       subCategoryId: item.subCategoryId || null,
       isChecked: !item.isChecked,
     });
-    // Parent will clear loading state via props update
-  };
+  }, [initialItems, onEditItem]);
 
   // --- Delete Handler ---
-  const handleDeleteItem = (
+  const handleDeleteItem = React.useCallback((
     itemIdToDelete: string,
     itemName: string
   ): void => {
@@ -182,8 +166,7 @@ const ItemList: React.FC<ItemListProps> = ({
     }
     setLoadingItemId(itemIdToDelete);
     onDeleteItem(itemIdToDelete, itemName);
-    // Parent will clear loading state via props update
-  };
+  }, [onDeleteItem]);
 
   // --- Edit Handlers ---
   // Track the last saved values when entering edit mode
@@ -220,7 +203,6 @@ const ItemList: React.FC<ItemListProps> = ({
   };
 
   const cancelEdit = () => {
-    console.log("[ItemList] cancelEdit called");
     setEditingItemId(null);
     setEditName("");
     setEditQuantity("");
@@ -234,7 +216,6 @@ const ItemList: React.FC<ItemListProps> = ({
     e: React.FormEvent,
     item: Item
   ) => {
-    console.log("[ItemList] handleEditSubmit called", item.id);
     e.preventDefault();
     if (!editName.trim()) {
       setEditError("Item name is required.");
@@ -264,16 +245,17 @@ const ItemList: React.FC<ItemListProps> = ({
     // Parent will clear loading state via props update
   };
 
+  // --- Delete All Items Handler ---
+  const handleDeleteAll = () => {
+    if (!initialItems || initialItems.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ALL ${initialItems.length} item(s)? This cannot be undone.`)) {
+      return;
+    }
+    onDeleteAll?.();
+  };
+
   // --- Table Columns ---
   const columns = React.useMemo(() => {
-    console.log(
-      "ItemList: `columns` RE-CALCULATING. Categories loaded:",
-      categories.length > 0,
-      "Subcategories loaded:",
-      subcategories.length > 0,
-      "Editing Item:",
-      editingItemId
-    );
     return [
       {
         accessorKey: "isChecked",
@@ -365,18 +347,7 @@ const ItemList: React.FC<ItemListProps> = ({
         enableSorting: false,
       },
     ];
-  }, [
-    editingItemId,
-    editName,
-    editQuantity,
-    editError,
-    loadingItemId,
-    selectedCategory,
-    selectedSubcategory,
-    categories,
-    subcategories,
-    // checkedFilter removed from dependencies to keep columns stable
-  ]);
+  }, [editingItemId, loadingItemId, handleToggleCheck, handleDeleteItem]);
 
   const table = useReactTable({
     data: filteredItems,
@@ -465,6 +436,15 @@ const ItemList: React.FC<ItemListProps> = ({
           title="Delete all checked items"
         >
           {bulkDeleteLoading ? "Deleting..." : "Delete All Checked"}
+        </button>
+        <button
+          type="button"
+          className="ml-2 px-2 py-1 text-xs bg-red-800 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleDeleteAll}
+          disabled={!initialItems || initialItems.length === 0 || deleteAllLoading}
+          title="Delete all items"
+        >
+          {deleteAllLoading ? "Deleting..." : "Delete All"}
         </button>
       </div>
       {error && (
@@ -624,13 +604,9 @@ const ItemList: React.FC<ItemListProps> = ({
                   }
                 >
                   {row.getVisibleCells().map((cell: Cell<Item, unknown>) => {
-                    // console.log('[ItemList] rendering cell', cell.id); // Removed noisy log
                     return (
                       <td key={cell.id} className="px-4 py-2 align-middle">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     );
                   })}

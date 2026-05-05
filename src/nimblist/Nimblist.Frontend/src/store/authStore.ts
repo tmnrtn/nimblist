@@ -78,6 +78,7 @@ const useAuthStore = create<AuthState>((set) => ({
     } finally {
       // Always update client state
       set({ isAuthenticated: false, user: null, isLoading: false });
+      localStorage.removeItem('nimblist_last_list');
       console.log("User logged out (client state cleared).");
       // Optional: Force navigation after logout if desired
       // window.location.href = '/'; // Or redirect using react-router programmatically

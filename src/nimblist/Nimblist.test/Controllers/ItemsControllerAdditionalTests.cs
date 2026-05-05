@@ -9,13 +9,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
 using Nimblist.api.Hubs;
+using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using Xunit;
@@ -32,9 +32,7 @@ namespace Nimblist.test.Controllers
         private readonly Mock<IHubContext<ShoppingListHub>> _mockHubContext;
         private readonly Mock<IHubClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
-        private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
-        private readonly Mock<IConfiguration> _mockConfiguration;
-        private readonly Mock<ILogger<ItemsController>> _mockLogger;
+        private readonly Mock<IClassificationService> _mockClassificationService;
 
         private readonly string _testUserId = "test-user-id";
         private readonly string _otherUserId = "other-user-id";
@@ -72,10 +70,10 @@ namespace Nimblist.test.Controllers
             _mockHubContext.Setup(h => h.Clients).Returns(_mockClients.Object);
             _mockClients.Setup(c => c.Group(It.IsAny<string>())).Returns(_mockClientProxy.Object);
 
-            // Set up additional mocks
-            _mockHttpClientFactory = new Mock<IHttpClientFactory>();
-            _mockConfiguration = new Mock<IConfiguration>();
-            _mockLogger = new Mock<ILogger<ItemsController>>();
+            _mockClassificationService = new Mock<IClassificationService>();
+            _mockClassificationService
+                .Setup(s => s.ClassifyAsync(It.IsAny<string>()))
+                .ReturnsAsync(((Guid?)null, (Guid?)null));
         }
 
         // Helper to create DbContextOptions with a unique InMemory database name
@@ -120,9 +118,7 @@ namespace Nimblist.test.Controllers
                 context,
                 _mockUserManager.Object,
                 _mockHubContext.Object,
-                _mockHttpClientFactory.Object,
-                _mockConfiguration.Object,
-                _mockLogger.Object);
+                _mockClassificationService.Object);
 
             if (!string.IsNullOrEmpty(userId))
             {

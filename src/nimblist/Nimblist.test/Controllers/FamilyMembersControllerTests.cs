@@ -93,8 +93,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.PostFamilyMember(dto);
                 // Assert
                 var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-                var familyMember = Assert.IsType<FamilyMember>(createdAtActionResult.Value);
-                Assert.Equal(familyId, familyMember.FamilyId);
+                var familyMember = Assert.IsType<FamilyMemberDetailDto>(createdAtActionResult.Value);
                 Assert.Equal(UserToInviteId, familyMember.UserId);
                 Assert.Equal(nameof(controller.GetFamilyMember), createdAtActionResult.ActionName);
 
@@ -190,7 +189,7 @@ namespace Nimblist.test.Controllers
                 // Act
                 var result = await controller.PostFamilyMember(dto);
                 // Assert
-                Assert.IsType<UnauthorizedObjectResult>(result.Result);
+                Assert.IsType<UnauthorizedResult>(result.Result);
             }
         }
 
@@ -292,7 +291,7 @@ namespace Nimblist.test.Controllers
                 // Act
                 var result = await controller.DeleteFamilyMember(Guid.NewGuid()); // Non-existent ID
                 // Assert
-                Assert.IsType<NotFoundObjectResult>(result);
+                Assert.IsType<NotFoundResult>(result);
             }
         }
 
@@ -314,7 +313,7 @@ namespace Nimblist.test.Controllers
                 // Act
                 var result = await controller.DeleteFamilyMember(memberId);
                 // Assert
-                Assert.IsType<UnauthorizedObjectResult>(result);
+                Assert.IsType<UnauthorizedResult>(result);
             }
         }
 
@@ -338,7 +337,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetFamilyMember(memberRecordId);
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var fm = Assert.IsType<FamilyMember>(okResult.Value);
+                var fm = Assert.IsType<FamilyMemberDetailDto>(okResult.Value);
                 Assert.Equal(memberRecordId, fm.Id);
             }
         }
@@ -360,7 +359,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetFamilyMember(memberRecordId);
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                Assert.IsType<FamilyMember>(okResult.Value);
+                Assert.IsType<FamilyMemberDetailDto>(okResult.Value);
             }
         }
 
@@ -383,7 +382,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetFamilyMember(member2RecordId);
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                Assert.IsType<FamilyMember>(okResult.Value);
+                Assert.IsType<FamilyMemberDetailDto>(okResult.Value);
             }
         }
 
@@ -417,7 +416,7 @@ namespace Nimblist.test.Controllers
                 // Act
                 var result = await controller.GetFamilyMember(Guid.NewGuid());
                 // Assert
-                Assert.IsType<NotFoundObjectResult>(result.Result);
+                Assert.IsType<NotFoundResult>(result.Result);
             }
         }
 
@@ -435,7 +434,7 @@ namespace Nimblist.test.Controllers
                 // Act
                 var result = await controller.GetFamilyMember(memberRecordId);
                 // Assert
-                Assert.IsType<UnauthorizedObjectResult>(result.Result);
+                Assert.IsType<UnauthorizedResult>(result.Result);
             }
         }
 
@@ -458,7 +457,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetFamilyMembersForFamily(familyId);
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var members = Assert.IsAssignableFrom<IEnumerable<FamilyMember>>(okResult.Value).ToList();
+                var members = Assert.IsAssignableFrom<IEnumerable<FamilyMemberDetailDto>>(okResult.Value).ToList();
                 Assert.Equal(2, members.Count);
                 Assert.Contains(members, m => m.UserId == ExistingMemberId);
                 Assert.Contains(members, m => m.UserId == AnotherMemberId);
@@ -482,7 +481,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetFamilyMembersForFamily(familyId);
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var members = Assert.IsAssignableFrom<IEnumerable<FamilyMember>>(okResult.Value);
+                var members = Assert.IsAssignableFrom<IEnumerable<FamilyMemberDetailDto>>(okResult.Value);
                 Assert.Equal(2, members.Count());
             }
         }
@@ -515,7 +514,7 @@ namespace Nimblist.test.Controllers
                 // Act
                 var result = await controller.GetFamilyMembersForFamily(Guid.NewGuid()); // Non-existent familyId
                 // Assert
-                Assert.IsType<NotFoundObjectResult>(result.Result);
+                Assert.IsType<NotFoundResult>(result.Result);
             }
         }
 
@@ -540,7 +539,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetFamilyMembersForFamily(familyId);
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var members = Assert.IsAssignableFrom<IEnumerable<FamilyMember>>(okResult.Value);
+                var members = Assert.IsAssignableFrom<IEnumerable<FamilyMemberDetailDto>>(okResult.Value);
                 Assert.Empty(members);
             }
         }
@@ -559,7 +558,7 @@ namespace Nimblist.test.Controllers
                 // Act
                 var result = await controller.GetFamilyMembersForFamily(familyId);
                 // Assert
-                Assert.IsType<UnauthorizedObjectResult>(result.Result);
+                Assert.IsType<UnauthorizedResult>(result.Result);
             }
         }
     }

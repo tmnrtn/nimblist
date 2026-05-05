@@ -10,8 +10,9 @@ services:
       - ConnectionStrings__Redis=${ConnectionStrings__Redis}
       - FrontendAppSettings__BaseUrl=${FRONTEND_APP_SETTINGS__BASE_URL}
     depends_on:
-      - Nimblist.db # Make the API service depend on the database service
+      - Nimblist.db
       - Nimblist.classification
+      - Nimblist.recipescraper
       - redis_cache
     networks: # Optional but recommended: define explicit network
       - nimblistnet
@@ -31,7 +32,16 @@ services:
       dockerfile: src/nimblist/Nimblist.classification/Dockerfile
     ports:
       - "5000:5000"
-    networks: # Optional but recommended: define explicit network
+    networks:
+      - nimblistnet
+  Nimblist.recipescraper:
+    image: ${DOCKER_REGISTRY-}nimblistrecipescraper
+    build:
+      context: ../..
+      dockerfile: src/nimblist/Nimblist.recipescraper/Dockerfile
+    ports:
+      - "5001:5001"
+    networks:
       - nimblistnet
   Nimblist.db:
     image: postgres # Use a specific version or 'latest'

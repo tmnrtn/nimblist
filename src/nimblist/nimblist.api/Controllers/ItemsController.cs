@@ -1,20 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.api.DTO;
 using Nimblist.api.Hubs;
+using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
-using StackExchange.Redis;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace Nimblist.api.Controllers
 {
@@ -26,24 +20,18 @@ namespace Nimblist.api.Controllers
         private readonly NimblistContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHubContext<ShoppingListHub> _hubContext;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration;  
-        private readonly ILogger<ItemsController> _logger; 
+        private readonly IClassificationService _classificationService;
 
         public ItemsController(
             NimblistContext context,
             UserManager<ApplicationUser> userManager,
             IHubContext<ShoppingListHub> hubContext,
-            IHttpClientFactory httpClientFactory,  
-            IConfiguration configuration,   
-            ILogger<ItemsController> logger)   
+            IClassificationService classificationService)
         {
             _context = context;
             _userManager = userManager;
             _hubContext = hubContext;
-            _httpClientFactory = httpClientFactory;   
-            _configuration = configuration;    
-            _logger = logger; 
+            _classificationService = classificationService;
         }
 
         // Helper method to convert Item to ItemWithCategoryDto
@@ -168,119 +156,8 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
-            Guid? foundCategoryId = null;
-            Guid? foundSubCategoryId = null;
 
-            string classificationServiceUrl = _configuration["ClassificationService:PredictUrl"];
-
-            if (!string.IsNullOrEmpty(classificationServiceUrl) && !string.IsNullOrWhiteSpace(itemDto.Name))
-            {
-                _logger.LogInformation("Attempting to classify item: {ItemName}", itemDto.Name);
-                try
-                {
-                    var httpClient = _httpClientFactory.CreateClient("ClassificationServiceClient");
-                    var classificationRequest = new { product_name = itemDto.Name };
-                    var response = await httpClient.PostAsJsonAsync(classificationServiceUrl, classificationRequest);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var classificationResult = await response.Content.ReadFromJsonAsync<ClassificationResponseDto>();
-                        if (classificationResult != null)
-                        {
-                            _logger.LogInformation("Classification result for '{ItemName}': Primary='{Primary}', Sub='{Sub}'",
-                                itemDto.Name, classificationResult.PredictedPrimaryCategory, classificationResult.PredictedSubCategory);
-
-                            if (!string.IsNullOrEmpty(classificationResult.PredictedPrimaryCategory) && classificationResult.PredictedPrimaryCategory != "Unknown")
-                            {
-                                var categoryName = classificationResult.PredictedPrimaryCategory;
-                                var category = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToLower() == categoryName.ToLower());
-                                if (category != null)
-                                {
-                                    foundCategoryId = category.Id;
-                                    _logger.LogInformation("Found CategoryId: {CategoryId} for '{CategoryName}'", foundCategoryId, categoryName);
-
-                                    if (!string.IsNullOrEmpty(classificationResult.PredictedSubCategory) && classificationResult.PredictedSubCategory != "Unknown" && classificationResult.PredictedSubCategory != "N/A" && classificationResult.PredictedSubCategory != "No Sub-Model")
-                                    {
-                                        var subCategoryName = classificationResult.PredictedSubCategory;
-                                        var subCategory = await _context.SubCategories
-                                            .FirstOrDefaultAsync(sc => sc.Name.ToLower() == subCategoryName.ToLower() && sc.ParentCategoryId == foundCategoryId);
-
-                                        if (subCategory != null)
-                                        {
-                                            foundSubCategoryId = subCategory.Id;
-                                            _logger.LogInformation("Found SubCategoryId: {SubCategoryId} for '{SubCategoryName}' under CategoryId {CategoryId}", foundSubCategoryId, subCategoryName, foundCategoryId);
-                                        }
-                                        else
-                                        {
-                                            // Defensive: log warning and do NOT throw if subcategory not found
-                                            _logger.LogWarning("SubCategory '{SubCategoryName}' not found in database for CategoryId {CategoryId}.", subCategoryName, foundCategoryId);
-                                            foundSubCategoryId = null;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // Defensive: subcategory not provided or is a special value
-                                        foundSubCategoryId = null;
-                                    }
-                                }
-                                else
-                                {
-                                    // Defensive: log warning and do NOT throw if category not found
-                                    _logger.LogWarning("Category '{CategoryName}' not found in database.", categoryName);
-                                    foundCategoryId = null;
-                                    foundSubCategoryId = null;
-                                }
-                            }
-                            else
-                            {
-                                // Defensive: if classification result is missing or unknown, do not set category/subcategory
-                                foundCategoryId = null;
-                                foundSubCategoryId = null;
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Failed to deserialize classification response for item: {ItemName}", itemDto.Name);
-                        }
-                    }
-                    else
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        _logger.LogError("Error calling classification service for item '{ItemName}'. Status: {StatusCode}. Response: {ErrorContent}", itemDto.Name, response.StatusCode, errorContent);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // Defensive: always log error, but do NOT throw
-                    _logger.LogError(ex, "Exception occurred while calling classification service for item: {ItemName}", itemDto.Name);
-                    foundCategoryId = null;
-                    foundSubCategoryId = null;
-                }
-            }
-            else if (string.IsNullOrWhiteSpace(itemDto.Name))
-            {
-                _logger.LogWarning("Item name is empty, skipping classification.");
-            }
-
-            // Defensive: ensure IDs are only set if the corresponding entity exists
-            if (foundCategoryId != null)
-            {
-                var categoryExists = await _context.Categories.AnyAsync(c => c.Id == foundCategoryId);
-                if (!categoryExists)
-                {
-                    _logger.LogWarning("CategoryId {CategoryId} was set but does not exist in database. Clearing.", foundCategoryId);
-                    foundCategoryId = null;
-                    foundSubCategoryId = null;
-                }
-            }
-            if (foundSubCategoryId != null)
-            {
-                var subCategoryExists = await _context.SubCategories.AnyAsync(sc => sc.Id == foundSubCategoryId);
-                if (!subCategoryExists)
-                {
-                    _logger.LogWarning("SubCategoryId {SubCategoryId} was set but does not exist in database. Clearing.", foundSubCategoryId);
-                    foundSubCategoryId = null;
-                }
-            }
+            var (foundCategoryId, foundSubCategoryId) = await _classificationService.ClassifyAsync(itemDto.Name);
 
             var item = new Item
             {

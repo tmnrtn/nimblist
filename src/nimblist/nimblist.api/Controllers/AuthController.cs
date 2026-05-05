@@ -69,6 +69,16 @@ namespace Nimblist.api.Controllers
         /// Logs the current user out by clearing the authentication cookie.
         /// Requires authentication.
         /// </summary>
+        [HttpGet("lookup")]
+        [Authorize]
+        public async Task<IActionResult> LookupUser([FromQuery] string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return BadRequest("Email is required.");
+            var user = await _userManager.FindByEmailAsync(email.Trim());
+            if (user == null) return NotFound("No user found with that email address.");
+            return Ok(new { userId = user.Id, email = user.Email });
+        }
+
         [HttpPost("logout")]
         [Authorize] // IMPORTANT: Ensure only authenticated users can trigger logout
         // Note: [ValidateAntiForgeryToken] is recommended for POST actions with cookie auth

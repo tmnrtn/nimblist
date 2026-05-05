@@ -10,7 +10,11 @@ import HomePage from './pages/HomePage';
 import ShoppingListsPage from './pages/ShoppingListsPage';
 import ListPageDetail from './pages/ListPageDetail';
 import NotFoundPage from './pages/NotFoundPage';
-import PreviousItemNamesPage from './pages/PreviousItemNamesPage'; // Import the new page
+import PreviousItemNamesPage from './pages/PreviousItemNamesPage';
+import RecipesPage from './pages/RecipesPage';
+import RecipeDetailPage from './pages/RecipeDetailPage';
+import FamiliesPage from './pages/FamiliesPage';
+import MealPlannerPage from './pages/MealPlannerPage';
 
 function App() {
     // Get state and actions from the store
@@ -18,10 +22,8 @@ function App() {
 
     // Run the auth check once when the component mounts
     useEffect(() => {
-      console.log("App component mounted. Checking auth status...");
       checkAuthStatus();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Empty dependency array runs only on mount
+    }, [checkAuthStatus]);
   
     // Show loading indicator until the initial check is complete
     if (isLoading) {
@@ -46,7 +48,11 @@ function App() {
         <Route element={<ProtectedRoute />}>
             <Route path="lists" element={<ShoppingListsPage />} />
             <Route path="lists/:listId" element={<ListPageDetail />} />
-            <Route path="previous-item-names" element={<PreviousItemNamesPage />} /> {/* New route here */}
+            <Route path="previous-item-names" element={<PreviousItemNamesPage />} />
+            <Route path="recipes" element={<RecipesPage />} />
+            <Route path="recipes/:recipeId" element={<RecipeDetailPage />} />
+            <Route path="families" element={<FamiliesPage />} />
+            <Route path="meal-planner" element={<MealPlannerPage />} />
         </Route>
 
         {/* Catch-all route for any paths not matched above */}
