@@ -133,3 +133,6 @@ coverage/
 # Add any other project-specific generated files or folders below this line
 # Example: Generated code folder specific to your project
 # GeneratedClientCode/
+
+# Claude Code local memory
+.claude/

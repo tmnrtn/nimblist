@@ -29,9 +29,7 @@ vi.mock("./hooks/useShoppingListHub", () => ({
   __esModule: true,
   default: vi.fn(() => ({
     connection: null,
-    isConnected: true,
-    joinGroup: vi.fn(),
-    leaveGroup: vi.fn(),
+    isConnected: false,
   })),
 }));
 

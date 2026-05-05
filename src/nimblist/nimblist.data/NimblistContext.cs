@@ -17,7 +17,14 @@ namespace Nimblist.Data
         public virtual DbSet<ListShare> ListShares { get; set; } = null!; // Initialize to avoid null warnings
         public virtual DbSet<Category> Categories { get; set; } = null!; // Initialize to avoid null warnings
         public virtual DbSet<SubCategory> SubCategories { get; set; } = null!; // Initialize to avoid null warnings
-        public virtual DbSet<PreviousItemName> PreviousItemNames { get; set; } // New DbSet for PreviousItemName
+        public virtual DbSet<PreviousItemName> PreviousItemNames { get; set; }
+        public virtual DbSet<ItemClassificationFeedback> ClassificationFeedback { get; set; } = null!;
+        public virtual DbSet<Recipe> Recipes { get; set; } = null!;
+        public virtual DbSet<RecipeIngredient> RecipeIngredients { get; set; } = null!;
+        public virtual DbSet<RecipeShare> RecipeShares { get; set; } = null!;
+        public virtual DbSet<MealPlan> MealPlans { get; set; } = null!;
+        public virtual DbSet<MealPlanEntry> MealPlanEntries { get; set; } = null!;
+        public virtual DbSet<MealPlanShare> MealPlanShares { get; set; } = null!;
 
         // Constructor needed for dependency injection.
         // It accepts DbContextOptions, allowing the configuration (like connection string)
@@ -144,6 +151,144 @@ namespace Nimblist.Data
                 entity.Property(p => p.Name).HasMaxLength(200).IsRequired();
                 entity.Property(p => p.UserId).IsRequired();
                 entity.HasIndex(p => new { p.UserId, p.Name }).IsUnique();
+            });
+
+            builder.Entity<ItemClassificationFeedback>(entity =>
+            {
+                entity.HasKey(f => f.Id);
+                entity.Property(f => f.ItemName).HasMaxLength(200).IsRequired();
+                entity.Property(f => f.UserId).IsRequired();
+                entity.HasIndex(f => f.UserId).HasDatabaseName("IX_ClassificationFeedback_UserId");
+            });
+
+            builder.Entity<ItemClassificationFeedback>()
+                .HasOne(f => f.Category)
+                .WithMany()
+                .HasForeignKey(f => f.CategoryId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<ItemClassificationFeedback>()
+                .HasOne(f => f.SubCategory)
+                .WithMany()
+                .HasForeignKey(f => f.SubCategoryId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<ApplicationUser>()
+                .HasMany<ItemClassificationFeedback>()
+                .WithOne()
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ApplicationUser>()
+                .HasMany(u => u.Recipes)
+                .WithOne(r => r.User)
+                .HasForeignKey(r => r.UserId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Recipe>(entity =>
+            {
+                entity.HasKey(r => r.Id);
+                entity.Property(r => r.Title).HasMaxLength(300).IsRequired();
+                entity.HasIndex(r => r.UserId).HasDatabaseName("IX_Recipes_UserId");
+            });
+
+            builder.Entity<Recipe>()
+                .HasMany(r => r.Ingredients)
+                .WithOne(i => i.Recipe)
+                .HasForeignKey(i => i.RecipeId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<RecipeIngredient>(entity =>
+            {
+                entity.HasKey(i => i.Id);
+                entity.Property(i => i.Text).HasMaxLength(500).IsRequired();
+            });
+
+            builder.Entity<Recipe>()
+                .HasMany(r => r.Shares)
+                .WithOne(rs => rs.Recipe)
+                .HasForeignKey(rs => rs.RecipeId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<RecipeShare>(entity =>
+            {
+                entity.HasKey(rs => rs.Id);
+                entity.HasIndex(rs => rs.RecipeId).HasDatabaseName("IX_RecipeShares_RecipeId");
+            });
+
+            builder.Entity<RecipeShare>()
+                .HasOne(rs => rs.Family)
+                .WithMany()
+                .HasForeignKey(rs => rs.FamilyId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<RecipeShare>()
+                .HasOne(rs => rs.User)
+                .WithMany()
+                .HasForeignKey(rs => rs.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // MealPlan relationships
+            builder.Entity<ApplicationUser>()
+                .HasMany(u => u.MealPlans)
+                .WithOne(m => m.User)
+                .HasForeignKey(m => m.UserId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MealPlan>(entity =>
+            {
+                entity.HasKey(m => m.Id);
+                entity.Property(m => m.Name).HasMaxLength(200).IsRequired();
+                entity.HasIndex(m => m.UserId).HasDatabaseName("IX_MealPlans_UserId");
+            });
+
+            builder.Entity<MealPlan>()
+                .HasMany(m => m.Entries)
+                .WithOne(e => e.MealPlan)
+                .HasForeignKey(e => e.MealPlanId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Recipe>()
+                .HasMany<MealPlanEntry>()
+                .WithOne(e => e.Recipe)
+                .HasForeignKey(e => e.RecipeId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MealPlanEntry>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.MealPlanId, e.PlannedDate }).HasDatabaseName("IX_MealPlanEntries_PlanId_Date");
+            });
+
+            builder.Entity<MealPlan>()
+                .HasMany(m => m.Shares)
+                .WithOne(s => s.MealPlan)
+                .HasForeignKey(s => s.MealPlanId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MealPlanShare>()
+                .HasOne(s => s.Family)
+                .WithMany()
+                .HasForeignKey(s => s.FamilyId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MealPlanShare>()
+                .HasOne(s => s.User)
+                .WithMany()
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MealPlanShare>(entity =>
+            {
+                entity.HasKey(s => s.Id);
+                entity.HasIndex(s => s.MealPlanId).HasDatabaseName("IX_MealPlanShares_MealPlanId");
             });
 
             // === PostgreSQL Specific Configuration (Optional Examples) ===

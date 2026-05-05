@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.api.Hubs;
+using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using StackExchange.Redis;
@@ -162,7 +163,7 @@ namespace Nimblist.api
 
             builder.Services.AddRazorPages();
 
-            builder.Services.AddTransient<IEmailSender, NoOpEmailSender>();
+            builder.Services.AddTransient<IEmailSender, Nimblist.api.Services.NoOpEmailSender>();
 
             var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
             if (!string.IsNullOrEmpty(redisConnectionString))
@@ -251,6 +252,7 @@ namespace Nimblist.api
             }
 
             builder.Services.AddHttpClient();
+            builder.Services.AddScoped<IClassificationService, ClassificationService>();
 
             var app = builder.Build();
 

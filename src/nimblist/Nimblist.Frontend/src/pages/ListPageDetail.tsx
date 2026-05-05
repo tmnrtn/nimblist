@@ -1,12 +1,12 @@
 // src/pages/ListPageDetail.tsx
-import React, { useState, useEffect, FormEvent } from "react"; // Import FormEvent
+import React, { useState, useEffect, useRef, FormEvent } from "react";
 import { useParams, Link } from "react-router-dom";
 import useAuthStore from "../store/authStore";
 import { ShoppingList, Item } from "../types";
 import ItemList from "../components/ItemList";
-import useShoppingListHub from "../hooks/useShoppingListHub"; // <-- Import the hook
-import { authenticatedFetch } from "../components/HttpHelper"; // Adjust path as needed
-import ItemNameAutocomplete from "../components/ItemNameAutocomplete";
+import useShoppingListHub from "../hooks/useShoppingListHub";
+import { authenticatedFetch } from "../components/HttpHelper";
+import ItemNameAutocomplete, { type ItemNameAutocompleteHandle } from "../components/ItemNameAutocomplete";
 
 const ListPageDetail: React.FC = () => {
   const { listId } = useParams<{ listId: string }>();
@@ -25,17 +25,12 @@ const ListPageDetail: React.FC = () => {
   // --- Optimistic UI Error State ---
   const [optimisticError, setOptimisticError] = useState<string | null>(null);
 
+  const itemNameRef = useRef<ItemNameAutocompleteHandle>(null);
+
   // *** Use the SignalR Hook ***
   // Pass the listId. The hook manages connect/disconnect/join/leave.
-  const { connection, isConnected: isSignalRConnected } =
-    useShoppingListHub(listId);
+  const { connection } = useShoppingListHub(listId);
 
-  useEffect(() => {
-    console.log("ListPageDetail MOUNTED with listId:", listId);
-    return () => {
-      console.log("ListPageDetail UNMOUNTING with listId:", listId);
-    };
-  }, []);
 
   // --- Fetching Logic (useEffect for getting list details - as before) ---
   useEffect(() => {
@@ -63,8 +58,8 @@ const ListPageDetail: React.FC = () => {
 
         if (response.ok) {
           const data: ShoppingList = await response.json();
-          //console.log("ListPageDetail: Fetched list details, about to setList. New items count:", data.items.length);
           setList(data);
+          localStorage.setItem('nimblist_last_list', listId);
         } else if (response.status === 401) {
           setError("Authentication error. Please log in again.");
         } else if (response.status === 404) {
@@ -86,7 +81,6 @@ const ListPageDetail: React.FC = () => {
   useEffect(() => {
     // Only attach handlers if the connection object exists
     if (connection) {
-      console.log("ListPageDetail: Attaching SignalR message handlers...");
 
       // Handler for when a new item is added by *another* user
       const handleItemAdded = (newItem: Item) => {
@@ -117,7 +111,6 @@ const ListPageDetail: React.FC = () => {
 
       // Handler for when an item is updated (e.g., name/quantity change via PUT)
       const handleItemUpdated = (updatedItem: Item) => {
-        console.log("ListPageDetail: SignalR handleItemAdded. Current list items:", list?.items?.length, "New item:", updatedItem.id);
         setList((prevList) => {
           if (!prevList || !prevList.items) return prevList;
           const existing = prevList.items.find(
@@ -141,9 +134,7 @@ const ListPageDetail: React.FC = () => {
       connection.on("ReceiveItemDeleted", handleItemDeleted);
       connection.on("ReceiveItemUpdated", handleItemUpdated); // Ensure backend sends this
 
-      // Cleanup function for *this* effect: Remove handlers when connection changes or component unmounts
       return () => {
-        console.log("ListPageDetail: Removing SignalR message handlers...");
         connection.off("ReceiveItemAdded", handleItemAdded);
         connection.off("ReceiveItemDeleted", handleItemDeleted);
         connection.off("ReceiveItemUpdated", handleItemUpdated);
@@ -175,61 +166,31 @@ const ListPageDetail: React.FC = () => {
     setAddError(null); // Clear previous add errors
 
     try {
-      const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/items`; // Assuming POST /api/items endpoint
-      const response = await fetch(apiUrl, {
+      const response = await authenticatedFetch(`/api/items`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        credentials: "include", // Send auth cookie
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           name: newItemName.trim(),
-          quantity: newItemQuantity.trim() || null, // Send null if quantity is empty/whitespace
-          shoppingListId: listId, // Send the ID of the current list
+          quantity: newItemQuantity.trim() || null,
+          shoppingListId: listId,
         }),
       });
 
-      if (response.ok) {
-        // Check for 201 Created or other 2xx success
-        const newItemData: Item = await response.json();
-
-        // --- Update UI State ---
-        // Add the new item to the existing list's items array
-        setList((prevList) => {
-          if (!prevList) return null; // Safety check
-          // Create a new list object with the new item appended
-          if (prevList.items.some((item) => item.id === newItemData.id)) {
-            return prevList;
-          }
-          return {
-            ...prevList,
-            items: [...prevList.items, newItemData],
-          };
-        });
-
-        // --- Clear Form ---
-        setNewItemName("");
-        setNewItemQuantity("");
-      } else {
-        // Handle API errors (400 Bad Request, 401, 404, 500 etc.)
-        let errorMessage = `Failed to add item. Status: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          // Use specific error message from backend if available
-          errorMessage = errorData?.message || errorData?.title || errorMessage;
-        } catch {
-          /* Ignore if response body isn't JSON */
-        }
-        setAddError(errorMessage);
-        console.error("Add item error response:", response);
-      }
+      const newItemData: Item = await response.json();
+      setList((prevList) => {
+        if (!prevList) return null;
+        if (prevList.items.some((item) => item.id === newItemData.id)) return prevList;
+        return { ...prevList, items: [...prevList.items, newItemData] };
+      });
+      setNewItemName("");
+      setNewItemQuantity("");
     } catch (err) {
-      // Handle network errors
       console.error("Network error adding item:", err);
-      setAddError("Failed to connect to the server to add item.");
+      setAddError("Failed to add item. Please try again.");
     } finally {
-      setIsAdding(false); // Clear loading state for button
+      setIsAdding(false);
+      // Defer focus so it runs after React re-enables the input
+      setTimeout(() => itemNameRef.current?.focus(), 0);
     }
   };
 
@@ -241,9 +202,7 @@ const ListPageDetail: React.FC = () => {
     const prevItems = list.items;
     setList({ ...list, items: prevItems.filter((i) => i.id !== itemId) });
     try {
-      const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/items/${itemId}`;
-      const response = await fetch(apiUrl, { method: "DELETE", credentials: "include" });
-      if (!response.ok) throw new Error();
+      await authenticatedFetch(`/api/items/${itemId}`, { method: "DELETE" });
     } catch {
       setList((l) => l ? { ...l, items: prevItems } : l);
       setOptimisticError("Failed to delete item. Please try again.");
@@ -273,18 +232,27 @@ const ListPageDetail: React.FC = () => {
       ],
     });
     try {
-      const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/items/${item.id}`;
-      const response = await fetch(apiUrl, {
+      await authenticatedFetch(`/api/items/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           ...update,
           isChecked: updated.isChecked,
           shoppingListId: prevItems[idx].shoppingListId,
         }),
       });
-      if (!response.ok) throw new Error();
+
+      if (update.categoryId && update.categoryId !== item.categoryId) {
+        authenticatedFetch("/api/classificationfeedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itemName: update.name,
+            categoryId: update.categoryId,
+            subCategoryId: update.subCategoryId ?? null,
+          }),
+        }).catch(() => {});
+      }
     } catch {
       setList((l) => (l ? { ...l, items: prevItems } : l));
       setOptimisticError("Failed to update item. Please try again.");
@@ -306,13 +274,9 @@ const ListPageDetail: React.FC = () => {
     }
     setList({ ...list, items: prevItems.filter((i) => !i.isChecked) });
     try {
-      // Delete each checked item in parallel
-      const apiBase = import.meta.env.VITE_API_BASE_URL;
-      const deletePromises = checkedItems.map((item) =>
-        fetch(`${apiBase}/api/items/${item.id}`, { method: "DELETE", credentials: "include" })
+      await Promise.all(
+        checkedItems.map((item) => authenticatedFetch(`/api/items/${item.id}`, { method: "DELETE" }))
       );
-      const results = await Promise.all(deletePromises);
-      if (results.some((res) => !res.ok)) throw new Error();
     } catch {
       setList((l) => (l ? { ...l, items: prevItems } : l));
       setOptimisticError("Failed to delete checked items. Please try again.");
@@ -321,8 +285,39 @@ const ListPageDetail: React.FC = () => {
     }
   };
 
+  // Delete all items
+  const [deleteAllLoading, setDeleteAllLoading] = useState(false);
+
+  const handleDeleteAll = async () => {
+    if (!list || list.items.length === 0) return;
+    setOptimisticError(null);
+    setDeleteAllLoading(true);
+    const prevItems = list.items;
+    setList({ ...list, items: [] });
+    try {
+      await Promise.all(
+        prevItems.map((item) => authenticatedFetch(`/api/items/${item.id}`, { method: "DELETE" }))
+      );
+    } catch {
+      setList((l) => (l ? { ...l, items: prevItems } : l));
+      setOptimisticError("Failed to delete all items. Please try again.");
+    } finally {
+      setDeleteAllLoading(false);
+    }
+  };
+
   // --- Render Logic ---
-  // Handle Error State
+  if (isLoading) {
+    return (
+      <div>
+        <Link to="/lists" className="text-sm text-blue-600 hover:underline">
+          &larr; Back to Lists
+        </Link>
+        <p className="mt-4 text-gray-600">Loading list data.</p>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div>
@@ -339,7 +334,6 @@ const ListPageDetail: React.FC = () => {
     );
   }
 
-  // Handle List Not Found (after loading, no error, but list still null)
   if (!list) {
     return (
       <div>
@@ -347,17 +341,6 @@ const ListPageDetail: React.FC = () => {
           &larr; Back to Lists
         </Link>
         <p className="mt-4 text-gray-600">Could not load list data.</p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div>
-        <Link to="/lists" className="text-sm text-blue-600 hover:underline">
-          &larr; Back to Lists
-        </Link>
-        <p className="mt-4 text-gray-600">Loading list data.</p>
       </div>
     );
   }
@@ -382,6 +365,7 @@ const ListPageDetail: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
           <div className="flex-grow">
             <ItemNameAutocomplete
+              ref={itemNameRef}
               value={newItemName}
               onChange={setNewItemName}
               disabled={isAdding}
@@ -414,15 +398,13 @@ const ListPageDetail: React.FC = () => {
           />
           <button
             type="submit"
-            disabled={isAdding || !newItemName.trim()} // Disable if adding or name is empty
+            disabled={isAdding || !newItemName.trim()}
+            aria-busy={isAdding}
             className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isAdding ? "Adding..." : "Add Item"}
           </button>
         </div>
-        <p>
-          Real-time status: {isSignalRConnected ? "Connected" : "Disconnected"}
-        </p>
       </form>
 
       {/* --- Items List (remains mostly the same) --- */}
@@ -434,8 +416,10 @@ const ListPageDetail: React.FC = () => {
         onDeleteItem={(_id) => handleDeleteItem(_id)}
         onEditItem={handleEditItem}
         onDeleteAllChecked={handleDeleteAllChecked}
+        onDeleteAll={handleDeleteAll}
         error={optimisticError}
         bulkDeleteLoading={bulkDeleteLoading}
+        deleteAllLoading={deleteAllLoading}
       />
 
       </div>

@@ -330,6 +330,42 @@ namespace Nimblist.data.Migrations
                     b.ToTable("Items");
                 });
 
+            modelBuilder.Entity("Nimblist.Data.Models.ItemClassificationFeedback", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("SubCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("SubCategoryId");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_ClassificationFeedback_UserId");
+
+                    b.ToTable("ClassificationFeedback");
+                });
+
             modelBuilder.Entity("Nimblist.Data.Models.ListShare", b =>
                 {
                     b.Property<Guid>("Id")
@@ -359,6 +395,95 @@ namespace Nimblist.data.Migrations
                     b.ToTable("ListShares");
                 });
 
+            modelBuilder.Entity("Nimblist.Data.Models.MealPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_MealPlans_UserId");
+
+                    b.ToTable("MealPlans");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.MealPlanEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MealPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MealType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateOnly>("PlannedDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipeId");
+
+                    b.HasIndex("MealPlanId", "PlannedDate")
+                        .HasDatabaseName("IX_MealPlanEntries_PlanId_Date");
+
+                    b.ToTable("MealPlanEntries");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.MealPlanShare", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("FamilyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MealPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("SharedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FamilyId");
+
+                    b.HasIndex("MealPlanId")
+                        .HasDatabaseName("IX_MealPlanShares_MealPlanId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("MealPlanShares");
+                });
+
             modelBuilder.Entity("Nimblist.Data.Models.PreviousItemName", b =>
                 {
                     b.Property<Guid>("Id")
@@ -383,6 +508,115 @@ namespace Nimblist.data.Migrations
                         .IsUnique();
 
                     b.ToTable("PreviousItemNames");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.Recipe", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("Instructions")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int?>("TotalTimeMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Yields")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_Recipes_UserId");
+
+                    b.ToTable("Recipes");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.RecipeIngredient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ParsedName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("ParsedQuantity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("RecipeIngredients");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.RecipeShare", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("FamilyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("SharedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FamilyId");
+
+                    b.HasIndex("RecipeId")
+                        .HasDatabaseName("IX_RecipeShares_RecipeId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RecipeShares");
                 });
 
             modelBuilder.Entity("Nimblist.Data.Models.ShoppingList", b =>
@@ -527,6 +761,29 @@ namespace Nimblist.data.Migrations
                     b.Navigation("SubCategory");
                 });
 
+            modelBuilder.Entity("Nimblist.Data.Models.ItemClassificationFeedback", b =>
+                {
+                    b.HasOne("Nimblist.Data.Models.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Nimblist.Data.Models.SubCategory", "SubCategory")
+                        .WithMany()
+                        .HasForeignKey("SubCategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Nimblist.Data.Models.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("SubCategory");
+                });
+
             modelBuilder.Entity("Nimblist.Data.Models.ListShare", b =>
                 {
                     b.HasOne("Nimblist.Data.Models.Family", "Family")
@@ -552,6 +809,61 @@ namespace Nimblist.data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Nimblist.Data.Models.MealPlan", b =>
+                {
+                    b.HasOne("Nimblist.Data.Models.ApplicationUser", "User")
+                        .WithMany("MealPlans")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.MealPlanEntry", b =>
+                {
+                    b.HasOne("Nimblist.Data.Models.MealPlan", "MealPlan")
+                        .WithMany("Entries")
+                        .HasForeignKey("MealPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nimblist.Data.Models.Recipe", "Recipe")
+                        .WithMany()
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MealPlan");
+
+                    b.Navigation("Recipe");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.MealPlanShare", b =>
+                {
+                    b.HasOne("Nimblist.Data.Models.Family", "Family")
+                        .WithMany()
+                        .HasForeignKey("FamilyId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Nimblist.Data.Models.MealPlan", "MealPlan")
+                        .WithMany("Shares")
+                        .HasForeignKey("MealPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nimblist.Data.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Family");
+
+                    b.Navigation("MealPlan");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Nimblist.Data.Models.PreviousItemName", b =>
                 {
                     b.HasOne("Nimblist.Data.Models.ApplicationUser", "User")
@@ -559,6 +871,53 @@ namespace Nimblist.data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.Recipe", b =>
+                {
+                    b.HasOne("Nimblist.Data.Models.ApplicationUser", "User")
+                        .WithMany("Recipes")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.RecipeIngredient", b =>
+                {
+                    b.HasOne("Nimblist.Data.Models.Recipe", "Recipe")
+                        .WithMany("Ingredients")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Recipe");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.RecipeShare", b =>
+                {
+                    b.HasOne("Nimblist.Data.Models.Family", "Family")
+                        .WithMany()
+                        .HasForeignKey("FamilyId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Nimblist.Data.Models.Recipe", "Recipe")
+                        .WithMany("Shares")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nimblist.Data.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Family");
+
+                    b.Navigation("Recipe");
 
                     b.Navigation("User");
                 });
@@ -591,6 +950,10 @@ namespace Nimblist.data.Migrations
 
                     b.Navigation("ListShares");
 
+                    b.Navigation("MealPlans");
+
+                    b.Navigation("Recipes");
+
                     b.Navigation("ShoppingLists");
                 });
 
@@ -606,6 +969,20 @@ namespace Nimblist.data.Migrations
                     b.Navigation("ListShares");
 
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.MealPlan", b =>
+                {
+                    b.Navigation("Entries");
+
+                    b.Navigation("Shares");
+                });
+
+            modelBuilder.Entity("Nimblist.Data.Models.Recipe", b =>
+                {
+                    b.Navigation("Ingredients");
+
+                    b.Navigation("Shares");
                 });
 
             modelBuilder.Entity("Nimblist.Data.Models.ShoppingList", b =>

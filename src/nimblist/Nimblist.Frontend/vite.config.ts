@@ -10,12 +10,14 @@ export default defineConfig({
         tailwindcss(),
         mkcert()
     ],
-    server: {
+        server: {
       // 3. Optional but recommended: Ensure Vite uses HTTPS
       https: true,
       // 4. Optional: Specify the port if needed (defaults might work)
       port: 5173,
       // 5. Optional: Prevent Vite trying other ports if 5173 is busy
       strictPort: true,
+      // 6. Bind to all network interfaces so other machines can access
+      host: '0.0.0.0',
     }
 })

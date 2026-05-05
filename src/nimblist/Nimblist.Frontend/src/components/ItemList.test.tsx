@@ -1,20 +1,15 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, vi, expect } from 'vitest';
-
-
-vi.mock('./ItemList', async () => { // <-- Make the factory function async
-  const actual = await vi.importActual('./ItemList'); // <-- Await the promise here
-  return {
-    ...actual, // Now 'actual' is the resolved module object with all exports
-    authenticatedFetch: vi.fn(), // Override authenticatedFetch
-  };
-});
-
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, vi, expect, beforeEach } from 'vitest';
+import type { MockedFunction } from 'vitest';
+import { authenticatedFetch } from '../components/HttpHelper';
 import ItemList from './ItemList';
-import { Item } from '../types';
-import authenticatedFetch from './ItemList'; // Import the default exported function to mock
+import type { Item } from '../types';
+
+vi.mock('../components/HttpHelper');
 
 describe('ItemList Component', () => {
+  const mockAuthFetch = authenticatedFetch as MockedFunction<typeof authenticatedFetch>;
+
   const mockItems: Item[] = [
     {
       id: '1',
@@ -23,8 +18,10 @@ describe('ItemList Component', () => {
       quantity: '1',
       addedAt: '2023-01-01T00:00:00Z',
       shoppingListId: 'list-1',
-      categoryName: '',
-      subCategoryName: ''
+      categoryName: 'Produce',
+      subCategoryName: 'Fruit',
+      categoryId: 'cat-1',
+      subCategoryId: 'sub-1',
     },
     {
       id: '2',
@@ -34,56 +31,105 @@ describe('ItemList Component', () => {
       addedAt: '2023-01-02T00:00:00Z',
       shoppingListId: 'list-1',
       categoryName: '',
-      subCategoryName: ''
+      subCategoryName: '',
     },
   ];
 
+  const mockOnDeleteItem = vi.fn();
+  const mockOnEditItem = vi.fn();
+  const mockOnDeleteAllChecked = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Return empty arrays for the categories/subcategories fetches on mount
+    mockAuthFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [],
+    } as Response);
+  });
+
+  const renderComponent = (items: Item[] = mockItems) =>
+    render(
+      <ItemList
+        initialItems={items}
+        listId="list-1"
+        onDeleteItem={mockOnDeleteItem}
+        onEditItem={mockOnEditItem}
+        onDeleteAllChecked={mockOnDeleteAllChecked}
+      />
+    );
+
   it('renders the list of items', () => {
-    render(<ItemList initialItems={mockItems} listId="list-1" onDeleteItem={() => { throw new Error('Function not implemented.'); }} onEditItem={() => { throw new Error('Function not implemented.'); }} onDeleteAllChecked={() => { throw new Error('Function not implemented.'); }} />);
+    renderComponent();
     expect(screen.getByText('Item 1')).toBeInTheDocument();
     expect(screen.getByText('Item 2')).toBeInTheDocument();
-
   });
 
   it('displays a message when the list is empty', () => {
-    render(<ItemList initialItems={[]} listId="test-list-id" onDeleteItem={() => { throw new Error('Function not implemented.'); }} onEditItem={() => { throw new Error('Function not implemented.'); }} onDeleteAllChecked={() => { throw new Error('Function not implemented.'); }} />);
+    renderComponent([]);
     expect(screen.getByText('This list is empty.')).toBeInTheDocument();
   });
 
-  // it('toggles the checkbox state of an item', async () => {
-  //   render(<ItemList initialItems={mockItems} listId="test-list-id" />);
-  //   const checkbox = screen.getByLabelText(/Item 1/i);
-  //   expect(checkbox).not.toBeChecked();
-
-  //   fireEvent.click(checkbox);
-  //   await waitFor(() => expect(checkbox).toBeChecked());
-  // });
-
-    
-    it.skip('deletes an item from the list', async () => {
-    vi.fn(authenticatedFetch).mockResolvedValueOnce('Success');
-    render(<ItemList initialItems={mockItems} listId="test-list-id" onDeleteItem={() => { throw new Error('Function not implemented.'); }} onEditItem={() => { throw new Error('Function not implemented.'); }} onDeleteAllChecked={() => { throw new Error('Function not implemented.'); }} />);
-    const deleteButton = screen.getByTitle('Delete item "Item 1"');
+  it('calls onDeleteItem with the item id and name when delete is confirmed', () => {
     vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
-    fireEvent.click(deleteButton);
-    await waitFor(() => expect(screen.queryByText('Item 1')).not.toBeInTheDocument());
-    });
+    renderComponent();
+    fireEvent.click(screen.getByTitle('Delete item "Item 1"'));
+    expect(mockOnDeleteItem).toHaveBeenCalledWith('1', 'Item 1');
+  });
 
-  // it('displays an error message if the delete fails', async () => {
-  //   vi.fn(authenticatedFetch).mockRejectedValueOnce(new Error('Delete failed'));
-  //   render(<ItemList initialItems={mockItems} listId="test-list-id" onDeleteItem={function (_itemId: string, _itemName: string): void {
-  //     throw new Error('Function not implemented.');
-  //   } } onEditItem={function (_item: Item, _update: { name: string; quantity: string | null; categoryId: string | null; subCategoryId: string | null; }): void {
-  //     throw new Error('Function not implemented.');
-  //   } } onDeleteAllChecked={function (): void {
-  //     throw new Error('Function not implemented.');
-  //   } } />);
-  //   const deleteButton = screen.getByTitle('Delete item "Item 1"');
+  it('does not call onDeleteItem when the confirm dialog is cancelled', () => {
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
+    renderComponent();
+    fireEvent.click(screen.getByTitle('Delete item "Item 1"'));
+    expect(mockOnDeleteItem).not.toHaveBeenCalled();
+  });
 
-  //   vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
+  it('shows the edit form with pre-filled values when Edit is clicked', () => {
+    renderComponent();
+    fireEvent.click(screen.getByTitle('Edit item "Item 1"'));
+    expect(screen.getByDisplayValue('Item 1')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+  });
 
-  //   fireEvent.click(deleteButton);
+  it('hides the edit form and restores the row when Cancel is clicked', () => {
+    renderComponent();
+    fireEvent.click(screen.getByTitle('Edit item "Item 1"'));
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
 
-  //   await waitFor(() => expect(screen.getByText(/Failed to delete item/i)).toBeInTheDocument());
-  // });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+    expect(screen.getByText('Item 1')).toBeInTheDocument();
+  });
+
+  it('calls onEditItem with updated values when the edit form is submitted', () => {
+    renderComponent();
+    fireEvent.click(screen.getByTitle('Edit item "Item 1"'));
+
+    const nameInput = screen.getByDisplayValue('Item 1');
+    fireEvent.change(nameInput, { target: { value: 'Updated Item' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(mockOnEditItem).toHaveBeenCalledWith(
+      expect.objectContaining({ id: '1' }),
+      expect.objectContaining({ name: 'Updated Item' })
+    );
+  });
+
+  it('shows a validation error and does not call onEditItem when name is cleared', () => {
+    renderComponent();
+    fireEvent.click(screen.getByTitle('Edit item "Item 1"'));
+
+    const nameInput = screen.getByDisplayValue('Item 1');
+    fireEvent.change(nameInput, { target: { value: '' } });
+    // Submit the form directly to bypass jsdom's native `required` constraint validation
+    fireEvent.submit(nameInput.closest('form')!);
+
+    expect(screen.getByText('Item name is required.')).toBeInTheDocument();
+    expect(mockOnEditItem).not.toHaveBeenCalled();
+  });
 });

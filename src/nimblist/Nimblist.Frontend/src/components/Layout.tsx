@@ -17,10 +17,13 @@ const Layout: React.FC = () => {
           </h1>
           <nav>
             <ul className="flex items-center space-x-6">
-              <li><Link to="/previous-item-names" className="text-sm font-medium hover:text-gray-200 transition-colors">Previous Item Names</Link></li>
-              {/* Show "My Lists" only if authenticated */}
               {isAuthenticated && (
-                <li><Link to="/lists" className="text-sm font-medium hover:text-gray-200 transition-colors">My Lists</Link></li>
+                <>
+                  <li><Link to="/lists" className="text-sm font-medium hover:text-gray-200 transition-colors">My Lists</Link></li>
+                  <li><Link to="/recipes" className="text-sm font-medium hover:text-gray-200 transition-colors">Recipes</Link></li>
+                  <li><Link to="/families" className="text-sm font-medium hover:text-gray-200 transition-colors">Families</Link></li>
+                  <li><Link to="/meal-planner" className="text-sm font-medium hover:text-gray-200 transition-colors">Meal Planner</Link></li>
+                </>
               )}
               <li>
                 {/* Show User Info & Logout OR Login Link */}

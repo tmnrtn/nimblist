@@ -11,9 +11,6 @@ const LoginPrompt: React.FC = () => {
   const loginUrlWithReturn = `${loginPageUrl}?returnUrl=${returnUrl}`;
   // -----------------------------
 
-  // Log the generated URL for debugging:
-  console.log("Generated Login URL:", loginUrlWithReturn);
-
   return (
     // ... JSX using loginUrlWithReturn in an <a> tag ...
     <a href={loginUrlWithReturn} className="btn btn-primary">

@@ -16,5 +16,9 @@ namespace Nimblist.Data.Models
         public virtual ICollection<FamilyMember> Families { get; set; } = new List<FamilyMember>();
 
         public virtual ICollection<ListShare> ListShares { get; set; } = new List<ListShare>();
+
+        public virtual ICollection<Recipe> Recipes { get; set; } = new List<Recipe>();
+
+        public virtual ICollection<MealPlan> MealPlans { get; set; } = new List<MealPlan>();
     }
 }

@@ -296,7 +296,7 @@ describe("ShoppingListsPage Component", () => {
 
     // Assert: Check if the API was called correctly
     expect(mockAuthFetch).toHaveBeenCalledWith(
-      "/api/shoppingLists",
+      "/api/shoppinglists",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ name: "New Test List" }),
