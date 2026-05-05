@@ -10,6 +10,7 @@ env:
   DOTNET_COVERAGE_PATH: ./src/nimblist/Nimblist.test/TestResults/Coverage/coverage.opencover.xml # Adjust if DOTNET_DIR is not root or output changes
   PYTHON_DIR: ./src/nimblist/Nimblist.classification # Directory for Python classification service
   PYTHON_COVERAGE_PATH: ./src/nimblist/Nimblist.classification/coverage.xml # Path for Python coverage report
+  SCRAPER_DIR: ./src/nimblist/Nimblist.recipescraper # Directory for Python recipe scraper service
   VITE_API_BASE_URL: https://localhost:64213
   # --- SonarQube Configuration (Non-Secret) ---
   SONAR_PROJECT_KEY: "tmnrtn_nimblist"     # <-- ADD THIS (Replace with actual value)
@@ -18,6 +19,7 @@ env:
   API_IMAGE_NAME: lankykowalski/nimblist-api # Replace with your Docker Hub username/repo
   FRONTEND_IMAGE_NAME: lankykowalski/nimblist-frontend # Replace
   CLASSIFICATION_IMAGE_NAME: lankykowalski/nimblist-classification # Python classification service
+  RECIPESCRAPER_IMAGE_NAME: lankykowalski/nimblist-recipescraper # Python recipe scraper service
 
 on:
   push:
@@ -79,6 +81,22 @@ jobs:
         run: |
           pytest --cov=. --cov-report=xml:${{ github.workspace }}/${{ env.PYTHON_COVERAGE_PATH }} --junit-xml=${{ github.workspace }}/src/nimblist/Nimblist.classification/test-results.xml
         working-directory: ${{ env.PYTHON_DIR }}
+
+      # --- Python/Recipe Scraper Service Setup & Lint ---
+      - name: Set up Python for recipe scraper
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: ${{ env.SCRAPER_DIR }}/requirements.txt
+
+      - name: Install recipe scraper dependencies
+        run: pip install -r requirements.txt flake8
+        working-directory: ${{ env.SCRAPER_DIR }}
+
+      - name: Run recipe scraper linting
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        working-directory: ${{ env.SCRAPER_DIR }}
 
       # --- .NET Setup & Test ---
       - name: Set up .NET SDK
@@ -176,5 +194,18 @@ jobs:
           tags: |
             ${{ env.CLASSIFICATION_IMAGE_NAME }}:latest
             ${{ env.CLASSIFICATION_IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # --- Build and Push Recipe Scraper Image ---
+      - name: Build and push Recipe Scraper image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ env.SCRAPER_DIR }}/Dockerfile
+          push: true
+          tags: |
+            ${{ env.RECIPESCRAPER_IMAGE_NAME }}:latest
+            ${{ env.RECIPESCRAPER_IMAGE_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
