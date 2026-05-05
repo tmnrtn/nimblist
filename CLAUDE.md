@@ -10,7 +10,7 @@ Nimblist is a collaborative shopping list app. The monorepo lives under `src/nim
 - **`Nimblist.data`** — EF Core 9 data layer: `NimblistContext`, models, migrations, and CSV-seeded category data.
 - **`Nimblist.Frontend`** — React 19 + TypeScript SPA (Vite). Entry point: `src/main.tsx`.
 - **`Nimblist.classification`** — Python Flask service that classifies item names using pre-trained Logistic Regression models (joblib). Endpoint: `POST /predict`.
-- **`Nimblist.recipescraper`** — Python Flask service that scrapes recipe data from URLs using `recipe-scrapers`. Endpoint: `POST /scrape`.
+- **`Nimblist.recipescraper`** — Python Flask service that scrapes recipe data from URLs using `recipe-scrapers` and parses ingredients using `ingredient-parser-nlp`. Endpoints: `POST /scrape`, `POST /parse-ingredients`.
 - **`Nimblist.test`** — xUnit + Moq tests for the backend.
 
 Solution file: `src/nimblist/nimblist.sln`
@@ -77,10 +77,48 @@ pip install -r requirements.txt
 python app.py          # Dev (port 5000)
 ```
 
+### Python recipe scraper service
+
+```bash
+cd src/nimblist/Nimblist.recipescraper
+pip install -r requirements.txt
+python app.py          # Dev (port 5001)
+```
+
 ### Docker (full stack)
 
 ```bash
-docker compose up      # Starts api, db, redis, classification, recipescraper
+# Must be run from the repo root — the API Dockerfile uses context: . which resolves to repo root
+docker compose -f src/nimblist/docker-compose.yml -f src/nimblist/docker-compose.override.yml up
+
+# Rebuild a single service (e.g. after changing Python dependencies)
+docker compose -f src/nimblist/docker-compose.yml -f src/nimblist/docker-compose.override.yml up --build Nimblist.recipescraper
+```
+
+When running via JetBrains Rider, use Rider's Docker Compose integration directly — it handles the build context correctly and mounts source for fast-mode debugging.
+
+#### Dev HTTPS setup (first time / after cert expiry)
+
+Rider's fast-mode containers serve HTTP only. To enable HTTPS on port 64213, export the dev cert into the UserSecrets folder (which Rider already mounts) and create `appsettings.Development.json` (gitignored):
+
+```powershell
+dotnet dev-certs https -ep "$env:APPDATA\Microsoft\UserSecrets\nimblist.pfx" -p nimblist-dev
+dotnet dev-certs https --trust
+```
+
+```json
+// src/nimblist/nimblist.api/appsettings.Development.json  (do not commit)
+{
+  "Kestrel": {
+    "Endpoints": {
+      "Http":  { "Url": "http://*:8080" },
+      "Https": {
+        "Url": "https://*:8081",
+        "Certificate": { "Path": "/root/.microsoft/usersecrets/nimblist.pfx", "Password": "nimblist-dev" }
+      }
+    }
+  }
+}
 ```
 
 ---
@@ -92,7 +130,7 @@ docker compose up      # Starts api, db, redis, classification, recipescraper
 - **Real-time:** `useShoppingListHub` hook manages SignalR connection lifecycle and list-group subscriptions.
 - **Styling:** Tailwind CSS 4 (no CSS modules). The Vite plugin is `@tailwindcss/vite`.
 - **TypeScript:** Strict mode, no unused vars/params (`tsconfig.app.json`). `jsdom` environment in Vitest.
-- **HTTP:** All API calls go through `authenticatedFetch` (`src/components/HttpHelper.ts`) — adds `credentials: 'include'` and `VITE_API_BASE_URL` prefix. Never use raw `fetch` for API calls.
+- **HTTP:** All API calls go through `authenticatedFetch` (`src/components/HttpHelper.ts`) — adds `credentials: 'include'` and `VITE_API_BASE_URL` prefix. Never use raw `fetch` for API calls. `authenticatedFetch` returns the response for all status codes (does not throw on non-2xx); callers must check `response.ok` themselves.
 - **Last list:** `localStorage` key `nimblist_last_list` stores the last-viewed list ID. Set on list load, cleared on logout, used by `HomePage` to redirect back to it.
 - **Error boundary:** `<ErrorBoundary>` wraps the app in `main.tsx` (class component in `src/components/ErrorBoundary.tsx`).
 - **Sharing UI:** Reusable `<SharePanel>` component (`src/components/SharePanel.tsx`) handles list, recipe, and meal plan sharing. Props: `endpoint` (GET shares), `postEndpoint` (POST new share), `resourceId`, `resourceKey` (`'listId' | 'recipeId' | 'mealPlanId'`), `isOwner`. Non-owners see a read-only message; owners see current shares with remove buttons and a family dropdown to add new shares.
@@ -105,7 +143,7 @@ docker compose up      # Starts api, db, redis, classification, recipescraper
 - **JSON cycles:** `ReferenceHandler.IgnoreCycles` is applied to both MVC and SignalR serialization.
 - **Migrations auto-apply:** `dbContext.Database.Migrate()` runs at startup.
 - **Classification config:** `ClassificationService:PredictUrl` in `appsettings.json`. Classification logic lives in `Services/ClassificationService` (injected as `IClassificationService`) — not inline in controllers.
-- **Recipe scraper config:** `RecipeScraperService:ScrapeUrl` in `appsettings.json`.
+- **Recipe scraper config:** `RecipeScraperService:ScrapeUrl` and `RecipeScraperService:ParseUrl` in `appsettings.json`. `ParseUrl` is called by `RecipesController.ParseIngredientsAsync` during recipe edits to re-parse any ingredients whose text changed (identified by null `ParsedName`).
 - **Cookie persistence:** Google OAuth sign-in uses `isPersistent: true` in `ExternalLogin.cshtml.cs` (both returning-user and first-registration paths) — overrides the scaffolded default of `false`.
 - **Shared resource access:** `GetAccessibleXxxIdsAsync(userId)` (implemented per-controller) unions own IDs + user-share IDs + family-share IDs into a `HashSet<Guid>`. This pattern is used by `RecipesController` and `MealPlansController`; apply it to any new shareable resource. Read/add endpoints use this set; delete remains owner-only.
 - **`IsOwned` in DTOs:** When a resource can be shared, include `bool IsOwned` in its detail and summary DTOs (computed as `entity.UserId == userId` in the controller). The frontend uses this to conditionally show owner-only controls (delete, share management).
