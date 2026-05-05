@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -18,18 +17,15 @@ namespace Nimblist.api.Controllers
     public class ItemsController : ControllerBase
     {
         private readonly NimblistContext _context;
-        private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHubContext<ShoppingListHub> _hubContext;
         private readonly IClassificationService _classificationService;
 
         public ItemsController(
             NimblistContext context,
-            UserManager<ApplicationUser> userManager,
             IHubContext<ShoppingListHub> hubContext,
             IClassificationService classificationService)
         {
             _context = context;
-            _userManager = userManager;
             _hubContext = hubContext;
             _classificationService = classificationService;
         }
