@@ -95,10 +95,10 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetFamilies();
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var families = Assert.IsAssignableFrom<IEnumerable<Family>>(okResult.Value).ToList();
+                var families = Assert.IsAssignableFrom<IEnumerable<FamilyWithMembersDto>>(okResult.Value).ToList();
                 Assert.Equal(2, families.Count);
-                Assert.Contains(families, f => f.Name == "Family Alpha" && f.UserId == TestUserId1 && f.Members.Any(m => m.UserId == TestUserId1));
-                Assert.Contains(families, f => f.Name == "Family Beta" && f.UserId == TestUserId1 && f.Members.Any(m => m.UserId == TestUserId1));
+                Assert.Contains(families, f => f.Name == "Family Alpha" && f.OwnerId == TestUserId1 && f.Members.Any(m => m.UserId == TestUserId1));
+                Assert.Contains(families, f => f.Name == "Family Beta" && f.OwnerId == TestUserId1 && f.Members.Any(m => m.UserId == TestUserId1));
                 Assert.Equal("Family Alpha", families[0].Name);
             }
         }
@@ -117,7 +117,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetFamilies();
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var families = Assert.IsAssignableFrom<IEnumerable<Family>>(okResult.Value);
+                var families = Assert.IsAssignableFrom<IEnumerable<FamilyWithMembersDto>>(okResult.Value);
                 Assert.Empty(families);
             }
         }
@@ -135,8 +135,7 @@ namespace Nimblist.test.Controllers
                 // Act
                 var result = await controller.GetFamilies();
                 // Assert
-                var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result.Result);
-                Assert.Equal("User ID claim not found.", unauthorizedResult.Value);
+                Assert.IsType<UnauthorizedResult>(result.Result);
             }
         }
 
@@ -159,9 +158,9 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetFamily(familyId);
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var returnedFamily = Assert.IsType<Family>(okResult.Value);
+                var returnedFamily = Assert.IsType<FamilyWithMembersDto>(okResult.Value);
                 Assert.Equal(familyId, returnedFamily.Id);
-                Assert.Equal(TestUserId1, returnedFamily.UserId);
+                Assert.Equal(TestUserId1, returnedFamily.OwnerId);
                 Assert.NotNull(returnedFamily.Members);
                 Assert.Contains(returnedFamily.Members, m => m.UserId == TestUserId1);
             }
@@ -214,8 +213,7 @@ namespace Nimblist.test.Controllers
                 // Act
                 var result = await controller.GetFamily(familyId);
                 // Assert
-                var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result.Result);
-                Assert.Equal("User ID claim not found.", unauthorizedResult.Value);
+                Assert.IsType<UnauthorizedResult>(result.Result);
             }
         }
 
@@ -235,9 +233,9 @@ namespace Nimblist.test.Controllers
                 var result = await controller.PostFamily(familyDto);
                 // Assert (Result)
                 var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-                var familyFromResult = Assert.IsType<Family>(createdAtActionResult.Value);
+                var familyFromResult = Assert.IsType<FamilyWithMembersDto>(createdAtActionResult.Value);
                 Assert.Equal(familyDto.Name, familyFromResult.Name);
-                Assert.Equal(TestUserId1, familyFromResult.UserId);
+                Assert.Equal(TestUserId1, familyFromResult.OwnerId);
                 Assert.NotNull(familyFromResult.Members);
                 Assert.Single(familyFromResult.Members);
                 Assert.Equal(TestUserId1, familyFromResult.Members.First().UserId);
@@ -270,8 +268,7 @@ namespace Nimblist.test.Controllers
                 // Act
                 var result = await controller.PostFamily(familyDto);
                 // Assert
-                var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result.Result);
-                Assert.Equal("User ID claim not found.", unauthorizedResult.Value);
+                Assert.IsType<UnauthorizedResult>(result.Result);
             }
         }
 
@@ -348,8 +345,7 @@ namespace Nimblist.test.Controllers
                 // Act
                 var result = await controller.PutFamily(familyId, updateDto);
                 // Assert
-                var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
-                Assert.Equal("User ID claim not found.", unauthorizedResult.Value);
+                Assert.IsType<UnauthorizedResult>(result);
             }
         }
 
@@ -428,8 +424,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.DeleteFamily(familyId);
 
                 // Assert
-                var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
-                Assert.Equal("User ID claim not found.", unauthorizedResult.Value);
+                Assert.IsType<UnauthorizedResult>(result);
             }
         }
     }

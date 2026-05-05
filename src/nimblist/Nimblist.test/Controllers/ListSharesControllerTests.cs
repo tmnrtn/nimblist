@@ -94,10 +94,10 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-                var listShare = Assert.IsType<ListShare>(createdAtActionResult.Value);
+                var listShare = Assert.IsType<ListShareDetailDto>(createdAtActionResult.Value);
                 Assert.Equal(listId, listShare.ListId);
-                Assert.Equal(UserToShareWithId, listShare.UserId);
-                Assert.Null(listShare.FamilyId);
+                Assert.Equal(UserToShareWithId, listShare.SharedWithUserId);
+                Assert.Null(listShare.SharedWithFamilyId);
                 Assert.Equal(nameof(controller.GetListShare), createdAtActionResult.ActionName);
 
                 // Verify in DB
@@ -127,10 +127,10 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-                var listShare = Assert.IsType<ListShare>(createdAtActionResult.Value);
+                var listShare = Assert.IsType<ListShareDetailDto>(createdAtActionResult.Value);
                 Assert.Equal(listId, listShare.ListId);
-                Assert.Equal(familyId, listShare.FamilyId);
-                Assert.Null(listShare.UserId);
+                Assert.Equal(familyId, listShare.SharedWithFamilyId);
+                Assert.Null(listShare.SharedWithUserId);
                 Assert.Equal(nameof(controller.GetListShare), createdAtActionResult.ActionName);
 
                 // Verify in DB
@@ -183,7 +183,7 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-                Assert.Contains("Cannot provide both UserIdToShareWith and FamilyIdToShareWith", badRequestResult.Value.ToString());
+                Assert.Contains("Share with a user OR a family, not both.", badRequestResult.Value.ToString());
             }
         }
 
@@ -248,7 +248,7 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-                Assert.Contains("Cannot share a list with its owner directly", badRequestResult.Value.ToString());
+                Assert.Contains("Cannot share with yourself.", badRequestResult.Value.ToString());
             }
         }
 
@@ -272,7 +272,7 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
-                Assert.Contains("This list is already shared with the specified user", conflictResult.Value.ToString());
+                Assert.Contains("Already shared with that user or family.", conflictResult.Value.ToString());
             }
         }
 
@@ -298,7 +298,7 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
-                Assert.Contains("This list is already shared with the specified user or family", conflictResult.Value.ToString());
+                Assert.Contains("Already shared with that user or family.", conflictResult.Value.ToString());
             }
         }
 
@@ -321,7 +321,7 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-                Assert.Contains("User to share with not found", badRequestResult.Value.ToString());
+                Assert.Contains("User not found.", badRequestResult.Value.ToString());
             }
         }
 
@@ -345,7 +345,7 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-                Assert.Contains("Family to share with not found", badRequestResult.Value.ToString());
+                Assert.Contains("Family not found.", badRequestResult.Value.ToString());
             }
         }
 
@@ -365,8 +365,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.PostListShare(dto);
                 
                 // Assert
-                var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result.Result);
-                Assert.Contains("User ID claim not found", unauthorizedResult.Value.ToString());
+                Assert.IsType<UnauthorizedResult>(result.Result);
             }
         }
 
@@ -412,8 +411,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.DeleteListShare(nonExistentShareId);
                 
                 // Assert
-                var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
-                Assert.Contains("List share record not found", notFoundResult.Value.ToString());
+                Assert.IsType<NotFoundResult>(result);
             }
         }
 
@@ -459,8 +457,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.DeleteListShare(shareId);
                 
                 // Assert
-                var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
-                Assert.Contains("User ID claim not found", unauthorizedResult.Value.ToString());
+                Assert.IsType<UnauthorizedResult>(result);
             }
         }
 
@@ -485,10 +482,10 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var returnedShare = Assert.IsType<ListShare>(okResult.Value);
+                var returnedShare = Assert.IsType<ListShareDetailDto>(okResult.Value);
                 Assert.Equal(shareId, returnedShare.Id);
                 Assert.Equal(listId, returnedShare.ListId);
-                Assert.Equal(UserToShareWithId, returnedShare.UserId);
+                Assert.Equal(UserToShareWithId, returnedShare.SharedWithUserId);
             }
         }
 
@@ -511,9 +508,9 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var returnedShare = Assert.IsType<ListShare>(okResult.Value);
+                var returnedShare = Assert.IsType<ListShareDetailDto>(okResult.Value);
                 Assert.Equal(shareId, returnedShare.Id);
-                Assert.Equal(UserToShareWithId, returnedShare.UserId);
+                Assert.Equal(UserToShareWithId, returnedShare.SharedWithUserId);
             }
         }
 
@@ -539,9 +536,9 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var returnedShare = Assert.IsType<ListShare>(okResult.Value);
+                var returnedShare = Assert.IsType<ListShareDetailDto>(okResult.Value);
                 Assert.Equal(shareId, returnedShare.Id);
-                Assert.Equal(familyId, returnedShare.FamilyId);
+                Assert.Equal(familyId, returnedShare.SharedWithFamilyId);
             }
         }
 
@@ -581,8 +578,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetListShare(nonExistentShareId);
                 
                 // Assert
-                var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
-                Assert.Contains("List share record not found", notFoundResult.Value.ToString());
+                Assert.IsType<NotFoundResult>(result.Result);
             }
         }
 
@@ -602,8 +598,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetListShare(shareId);
                 
                 // Assert
-                var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result.Result);
-                Assert.Contains("User ID claim not found", unauthorizedResult.Value.ToString());
+                Assert.IsType<UnauthorizedResult>(result.Result);
             }
         }
 
@@ -628,10 +623,10 @@ namespace Nimblist.test.Controllers
                 
                 // Assert
                 var okResult = Assert.IsType<OkObjectResult>(result.Result);
-                var shares = Assert.IsAssignableFrom<IEnumerable<ListShare>>(okResult.Value);
+                var shares = Assert.IsAssignableFrom<IEnumerable<ListShareDetailDto>>(okResult.Value);
                 Assert.Equal(2, shares.Count());
-                Assert.Contains(shares, s => s.UserId == UserToShareWithId);
-                Assert.Contains(shares, s => s.UserId == AnotherUserId);
+                Assert.Contains(shares, s => s.SharedWithUserId == UserToShareWithId);
+                Assert.Contains(shares, s => s.SharedWithUserId == AnotherUserId);
             }
         }
 
@@ -670,8 +665,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetSharesForList(nonExistentListId);
                 
                 // Assert
-                var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
-                Assert.Contains("Shopping list not found", notFoundResult.Value.ToString());
+                Assert.IsType<NotFoundResult>(result.Result);
             }
         }
 
@@ -691,8 +685,7 @@ namespace Nimblist.test.Controllers
                 var result = await controller.GetSharesForList(listId);
                 
                 // Assert
-                var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result.Result);
-                Assert.Contains("User ID claim not found", unauthorizedResult.Value.ToString());
+                Assert.IsType<UnauthorizedResult>(result.Result);
             }
         }
     }
