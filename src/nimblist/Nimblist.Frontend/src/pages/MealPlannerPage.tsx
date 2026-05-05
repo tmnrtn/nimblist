@@ -107,7 +107,7 @@ const MealPlannerPage: React.FC = () => {
         setNewPlanName('');
         setShowNewPlanForm(false);
       }
-    } catch { }
+    } catch { /* ignore */ }
     finally { setIsCreatingPlan(false); }
   };
 
@@ -131,7 +131,7 @@ const MealPlannerPage: React.FC = () => {
         setEntries(prev => [...prev, entry]);
         setAddingToDay(null);
       }
-    } catch { }
+    } catch { /* ignore */ }
     finally { setIsAddingEntry(false); }
   };
 
@@ -158,7 +158,7 @@ const MealPlannerPage: React.FC = () => {
         setEntryToAddToList(null);
         setTimeout(() => setAddToListResult(null), 3000);
       }
-    } catch { }
+    } catch { /* ignore */ }
     finally { setIsAddingToList(false); }
   };
 

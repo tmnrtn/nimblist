@@ -143,12 +143,10 @@ const ItemList: React.FC<ItemListProps> = ({
   }, [selectedCategory]);
 
   // --- Toggle Handler ---
-  const handleToggleCheck = (itemId: string): void => {
+  const handleToggleCheck = React.useCallback((itemId: string): void => {
     setLoadingItemId(itemId);
-    // Find the item to get its current state
     const item = initialItems.find((i) => i.id === itemId);
     if (!item) return;
-    // Call onEditItem with isChecked toggled
     onEditItem(item, {
       name: item.name,
       quantity: item.quantity || null,
@@ -156,11 +154,10 @@ const ItemList: React.FC<ItemListProps> = ({
       subCategoryId: item.subCategoryId || null,
       isChecked: !item.isChecked,
     });
-    // Parent will clear loading state via props update
-  };
+  }, [initialItems, onEditItem]);
 
   // --- Delete Handler ---
-  const handleDeleteItem = (
+  const handleDeleteItem = React.useCallback((
     itemIdToDelete: string,
     itemName: string
   ): void => {
@@ -169,8 +166,7 @@ const ItemList: React.FC<ItemListProps> = ({
     }
     setLoadingItemId(itemIdToDelete);
     onDeleteItem(itemIdToDelete, itemName);
-    // Parent will clear loading state via props update
-  };
+  }, [onDeleteItem]);
 
   // --- Edit Handlers ---
   // Track the last saved values when entering edit mode
@@ -351,7 +347,7 @@ const ItemList: React.FC<ItemListProps> = ({
         enableSorting: false,
       },
     ];
-  }, [editingItemId, loadingItemId]);
+  }, [editingItemId, loadingItemId, handleToggleCheck, handleDeleteItem]);
 
   const table = useReactTable({
     data: filteredItems,
