@@ -16,7 +16,12 @@ import type { ShoppingList } from "../types"; // Import ShoppingList type
 // 1. Mock the HttpHelper module
 vi.mock("../components/HttpHelper");
 
-// 2. Mock the authStore module (using factory + variable)
+// 2. Mock useShoppingListHub to prevent real SignalR connections in tests
+vi.mock("../hooks/useShoppingListHub", () => ({
+  default: vi.fn(() => ({ connection: null, isConnected: false })),
+}));
+
+// 3. Mock the authStore module (using factory + variable)
 let mockStoreState: AuthState;
 vi.mock("../store/authStore", () => ({
   default: vi.fn(() => mockStoreState),
