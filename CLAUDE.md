@@ -77,6 +77,8 @@ pip install -r requirements.txt
 python app.py          # Dev (port 5000)
 ```
 
+Set `FLASK_HOST=0.0.0.0` to bind to all interfaces (e.g. in Docker). Default is `127.0.0.1`.
+
 ### Python recipe scraper service
 
 ```bash
@@ -84,6 +86,10 @@ cd src/nimblist/Nimblist.recipescraper
 pip install -r requirements.txt
 python app.py          # Dev (port 5001)
 ```
+
+Set `FLASK_HOST=0.0.0.0` to bind to all interfaces. Default is `127.0.0.1`.
+
+The scraper uses `recipe-scrapers` v15+. The scrape endpoint tries the site-specific scraper first, then falls back with `supported_only=False` if `WebsiteNotImplementedError` is raised. The old `wild_mode=True` parameter was removed in v15.
 
 ### Docker (full stack)
 
@@ -130,6 +136,7 @@ dotnet dev-certs https --trust
 - **Real-time:** `useShoppingListHub` hook manages SignalR connection lifecycle and list-group subscriptions.
 - **Styling:** Tailwind CSS 4 (no CSS modules). The Vite plugin is `@tailwindcss/vite`.
 - **TypeScript:** Strict mode, no unused vars/params (`tsconfig.app.json`). `jsdom` environment in Vitest.
+- **Test env vars:** `.env.test` is gitignored. Set test-only environment variables in the `test.env` block of `vitest.config.ts` instead (e.g. `VITE_API_BASE_URL`).
 - **HTTP:** All API calls go through `authenticatedFetch` (`src/components/HttpHelper.ts`) — adds `credentials: 'include'` and `VITE_API_BASE_URL` prefix. Never use raw `fetch` for API calls. `authenticatedFetch` returns the response for all status codes (does not throw on non-2xx); callers must check `response.ok` themselves.
 - **Last list:** `localStorage` key `nimblist_last_list` stores the last-viewed list ID. Set on list load, cleared on logout, used by `HomePage` to redirect back to it.
 - **Error boundary:** `<ErrorBoundary>` wraps the app in `main.tsx` (class component in `src/components/ErrorBoundary.tsx`).
@@ -149,3 +156,5 @@ dotnet dev-certs https --trust
 - **`IsOwned` in DTOs:** When a resource can be shared, include `bool IsOwned` in its detail and summary DTOs (computed as `entity.UserId == userId` in the controller). The frontend uses this to conditionally show owner-only controls (delete, share management).
 - **Ingredient parsing:** `RecipeIngredient` stores `ParsedName` (nullable, max 300) and `ParsedQuantity` (nullable, max 100). The scraper service uses `ingredient-parser-nlp` to populate these. When adding ingredients to a shopping list, `ParsedName ?? Text` is used for classification and the item name; `ParsedQuantity` maps to `Item.Quantity`.
 - **`DateOnly` in EF/API:** `MealPlanEntry.PlannedDate` uses `DateOnly`, which EF Core 9 + Npgsql maps to PostgreSQL `date`. System.Text.Json in .NET 8 serialises `DateOnly` as `"YYYY-MM-DD"` without a custom converter.
+- **Share controllers:** `ListSharesController`, `RecipeSharesController`, and `MealPlanSharesController` all use a private `ApplyShareTargetAsync` helper to set `UserId` or `FamilyId` on the share entity (including self-share guard and existence checks). Apply this pattern to any future share controller to keep cognitive complexity within SonarCloud limits.
+- **SonarCloud:** Project is `tmnrtn/nimblist` on SonarCloud. An MCP server is configured on `lxc-mcp.lan:8086/mcp` (add via `claude mcp add --transport http sonarcloud http://lxc-mcp.lan:8086/mcp`).

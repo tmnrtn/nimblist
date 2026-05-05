@@ -5,7 +5,6 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +23,6 @@ namespace Nimblist.test.Controllers
     public class ItemsControllerInMemoryTests : IDisposable
     {
         // Mocks for dependencies that are NOT the DbContext
-        private readonly Mock<UserManager<ApplicationUser>> _mockUserManager;
         private readonly Mock<IHubContext<ShoppingListHub>> _mockHubContext;
         private readonly Mock<IHubClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
@@ -37,10 +35,6 @@ namespace Nimblist.test.Controllers
 
         public ItemsControllerInMemoryTests()
         {
-            // Set up UserManager mock
-            var store = new Mock<IUserStore<ApplicationUser>>();
-            _mockUserManager = new Mock<UserManager<ApplicationUser>>(store.Object, null, null, null, null, null, null, null, null);
-
             // Set up SignalR Hub Context mock
             _mockHubContext = new Mock<IHubContext<ShoppingListHub>>();
             _mockClients = new Mock<IHubClients>();
@@ -89,7 +83,6 @@ namespace Nimblist.test.Controllers
         {
             var controller = new ItemsController(
                 context,
-                _mockUserManager.Object,
                 _mockHubContext.Object,
                 _mockClassificationService.Object);
 
