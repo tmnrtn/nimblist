@@ -1,6 +1,6 @@
 import requests
 from flask import Flask, request, jsonify
-from recipe_scrapers import scrape_html
+from recipe_scrapers import scrape_html, WebsiteNotImplementedError
 from ingredient_parser import parse_ingredient
 
 app = Flask(__name__)
@@ -80,7 +80,12 @@ def scrape():
         return jsonify({"error": f"Failed to fetch URL: {str(e)}"}), 422
 
     try:
-        scraper = scrape_html(resp.text, org_url=url, wild_mode=True)
+        scraper = scrape_html(resp.text, org_url=url)
+    except WebsiteNotImplementedError:
+        try:
+            scraper = scrape_html(resp.text, org_url=url, supported_only=False)
+        except Exception as e:
+            return jsonify({"error": f"Could not find recipe data on this page: {str(e)}"}), 422
     except Exception as e:
         return jsonify({"error": f"Could not find recipe data on this page: {str(e)}"}), 422
 
