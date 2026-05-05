@@ -267,7 +267,7 @@ const MealPlannerPage: React.FC = () => {
           </div>
 
           {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-2 md:gap-1">
             {days.map(day => {
               const dateStr = toISODate(day);
               const isToday = dateStr === toISODate(new Date());
@@ -277,7 +277,7 @@ const MealPlannerPage: React.FC = () => {
               return (
                 <div
                   key={dateStr}
-                  className={`border rounded-lg p-2 min-h-32 flex flex-col gap-1 text-xs ${isToday ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-white'}`}
+                  className={`border rounded-lg p-2 min-h-20 md:min-h-32 flex flex-col gap-1 text-sm md:text-xs ${isToday ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-white'}`}
                 >
                   <div className={`font-semibold mb-1 ${isToday ? 'text-indigo-700' : 'text-gray-600'}`}>
                     {formatDay(day)}
