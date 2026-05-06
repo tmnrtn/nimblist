@@ -1,3 +1,7 @@
+babel==2.18.0 \
+    --hash=sha256:b80b99a14bd085fcacfa15c9165f651fbb3406e66cc603abf11c5750937c992d \
+    --hash=sha256:e2b422b277c2b9a9630c1d7903c2a00d0830c409c59ac8cae9081c92f1aeba35
+    # via courlan
 beautifulsoup4==4.14.3 \
     --hash=sha256:0918bfe44902e6ad8d57732ba310582e98da931428d231a5ecb9e7c703a735bb \
     --hash=sha256:6292b1c5186d356bba669ef9f7f051757099565ad9ada5dd630bd9de5fa7fb86
@@ -11,7 +15,9 @@ blinker==1.9.0 \
 certifi==2026.4.22 \
     --hash=sha256:3cb2210c8f88ba2318d29b0388d1023c8492ff72ecdde4ebdaddbb13a31b1c4a \
     --hash=sha256:8d455352a37b71bf76a79caa83a3d6c25afee4a385d632127b6afb3963f1c580
-    # via requests
+    # via
+    #   requests
+    #   trafilatura
 charset-normalizer==3.4.7 \
     --hash=sha256:007d05ec7321d12a40227aae9e2bc6dca73f3cb21058999a1df9e193555a9dcc \
     --hash=sha256:03853ed82eeebbce3c2abfdbc98c96dc205f32a79627688ac9a27370ea61a49c \
@@ -142,7 +148,10 @@ charset-normalizer==3.4.7 \
     --hash=sha256:f59ad4c0e8f6bba240a9bb85504faa1ab438237199d4cce5f622761507b8f6a6 \
     --hash=sha256:fbccdc05410c9ee21bbf16a35f4c1d16123dcdeb8a1d38f33654fa21d0234f79 \
     --hash=sha256:fea24543955a6a729c45a73fe90e08c743f0b3334bbf3201e6c4bc1b0c7fa464
-    # via requests
+    # via
+    #   htmldate
+    #   requests
+    #   trafilatura
 click==8.3.3 \
     --hash=sha256:398329ad4837b2ff7cbe1dd166a4c0f8900c3ca3a218de04466f38f6497f18a2 \
     --hash=sha256:a2bf429bb3033c89fa4936ffb35d5cb471e3719e1f3c8a7c3fff0b8314305613
@@ -155,6 +164,14 @@ colorama==0.4.6 \
     # via
     #   click
     #   tqdm
+courlan==1.3.2 \
+    --hash=sha256:0b66f4db3a9c39a6e22dd247c72cfaa57d68ea660e94bb2c84ec7db8712af190 \
+    --hash=sha256:d0dab52cf5b5b1000ee2839fbc2837e93b2514d3cb5bb61ae158a55b7a04c6be
+    # via trafilatura
+dateparser==1.4.0 \
+    --hash=sha256:7902b8e85d603494bf70a5a0b1decdddb2270b9c6e6b2bc8a57b93476c0df378 \
+    --hash=sha256:97a21840d5ecdf7630c584f673338a5afac5dfe84f647baf4d7e8df98f9354a4
+    # via htmldate
 extruct==0.18.0 \
     --hash=sha256:1e739985da705c3348c7614dc169e7780caf20908338fa5f4c6e48576df6f000 \
     --hash=sha256:b5b48d459003b27c05ee91527b14a5a31735231aaf85d2b1f331d4db879318dd
@@ -185,6 +202,10 @@ html5lib==1.1 \
     # via
     #   mf2py
     #   pyrdfa3
+htmldate==1.9.4 \
+    --hash=sha256:1129063e02dd0354b74264de71e950c0c3fcee191178321418ccad2074cc8ed0 \
+    --hash=sha256:1b94bcc4e08232a5b692159903acf95548b6a7492dddca5bb123d89d6325921c
+    # via trafilatura
 idna==3.13 \
     --hash=sha256:585ea8fe5d69b9181ec1afba340451fba6ba764af97026f92a91d4eef164a242 \
     --hash=sha256:892ea0cde124a99ce773decba204c5552b69c3c67ffd5f232eb7696135bc8bb3
@@ -212,7 +233,11 @@ joblib==1.5.3 \
 jstyleson==0.0.2 \
     --hash=sha256:680003f3b15a2959e4e6a351f3b858e3c07dd3e073a0d54954e34d8ea5e1308e
     # via extruct
-lxml==6.1.0 \
+justext==3.0.2 \
+    --hash=sha256:13496a450c44c4cd5b5a75a5efcd9996066d2a189794ea99a49949685a0beb05 \
+    --hash=sha256:62b1c562b15c3c6265e121cc070874243a443bfd53060e869393f09d6b6cc9a7
+    # via trafilatura
+lxml[html-clean]==6.1.0 \
     --hash=sha256:00750d63ef0031a05331b9223463b1c7c02b9004cef2346a5b2877f0f9494dd2 \
     --hash=sha256:022981127642fe19866d2907d76241bb07ed21749601f727d5d5dd1ce5d1b773 \
     --hash=sha256:045e387d1f4f42a418380930fa3f45c73c9b392faf67e495e58902e68e8f44a7 \
@@ -350,13 +375,17 @@ lxml==6.1.0 \
     # via
     #   extruct
     #   html-text
+    #   htmldate
+    #   justext
     #   lxml-html-clean
+    #   trafilatura
 lxml-html-clean==0.4.4 \
     --hash=sha256:58f39a9d632711202ed1d6d0b9b47a904e306c85de5761543b90e3e3f736acfb \
     --hash=sha256:ce2ef506614ecb85ee1c5fe0a2aa45b06a19514ec7949e9c8f34f06925cfabcb
     # via
     #   extruct
     #   html-text
+    #   lxml
 markupsafe==3.0.3 \
     --hash=sha256:0303439a41979d9e74d18ff5e2dd8c43ed6c6001fd40e5bf2e43f7bd9bbc523f \
     --hash=sha256:068f375c472b3e7acbe2d5318dea141359e6900156b5b2ba06a30b169086b91a \
@@ -598,6 +627,16 @@ python-crfsuite==0.9.12 \
     --hash=sha256:fa6258bf10d8185262dee8fe2ca8d3de3c7aecb990846329043fc895344cc939 \
     --hash=sha256:ff3b8e8c524b952e0dd85aa3bc34f24b502507411e776739d9e4ad4b46e61f51
     # via ingredient-parser-nlp
+python-dateutil==2.9.0.post0 \
+    --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
+    --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
+    # via
+    #   dateparser
+    #   htmldate
+pytz==2026.2 \
+    --hash=sha256:04156e608bee23d3792fd45c94ae47fae1036688e75032eea2e3bf0323d1f126 \
+    --hash=sha256:0e60b47b29f21574376f218fe21abc009894a2321ea16c6754f3cad6eb7cdd6a
+    # via dateparser
 rdflib==7.6.0 \
     --hash=sha256:30c0a3ebf4c0e09215f066be7246794b6492e054e782d7ac2a34c9f70a15e0dd \
     --hash=sha256:6c831288d5e4a5a7ece85d0ccde9877d512a3d0f02d7c06455d00d6d0ea379df
@@ -723,7 +762,9 @@ regex==2026.4.4 \
     --hash=sha256:fa7922bbb2cc84fa062d37723f199d4c0cd200245ce269c05db82d904db66b83 \
     --hash=sha256:fe896e07a5a2462308297e515c0054e9ec2dd18dfdc9427b19900b37dfe6f40b \
     --hash=sha256:ffa81f81b80047ba89a3c69ae6a0f78d06f4a42ce5126b0eb2a0a10ad44e0b2e
-    # via nltk
+    # via
+    #   dateparser
+    #   nltk
 requests==2.33.1 \
     --hash=sha256:18817f8c57c6263968bc123d237e3b8b08ac046f5456bd1e307ee8f4250d3517 \
     --hash=sha256:4e6d1ef462f3626a1f0a0a9c42dd93c63bad33f9f1c1937509b8c5c8718ab56a
@@ -734,15 +775,25 @@ requests==2.33.1 \
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
-    # via html5lib
+    # via
+    #   html5lib
+    #   python-dateutil
 soupsieve==2.8.3 \
     --hash=sha256:3267f1eeea4251fb42728b6dfb746edc9acaffc4a45b27e19450b676586e8349 \
     --hash=sha256:ed64f2ba4eebeab06cc4962affce381647455978ffc1e36bb79a545b91f45a95
     # via beautifulsoup4
+tld==0.13.2 \
+    --hash=sha256:9b8fdbdb880e7ba65b216a4937f2c94c49a7226723783d5838fc958ac76f4e0c \
+    --hash=sha256:d983fa92b9d717400742fca844e29d5e18271079c7bcfabf66d01b39b4a14345
+    # via courlan
 tqdm==4.67.3 \
     --hash=sha256:7d825f03f89244ef73f1d4ce193cb1774a8179fd96f31d7e1dcde62092b960bb \
     --hash=sha256:ee1e4c0e59148062281c49d80b25b67771a127c85fc9676d3be5f243206826bf
     # via nltk
+trafilatura==2.0.0 \
+    --hash=sha256:77eb5d1e993747f6f20938e1de2d840020719735690c840b9a1024803a4cd51d \
+    --hash=sha256:ceb7094a6ecc97e72fea73c7dba36714c5c5b577b6470e4520dca893706d6247
+    # via -r requirements.txt
 typing-extensions==4.15.0 \
     --hash=sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466 \
     --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548
@@ -751,10 +802,22 @@ typing-extensions==4.15.0 \
     #   flexcache
     #   flexparser
     #   pint
+tzdata==2026.2 \
+    --hash=sha256:9173fde7d80d9018e02a662e168e5a2d04f87c41ea174b139fbef642eda62d10 \
+    --hash=sha256:bbe9af844f658da81a5f95019480da3a89415801f6cc966806612cc7169bffe7
+    # via tzlocal
+tzlocal==5.3.1 \
+    --hash=sha256:cceffc7edecefea1f595541dbd6e990cb1ea3d19bf01b2809f362a03dd7921fd \
+    --hash=sha256:eb1a66c3ef5847adf7a834f1be0800581b683b5608e74f86ecbcef8ab91bb85d
+    # via dateparser
 urllib3==2.6.3 \
     --hash=sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed \
     --hash=sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4
-    # via requests
+    # via
+    #   courlan
+    #   htmldate
+    #   requests
+    #   trafilatura
 w3lib==2.4.1 \
     --hash=sha256:40930132907e68de906a5b89331ab8c8ff4f01bd35b5539ef7896017d814138d \
     --hash=sha256:8dd69ee39ff6398d708c793abc779c334a69bac7cee1cdf71736c669ed6be864

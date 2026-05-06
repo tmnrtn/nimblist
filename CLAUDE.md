@@ -10,7 +10,7 @@ Nimblist is a collaborative shopping list app. The monorepo lives under `src/nim
 - **`Nimblist.data`** — EF Core 9 data layer: `NimblistContext`, models, migrations, and CSV-seeded category data.
 - **`Nimblist.Frontend`** — React 19 + TypeScript SPA (Vite). Entry point: `src/main.tsx`.
 - **`Nimblist.classification`** — Python Flask service that classifies item names using pre-trained Logistic Regression models (joblib). Endpoint: `POST /predict`.
-- **`Nimblist.recipescraper`** — Python Flask service that scrapes recipe data from URLs using `recipe-scrapers` and parses ingredients using `ingredient-parser-nlp`. Endpoints: `POST /scrape`, `POST /parse-ingredients`.
+- **`Nimblist.recipescraper`** — Python Flask service that scrapes recipe data from URLs using `recipe-scrapers` and parses ingredients using `ingredient-parser-nlp`. Endpoints: `POST /scrape`, `POST /parse-ingredients`. Has an optional LLM fallback (via OpenRouter or Ollama) for pages without schema markup — triggered when `recipe-scrapers` returns no ingredients or fails entirely.
 - **`Nimblist.test`** — xUnit + Moq tests for the backend.
 
 Solution file: `src/nimblist/nimblist.sln`
@@ -93,9 +93,30 @@ python app.py                      # Dev (port 5001)
 
 Set `FLASK_HOST=0.0.0.0` to bind to all interfaces. Default is `127.0.0.1`.
 
+#### LLM fallback (optional)
+
+Set these env vars to enable LLM-based extraction on pages where `recipe-scrapers` finds no ingredients:
+
+| Variable | Values | Notes |
+|---|---|---|
+| `LLM_PROVIDER` | `openrouter` \| `ollama` \| `` | Empty disables the fallback |
+| `LLM_MODEL` | e.g. `anthropic/claude-3-haiku` / `llama3.2` | Model name for the chosen provider |
+| `OPENROUTER_API_KEY` | `sk-or-...` | Required when using `openrouter` |
+| `OLLAMA_BASE_URL` | e.g. `http://localhost:11434` | Required when using `ollama` |
+
+In PowerShell for local dev:
+```powershell
+$env:LLM_PROVIDER = "openrouter"
+$env:LLM_MODEL    = "anthropic/claude-3-haiku"
+$env:OPENROUTER_API_KEY = "sk-or-..."
+python app.py
+```
+
+For Docker, set `RECIPESCRAPER_LLM_PROVIDER`, `RECIPESCRAPER_LLM_MODEL`, `OPENROUTER_API_KEY`, and `OLLAMA_BASE_URL` in your `.env` file — they are forwarded to the container via `docker-compose.yml`.
+
 ### Python dependency lock files
 
-Both Python services have a `requirements.lock` alongside `requirements.txt`. The lock file contains exact `==` pinned versions with SHA-256 hashes and is used by Docker builds (`pip install --only-binary :all: --require-hashes -r requirements.lock`). `requirements.txt` keeps the loose `>=` bounds and is used for local dev.
+Both Python services have a `requirements.lock` alongside `requirements.txt`. The lock file contains exact `==` pinned versions with SHA-256 hashes and is used by Docker builds (`pip install --require-hashes -r requirements.lock`). `requirements.txt` keeps the loose `>=` bounds and is used for local dev.
 
 **When adding or upgrading a Python dependency:**
 1. Edit `requirements.txt` with the new/changed constraint.
@@ -105,7 +126,7 @@ Both Python services have a `requirements.lock` alongside `requirements.txt`. Th
    ```
 3. Commit both `requirements.txt` and `requirements.lock`.
 
-The scraper uses `recipe-scrapers` v15+. The scrape endpoint tries the site-specific scraper first, then falls back with `supported_only=False` if `WebsiteNotImplementedError` is raised. The old `wild_mode=True` parameter was removed in v15.
+The scraper uses `recipe-scrapers` v15+. The scrape endpoint tries the site-specific scraper first, then falls back with `supported_only=False` if `WebsiteNotImplementedError` is raised. The old `wild_mode=True` parameter was removed in v15. If `recipe-scrapers` fails or returns no ingredients, the LLM fallback uses `trafilatura` to extract clean page text before sending it to the LLM.
 
 ### Docker (full stack)
 
