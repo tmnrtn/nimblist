@@ -39,6 +39,12 @@ services:
     build:
       context: ../..
       dockerfile: src/nimblist/Nimblist.recipescraper/Dockerfile
+    environment:
+      - LLM_PROVIDER=${RECIPESCRAPER_LLM_PROVIDER:-}
+      - LLM_MODEL=${RECIPESCRAPER_LLM_MODEL:-}
+      - LLM_VISION_MODEL=${RECIPESCRAPER_LLM_VISION_MODEL:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434}
     ports:
       - "5001:5001"
     networks:

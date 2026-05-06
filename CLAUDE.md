@@ -10,7 +10,7 @@ Nimblist is a collaborative shopping list app. The monorepo lives under `src/nim
 - **`Nimblist.data`** — EF Core 9 data layer: `NimblistContext`, models, migrations, and CSV-seeded category data.
 - **`Nimblist.Frontend`** — React 19 + TypeScript SPA (Vite). Entry point: `src/main.tsx`.
 - **`Nimblist.classification`** — Python Flask service that classifies item names using pre-trained Logistic Regression models (joblib). Endpoint: `POST /predict`.
-- **`Nimblist.recipescraper`** — Python Flask service that scrapes recipe data from URLs using `recipe-scrapers` and parses ingredients using `ingredient-parser-nlp`. Endpoints: `POST /scrape`, `POST /parse-ingredients`.
+- **`Nimblist.recipescraper`** — Python Flask service that scrapes recipe data from URLs using `recipe-scrapers` and parses ingredients using `ingredient-parser-nlp`. Endpoints: `POST /scrape`, `POST /parse-ingredients`, `POST /scrape-image`. Has an optional LLM fallback (via OpenRouter or Ollama) for pages without schema markup, and a `/scrape-image` endpoint that extracts recipes directly from images (photo of a recipe card, book page, etc.) using a vision model.
 - **`Nimblist.test`** — xUnit + Moq tests for the backend.
 
 Solution file: `src/nimblist/nimblist.sln`
@@ -93,9 +93,31 @@ python app.py                      # Dev (port 5001)
 
 Set `FLASK_HOST=0.0.0.0` to bind to all interfaces. Default is `127.0.0.1`.
 
+#### LLM fallback (optional)
+
+Set these env vars to enable LLM-based extraction on pages where `recipe-scrapers` finds no ingredients:
+
+| Variable | Values | Notes |
+|---|---|---|
+| `LLM_PROVIDER` | `openrouter` \| `ollama` \| `` | Empty disables all LLM features |
+| `LLM_MODEL` | e.g. `anthropic/claude-3-haiku` / `llama3.2` | Text fallback model |
+| `LLM_VISION_MODEL` | e.g. `anthropic/claude-3-haiku` / `llava` | Vision model for `/scrape-image`; falls back to `LLM_MODEL` if unset |
+| `OPENROUTER_API_KEY` | `sk-or-...` | Required when using `openrouter` |
+| `OLLAMA_BASE_URL` | e.g. `http://localhost:11434` | Required when using `ollama` |
+
+In PowerShell for local dev:
+```powershell
+$env:LLM_PROVIDER = "openrouter"
+$env:LLM_MODEL    = "anthropic/claude-3-haiku"
+$env:OPENROUTER_API_KEY = "sk-or-..."
+python app.py
+```
+
+For Docker, set `RECIPESCRAPER_LLM_PROVIDER`, `RECIPESCRAPER_LLM_MODEL`, `OPENROUTER_API_KEY`, and `OLLAMA_BASE_URL` in your `.env` file — they are forwarded to the container via `docker-compose.yml`.
+
 ### Python dependency lock files
 
-Both Python services have a `requirements.lock` alongside `requirements.txt`. The lock file contains exact `==` pinned versions with SHA-256 hashes and is used by Docker builds (`pip install --only-binary :all: --require-hashes -r requirements.lock`). `requirements.txt` keeps the loose `>=` bounds and is used for local dev.
+Both Python services have a `requirements.lock` alongside `requirements.txt`. The lock file contains exact `==` pinned versions with SHA-256 hashes and is used by Docker builds (`pip install --require-hashes -r requirements.lock`). `requirements.txt` keeps the loose `>=` bounds and is used for local dev.
 
 **When adding or upgrading a Python dependency:**
 1. Edit `requirements.txt` with the new/changed constraint.
@@ -105,7 +127,7 @@ Both Python services have a `requirements.lock` alongside `requirements.txt`. Th
    ```
 3. Commit both `requirements.txt` and `requirements.lock`.
 
-The scraper uses `recipe-scrapers` v15+. The scrape endpoint tries the site-specific scraper first, then falls back with `supported_only=False` if `WebsiteNotImplementedError` is raised. The old `wild_mode=True` parameter was removed in v15.
+The scraper uses `recipe-scrapers` v15+. The scrape endpoint tries the site-specific scraper first, then falls back with `supported_only=False` if `WebsiteNotImplementedError` is raised. The old `wild_mode=True` parameter was removed in v15. If `recipe-scrapers` fails or returns no ingredients, the LLM fallback uses `trafilatura` to extract clean page text before sending it to the LLM. The `/scrape-image` endpoint accepts `{ image_url }` (public URL) or `{ image, media_type }` (base64); it requires a vision-capable model configured via `LLM_VISION_MODEL` (falls back to `LLM_MODEL`).
 
 ### Docker (full stack)
 
@@ -159,6 +181,7 @@ dotnet dev-certs https --trust
 - **Sharing UI:** Reusable `<SharePanel>` component (`src/components/SharePanel.tsx`) handles list, recipe, and meal plan sharing. Props: `endpoint` (GET shares), `postEndpoint` (POST new share), `resourceId`, `resourceKey` (`'listId' | 'recipeId' | 'mealPlanId'`), `isOwner`. Non-owners see a read-only message; owners see current shares with remove buttons and a family dropdown to add new shares.
 - **Email-to-userId lookup:** Adding a family member requires two calls — `GET /api/auth/lookup?email=X` to resolve the email to a userId, then `POST /api/familymembers` with the userId. The lookup endpoint is auth-gated and returns only `{ userId, email }`.
 - **Meal Planner page:** `MealPlannerPage.tsx` — weekly calendar grid (Mon–Sun) with plan selector, week navigation, per-day add-entry form (recipe + meal type), per-entry delete and "Add to list" inline flow. The `MealPlanEntriesController` `addtolist` endpoint reuses `IClassificationService` and SignalR — same pattern as `RecipesController.AddIngredientsToList`.
+- **Image import:** `RecipesPage.tsx` has an "Import from Image" tab. Uses `<input type="file" accept="image/*" capture="environment">` — on mobile this opens the rear camera directly. The selected file is read as base64 and POSTed to `POST /api/recipes/import-image`, which forwards to the scraper's `/scrape-image`. Requires `LLM_VISION_MODEL` (or `LLM_MODEL`) to be configured; returns 503 otherwise.
 
 ## Backend conventions
 
@@ -166,7 +189,7 @@ dotnet dev-certs https --trust
 - **JSON cycles:** `ReferenceHandler.IgnoreCycles` is applied to both MVC and SignalR serialization.
 - **Migrations auto-apply:** `dbContext.Database.Migrate()` runs at startup.
 - **Classification config:** `ClassificationService:PredictUrl` in `appsettings.json`. Classification logic lives in `Services/ClassificationService` (injected as `IClassificationService`) — not inline in controllers.
-- **Recipe scraper config:** `RecipeScraperService:ScrapeUrl` and `RecipeScraperService:ParseUrl` in `appsettings.json`. `ParseUrl` is called by `RecipesController.ParseIngredientsAsync` during recipe edits to re-parse any ingredients whose text changed (identified by null `ParsedName`).
+- **Recipe scraper config:** `RecipeScraperService:ScrapeUrl`, `RecipeScraperService:ScrapeImageUrl`, and `RecipeScraperService:ParseUrl` in `appsettings.json`. `ParseUrl` is called by `RecipesController.ParseIngredientsAsync` during recipe edits to re-parse any ingredients whose text changed (identified by null `ParsedName`). `ScrapeImageUrl` is called by `POST /api/recipes/import-image`; returns 503 if not configured (i.e. LLM not set up).
 - **Cookie persistence:** Google OAuth sign-in uses `isPersistent: true` in `ExternalLogin.cshtml.cs` (both returning-user and first-registration paths) — overrides the scaffolded default of `false`.
 - **Shared resource access:** `GetAccessibleXxxIdsAsync(userId)` (implemented per-controller) unions own IDs + user-share IDs + family-share IDs into a `HashSet<Guid>`. This pattern is used by `RecipesController` and `MealPlansController`; apply it to any new shareable resource. Read/add endpoints use this set; delete remains owner-only.
 - **`IsOwned` in DTOs:** When a resource can be shared, include `bool IsOwned` in its detail and summary DTOs (computed as `entity.UserId == userId` in the controller). The frontend uses this to conditionally show owner-only controls (delete, share management).

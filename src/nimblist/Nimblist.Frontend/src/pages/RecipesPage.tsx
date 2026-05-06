@@ -1,4 +1,4 @@
-import React, { useEffect, useState, FormEvent } from 'react';
+import React, { useEffect, useState, FormEvent, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { authenticatedFetch } from '../components/HttpHelper';
 import { RecipeSummary } from '../types/index';
@@ -12,12 +12,19 @@ const RecipesPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [mode, setMode] = useState<'import' | 'manual'>('import');
+  const [mode, setMode] = useState<'import' | 'image' | 'manual'>('import');
 
-  // Import form state
+  // Import from URL state
   const [importUrl, setImportUrl] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+
+  // Import from image state
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isImportingImage, setIsImportingImage] = useState(false);
+  const [imageImportError, setImageImportError] = useState<string | null>(null);
 
   // Manual create form state
   const [title, setTitle] = useState('');
@@ -66,6 +73,59 @@ const RecipesPage: React.FC = () => {
       setImportError('Network error — could not reach the import service.');
     } finally {
       setIsImporting(false);
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setImageFile(file);
+    setImageImportError(null);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = ev => setImagePreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreview(null);
+    }
+  };
+
+  const handleImportFromImage = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!imageFile) return;
+    setIsImportingImage(true);
+    setImageImportError(null);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = ev => resolve((ev.target?.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(imageFile);
+      });
+      const response = await authenticatedFetch('/api/recipes/import-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64, mediaType: imageFile.type || 'image/jpeg' }),
+      });
+      if (response.ok) {
+        const newRecipe = await response.json();
+        setRecipes(prev => [
+          { id: newRecipe.id, title: newRecipe.title, imageUrl: newRecipe.imageUrl,
+            yields: newRecipe.yields, totalTimeMinutes: newRecipe.totalTimeMinutes,
+            ingredientCount: newRecipe.ingredients?.length ?? 0, createdAt: newRecipe.createdAt,
+            isOwned: true },
+          ...prev,
+        ]);
+        setImageFile(null);
+        setImagePreview(null);
+        if (imageInputRef.current) imageInputRef.current.value = '';
+      } else {
+        const body = await response.json().catch(() => null);
+        setImageImportError(body?.error ?? `Import failed (${response.status})`);
+      }
+    } catch {
+      setImageImportError('Network error — could not reach the import service.');
+    } finally {
+      setIsImportingImage(false);
     }
   };
 
@@ -155,6 +215,16 @@ const RecipesPage: React.FC = () => {
             Import from URL
           </button>
           <button
+            onClick={() => setMode('image')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              mode === 'image'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Import from Image
+          </button>
+          <button
             onClick={() => setMode('manual')}
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
               mode === 'manual'
@@ -194,6 +264,58 @@ const RecipesPage: React.FC = () => {
           </div>
           <p className="text-xs text-gray-500">
             Supports 500+ recipe sites. Results may vary for unsupported sites.
+          </p>
+        </form>
+      )}
+
+      {/* Import from image form */}
+      {mode === 'image' && (
+        <form onSubmit={handleImportFromImage} className="p-4 bg-gray-100 rounded-md border border-gray-200 space-y-3">
+          {imageImportError && (
+            <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{imageImportError}</p>
+          )}
+          <div className="flex flex-col items-center gap-3">
+            {imagePreview ? (
+              <img src={imagePreview} alt="Recipe preview" className="max-h-64 rounded-md border border-gray-300 object-contain" />
+            ) : (
+              <div
+                className="w-full h-40 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:border-indigo-400 transition-colors"
+                onClick={() => imageInputRef.current?.click()}
+              >
+                <span className="text-3xl mb-1">📷</span>
+                <span className="text-sm text-gray-500">Tap to take a photo or choose an image</span>
+              </div>
+            )}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleImageSelect}
+              disabled={isImportingImage}
+              className="sr-only"
+            />
+            <div className="flex gap-2 w-full">
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={isImportingImage}
+                className="flex-1 px-4 py-2 border border-gray-300 text-sm text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                {imageFile ? 'Change image' : 'Choose image'}
+              </button>
+              <button
+                type="submit"
+                disabled={isImportingImage || !imageFile}
+                aria-busy={isImportingImage}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isImportingImage ? 'Importing…' : 'Import Recipe'}
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">
+            Take a photo of a recipe card, book page, or printed recipe. Requires a vision-capable LLM to be configured.
           </p>
         </form>
       )}

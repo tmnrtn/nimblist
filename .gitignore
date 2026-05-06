@@ -20,14 +20,7 @@ $RECYCLE.BIN/
 .idea/
 
 # VS Code
-# Often you WANT to commit shared settings (.vscode/launch.json, .vscode/tasks.json).
-# If so, uncomment the lines below to ignore everything EXCEPT specific files.
-# .vscode/*
-# !.vscode/settings.json
-# !.vscode/tasks.json
-# !.vscode/launch.json
-# !.vscode/extensions.json
-# *.code-workspace
+.vscode/launch.json
 # --- OR ---
 # If you don't need to share any VS Code settings, uncomment this line to ignore the whole folder:
 # .vscode/
