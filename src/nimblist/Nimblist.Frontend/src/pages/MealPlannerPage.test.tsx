@@ -1,5 +1,5 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { MockedFunction } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { authenticatedFetch } from "../components/HttpHelper";
