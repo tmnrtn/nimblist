@@ -28,6 +28,7 @@ const RecipeDetailPage: React.FC = () => {
   const [editDescription, setEditDescription] = useState('');
   const [editYields, setEditYields] = useState('');
   const [editTotalTime, setEditTotalTime] = useState('');
+  const [editImageUrl, setEditImageUrl] = useState('');
   const [editInstructions, setEditInstructions] = useState('');
   const [editIngredients, setEditIngredients] = useState<EditIngredient[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -55,6 +56,7 @@ const RecipeDetailPage: React.FC = () => {
     setEditYields(recipe.yields ?? '');
     setEditTotalTime(recipe.totalTimeMinutes != null ? String(recipe.totalTimeMinutes) : '');
     setEditInstructions(recipe.instructions ?? '');
+    setEditImageUrl(recipe.imageUrl ?? '');
     setEditIngredients(
       recipe.ingredients.length > 0
         ? recipe.ingredients.map(i => ({ text: i.text, parsedName: i.parsedName, parsedQuantity: i.parsedQuantity }))
@@ -94,7 +96,7 @@ const RecipeDetailPage: React.FC = () => {
           title: editTitle.trim(),
           description: editDescription.trim() || null,
           sourceUrl: recipe?.sourceUrl ?? null,
-          imageUrl: recipe?.imageUrl ?? null,
+          imageUrl: editImageUrl.trim() || null,
           yields: editYields.trim() || null,
           totalTimeMinutes: editTotalTime ? parseInt(editTotalTime) : null,
           instructions: editInstructions.trim() || null,
@@ -213,6 +215,38 @@ const RecipeDetailPage: React.FC = () => {
                 disabled={isSaving}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
               />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Image URL</label>
+              {editImageUrl && (
+                <img
+                  src={editImageUrl}
+                  alt="Recipe preview"
+                  className="mb-2 max-h-40 rounded-md border border-gray-200 object-cover"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={editImageUrl}
+                  onChange={e => setEditImageUrl(e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  disabled={isSaving}
+                  className="flex-grow px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                />
+                {editImageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setEditImageUrl('')}
+                    disabled={isSaving}
+                    className="px-2 text-gray-400 hover:text-red-500 disabled:opacity-30 transition-colors"
+                    aria-label="Clear image"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
