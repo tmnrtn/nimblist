@@ -147,5 +147,5 @@ def predict():
 # Run directly for development (python app.py)
 # Use Gunicorn for production (see Dockerfile CMD)
 if __name__ == '__main__':
-    # Use host='0.0.0.0' to be accessible outside the container if running locally without Gunicorn
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    import os
+    app.run(debug=True, host=os.environ.get('FLASK_HOST', '127.0.0.1'), port=5000)

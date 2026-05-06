@@ -4,11 +4,9 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
@@ -22,7 +20,6 @@ namespace Nimblist.test.Controllers
 {
     public class ItemsControllerClassificationTests
     {
-        private readonly Mock<UserManager<ApplicationUser>> _mockUserManager;
         private readonly Mock<IHubContext<ShoppingListHub>> _mockHubContext;
         private readonly Mock<IHubClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
@@ -33,19 +30,6 @@ namespace Nimblist.test.Controllers
 
         public ItemsControllerClassificationTests()
         {
-            var store = new Mock<IUserStore<ApplicationUser>>();
-            var options = new Mock<Microsoft.Extensions.Options.IOptions<IdentityOptions>>();
-            var passwordHasher = new Mock<IPasswordHasher<ApplicationUser>>();
-            var keyNormalizer = new Mock<ILookupNormalizer>();
-            var errors = new Mock<IdentityErrorDescriber>();
-            var services = new Mock<IServiceProvider>();
-            var logger = new Mock<ILogger<UserManager<ApplicationUser>>>();
-            _mockUserManager = new Mock<UserManager<ApplicationUser>>(
-                store.Object, options.Object, passwordHasher.Object,
-                new List<IUserValidator<ApplicationUser>>(),
-                new List<IPasswordValidator<ApplicationUser>>(),
-                keyNormalizer.Object, errors.Object, services.Object, logger.Object);
-
             _mockHubContext = new Mock<IHubContext<ShoppingListHub>>();
             _mockClients = new Mock<IHubClients>();
             _mockClientProxy = new Mock<IClientProxy>();
@@ -64,7 +48,6 @@ namespace Nimblist.test.Controllers
         {
             var controller = new ItemsController(
                 context,
-                _mockUserManager.Object,
                 _mockHubContext.Object,
                 _mockClassificationService.Object);
 

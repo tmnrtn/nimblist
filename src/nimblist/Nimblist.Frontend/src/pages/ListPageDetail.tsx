@@ -1,5 +1,5 @@
 // src/pages/ListPageDetail.tsx
-import React, { useState, useEffect, useRef, FormEvent } from "react";
+import React, { useState, useEffect, useRef, useCallback, FormEvent } from "react";
 import { useParams, Link } from "react-router-dom";
 import useAuthStore from "../store/authStore";
 import { ShoppingList, Item } from "../types";
@@ -30,6 +30,35 @@ const ListPageDetail: React.FC = () => {
   // *** Use the SignalR Hook ***
   // Pass the listId. The hook manages connect/disconnect/join/leave.
   const { connection } = useShoppingListHub(listId);
+
+  const handleItemAdded = useCallback((newItem: Item) => {
+    setList((prevList) => {
+      if (!prevList || !prevList.items) return prevList;
+      if (prevList.items.some((item) => item.id === newItem.id)) return prevList;
+      return { ...prevList, items: [...prevList.items, newItem] };
+    });
+  }, []);
+
+  const handleItemDeleted = useCallback((deletedItemId: string) => {
+    setList((prevList) => {
+      if (!prevList || !prevList.items) return prevList;
+      if (!prevList.items.some((item) => item.id === deletedItemId)) return prevList;
+      return { ...prevList, items: prevList.items.filter((item) => item.id !== deletedItemId) };
+    });
+  }, []);
+
+  const handleItemUpdated = useCallback((updatedItem: Item) => {
+    setList((prevList) => {
+      if (!prevList || !prevList.items) return prevList;
+      const existing = prevList.items.find((item) => item.id === updatedItem.id);
+      if (!existing) return prevList;
+      if (JSON.stringify(existing) === JSON.stringify(updatedItem)) return prevList;
+      return {
+        ...prevList,
+        items: prevList.items.map((item) => item.id === updatedItem.id ? updatedItem : item),
+      };
+    });
+  }, []);
 
 
   // --- Fetching Logic (useEffect for getting list details - as before) ---
@@ -79,68 +108,16 @@ const ListPageDetail: React.FC = () => {
 
   // *** Effect for Attaching/Detaching SignalR Message Handlers ***
   useEffect(() => {
-    // Only attach handlers if the connection object exists
-    if (connection) {
-
-      // Handler for when a new item is added by *another* user
-      const handleItemAdded = (newItem: Item) => {
-        setList((prevList) => {
-          if (!prevList || !prevList.items) return prevList;
-          // Avoid adding duplicate if this client was the one who added it
-          if (prevList.items.some((item) => item.id === newItem.id)) {
-            return prevList;
-          }
-          return { ...prevList, items: [...prevList.items, newItem] };
-        });
-      };
-
-      // Handler for when an item is deleted by *another* user
-      const handleItemDeleted = (deletedItemId: string) => {
-        setList((prevList) => {
-          if (!prevList || !prevList.items) return prevList;
-          // Only update if the item actually exists
-          if (!prevList.items.some((item) => item.id === deletedItemId)) {
-            return prevList;
-          }
-          return {
-            ...prevList,
-            items: prevList.items.filter((item) => item.id !== deletedItemId),
-          };
-        });
-      };
-
-      // Handler for when an item is updated (e.g., name/quantity change via PUT)
-      const handleItemUpdated = (updatedItem: Item) => {
-        setList((prevList) => {
-          if (!prevList || !prevList.items) return prevList;
-          const existing = prevList.items.find(
-            (item) => item.id === updatedItem.id
-          );
-          if (!existing) return prevList;
-          // Only update if the item is actually different
-          if (JSON.stringify(existing) === JSON.stringify(updatedItem))
-            return prevList;
-          return {
-            ...prevList,
-            items: prevList.items.map((item) =>
-              item.id === updatedItem.id ? updatedItem : item
-            ),
-          };
-        });
-      };
-
-      // Register the handlers with the connection
-      connection.on("ReceiveItemAdded", handleItemAdded);
-      connection.on("ReceiveItemDeleted", handleItemDeleted);
-      connection.on("ReceiveItemUpdated", handleItemUpdated); // Ensure backend sends this
-
-      return () => {
-        connection.off("ReceiveItemAdded", handleItemAdded);
-        connection.off("ReceiveItemDeleted", handleItemDeleted);
-        connection.off("ReceiveItemUpdated", handleItemUpdated);
-      };
-    }
-  }, [connection]); // Dependency: This effect runs when the 'connection' object instance changes
+    if (!connection) return;
+    connection.on("ReceiveItemAdded", handleItemAdded);
+    connection.on("ReceiveItemDeleted", handleItemDeleted);
+    connection.on("ReceiveItemUpdated", handleItemUpdated);
+    return () => {
+      connection.off("ReceiveItemAdded", handleItemAdded);
+      connection.off("ReceiveItemDeleted", handleItemDeleted);
+      connection.off("ReceiveItemUpdated", handleItemUpdated);
+    };
+  }, [connection, handleItemAdded, handleItemDeleted, handleItemUpdated]);
 
   // --- Handle Add Item Form Submission ---
   const handleAddItem = async (event: FormEvent<HTMLFormElement>) => {

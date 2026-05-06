@@ -5,12 +5,9 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
@@ -28,7 +25,6 @@ namespace Nimblist.test.Controllers
     public class ItemsControllerAdditionalTests : IDisposable
     {
         // Mocks for dependencies
-        private readonly Mock<UserManager<ApplicationUser>> _mockUserManager;
         private readonly Mock<IHubContext<ShoppingListHub>> _mockHubContext;
         private readonly Mock<IHubClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
@@ -41,28 +37,6 @@ namespace Nimblist.test.Controllers
 
         public ItemsControllerAdditionalTests()
         {
-            // Set up UserManager mock with non-null parameters
-            var store = new Mock<IUserStore<ApplicationUser>>();
-            var options = new Mock<IOptions<IdentityOptions>>();
-            var passwordHasher = new Mock<IPasswordHasher<ApplicationUser>>();
-            var userValidators = new List<IUserValidator<ApplicationUser>>();
-            var passwordValidators = new List<IPasswordValidator<ApplicationUser>>();
-            var keyNormalizer = new Mock<ILookupNormalizer>();
-            var errors = new Mock<IdentityErrorDescriber>();
-            var services = new Mock<IServiceProvider>();
-            var logger = new Mock<ILogger<UserManager<ApplicationUser>>>();
-
-            _mockUserManager = new Mock<UserManager<ApplicationUser>>(
-                store.Object,
-                options.Object,
-                passwordHasher.Object,
-                userValidators,
-                passwordValidators,
-                keyNormalizer.Object,
-                errors.Object,
-                services.Object,
-                logger.Object);
-
             // Set up SignalR Hub Context mock
             _mockHubContext = new Mock<IHubContext<ShoppingListHub>>();
             _mockClients = new Mock<IHubClients>();
@@ -116,7 +90,6 @@ namespace Nimblist.test.Controllers
         {
             var controller = new ItemsController(
                 context,
-                _mockUserManager.Object,
                 _mockHubContext.Object,
                 _mockClassificationService.Object);
 

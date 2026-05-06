@@ -59,9 +59,6 @@ namespace Nimblist.api.Controllers
             if (plan == null) return NotFound("Meal plan not found.");
             if (plan.UserId != userId) return Forbid();
 
-            if (!string.IsNullOrEmpty(dto.UserIdToShareWith) && dto.UserIdToShareWith == userId)
-                return BadRequest("Cannot share with yourself.");
-
             bool duplicate = !string.IsNullOrEmpty(dto.UserIdToShareWith)
                 ? await _context.MealPlanShares.AnyAsync(s => s.MealPlanId == dto.MealPlanId && s.UserId == dto.UserIdToShareWith)
                 : await _context.MealPlanShares.AnyAsync(s => s.MealPlanId == dto.MealPlanId && s.FamilyId == dto.FamilyIdToShareWith);
@@ -69,17 +66,8 @@ namespace Nimblist.api.Controllers
             if (duplicate) return Conflict("Already shared with that user or family.");
 
             var share = new MealPlanShare { Id = Guid.NewGuid(), MealPlanId = dto.MealPlanId, SharedAt = DateTimeOffset.UtcNow };
-
-            if (!string.IsNullOrEmpty(dto.UserIdToShareWith))
-            {
-                if (await _context.Users.FindAsync(dto.UserIdToShareWith) == null) return BadRequest("User not found.");
-                share.UserId = dto.UserIdToShareWith;
-            }
-            else
-            {
-                if (await _context.Families.FindAsync(dto.FamilyIdToShareWith!.Value) == null) return BadRequest("Family not found.");
-                share.FamilyId = dto.FamilyIdToShareWith;
-            }
+            var targetError = await ApplyShareTargetAsync(share, dto.UserIdToShareWith, dto.FamilyIdToShareWith, userId);
+            if (targetError != null) return targetError;
 
             _context.MealPlanShares.Add(share);
             await _context.SaveChangesAsync();
@@ -88,6 +76,23 @@ namespace Nimblist.api.Controllers
             if (share.FamilyId != null) await _context.Entry(share).Reference(s => s.Family).LoadAsync();
 
             return CreatedAtAction(nameof(GetSharesForPlan), new { mealPlanId = share.MealPlanId }, ToDto(share));
+        }
+
+        private async Task<BadRequestObjectResult?> ApplyShareTargetAsync(
+            MealPlanShare share, string? userIdToShareWith, Guid? familyIdToShareWith, string currentUserId)
+        {
+            if (!string.IsNullOrEmpty(userIdToShareWith))
+            {
+                if (userIdToShareWith == currentUserId) return BadRequest("Cannot share with yourself.");
+                if (await _context.Users.FindAsync(userIdToShareWith) == null) return BadRequest("User not found.");
+                share.UserId = userIdToShareWith;
+            }
+            else
+            {
+                if (await _context.Families.FindAsync(familyIdToShareWith!.Value) == null) return BadRequest("Family not found.");
+                share.FamilyId = familyIdToShareWith;
+            }
+            return null;
         }
 
         // DELETE /api/mealplanshares/{id}

@@ -198,5 +198,46 @@ namespace Nimblist.test.Controllers
 
         // Note: Similar to GetUserInfo, testing Logout when the user *isn't* authenticated
         // is typically an integration test concern due to the [Authorize] attribute.
+
+        // --- LookupUser Tests ---
+
+        [Fact]
+        public async Task LookupUser_ValidEmail_ReturnsOkWithUserIdAndEmail()
+        {
+            var email = "found@example.com";
+            var user = new ApplicationUser { Id = "found-user-id", Email = email };
+            _mockUserManager.Setup(um => um.FindByEmailAsync(email)).ReturnsAsync(user);
+            SetControllerUser("caller-id", "caller@example.com");
+
+            var result = await _controller.LookupUser(email);
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var userId = ok.Value!.GetType().GetProperty("userId")!.GetValue(ok.Value)!.ToString();
+            var returnedEmail = ok.Value!.GetType().GetProperty("email")!.GetValue(ok.Value)!.ToString();
+            Assert.Equal("found-user-id", userId);
+            Assert.Equal(email, returnedEmail);
+        }
+
+        [Fact]
+        public async Task LookupUser_EmailNotFound_ReturnsNotFound()
+        {
+            _mockUserManager.Setup(um => um.FindByEmailAsync(It.IsAny<string>()))
+                .ReturnsAsync((ApplicationUser?)null);
+            SetControllerUser("caller-id", "caller@example.com");
+
+            var result = await _controller.LookupUser("nobody@example.com");
+
+            Assert.IsType<NotFoundObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task LookupUser_EmptyEmail_ReturnsBadRequest()
+        {
+            SetControllerUser("caller-id", "caller@example.com");
+
+            var result = await _controller.LookupUser("   ");
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
     }
 }

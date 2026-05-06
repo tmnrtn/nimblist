@@ -118,10 +118,9 @@ const FamiliesPage: React.FC = () => {
       return;
     }
     const prev = families;
-    setFamilies(prev => prev.map(f => {
-      if (f.id !== familyId) return f;
-      return { ...f, members: f.members.filter(m => m.id !== memberId) };
-    }));
+    const removeMember = (f: Family) =>
+      f.id !== familyId ? f : { ...f, members: f.members.filter(m => m.id !== memberId) };
+    setFamilies(prev => prev.map(removeMember));
     try {
       await authenticatedFetch(`/api/familymembers/${memberId}`, { method: 'DELETE' });
     } catch {
