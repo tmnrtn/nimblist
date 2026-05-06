@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -8,17 +8,11 @@ ENV PYTHONUNBUFFERED=1
 # Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies needed for building Python packages with C extensions
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Copy the pinned lock file first to leverage Docker cache
+COPY src/nimblist/Nimblist.classification/requirements.lock .
 
-# Copy the requirements file first to leverage Docker cache
-COPY src/nimblist/Nimblist.classification/requirements.txt .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies from pinned versions using binary wheels only
+RUN pip install --no-cache-dir --only-binary :all: --require-hashes -r requirements.lock
 
 # Copy the rest of the application code and models
 COPY src/nimblist/Nimblist.classification/app.py .
