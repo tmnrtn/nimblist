@@ -12,6 +12,7 @@ const RecipesPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState('');
   const [mode, setMode] = useState<'import' | 'image' | 'manual'>('import');
 
   // Import from URL state
@@ -429,6 +430,17 @@ const RecipesPage: React.FC = () => {
         </form>
       )}
 
+      {/* Search */}
+      {!isLoading && !error && recipes.length > 0 && (
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search recipes…"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+        />
+      )}
+
       {/* List */}
       {isLoading && <p className="text-gray-500">Loading recipes…</p>}
       {error && <p className="text-red-600">{error}</p>}
@@ -436,8 +448,21 @@ const RecipesPage: React.FC = () => {
         <p className="text-gray-500">No recipes yet. Import one or create one above!</p>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {recipes.map(recipe => (
+      {(() => {
+        const q = searchQuery.trim().toLowerCase();
+        const visible = q
+          ? recipes.filter(r =>
+              r.title.toLowerCase().includes(q) ||
+              (r.yields ?? '').toLowerCase().includes(q)
+            )
+          : recipes;
+        return (
+          <>
+            {!isLoading && !error && q && visible.length === 0 && (
+              <p className="text-gray-500">No recipes match "{searchQuery}".</p>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {visible.map(recipe => (
           <div key={recipe.id} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden flex flex-col">
             {recipe.imageUrl && (
               <img
@@ -470,10 +495,13 @@ const RecipesPage: React.FC = () => {
                   </button>
                 )}
               </div>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+          </>
+        );
+      })()}
     </div>
   );
 };
