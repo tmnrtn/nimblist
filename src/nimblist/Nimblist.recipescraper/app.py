@@ -196,13 +196,24 @@ def _scraper_result(scraper):
     }
 
 
-def _llm_result(llm, scraper):
+def _extract_og_image(html: str) -> str | None:
+    """Extract og:image or twitter:image from page HTML as a fallback image source."""
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, 'html.parser')
+    for selector in [{'property': 'og:image'}, {'name': 'twitter:image'}, {'name': 'twitter:image:src'}]:
+        tag = soup.find('meta', attrs=selector)
+        if tag and tag.get('content'):
+            return tag['content']
+    return None
+
+
+def _llm_result(llm, scraper, og_image: str | None = None):
     """Merge LLM-extracted data with any scraper fields available."""
     sc = scraper
     return {
         "title": llm.get('title') or (safe_call(sc.title) if sc else None) or "Untitled Recipe",
         "description": llm.get('description') or (safe_call(sc.description) if sc else None),
-        "image": safe_call(sc.image) if sc else None,
+        "image": (safe_call(sc.image) if sc else None) or og_image,
         "yields": llm.get('yields') or (safe_call(sc.yields) if sc else None),
         "total_time": llm.get('total_time') or (safe_call(sc.total_time) if sc else None),
         "ingredients": [parse_ingredient_text(str(i)) for i in (llm.get('ingredients') or [])],
@@ -234,7 +245,8 @@ def scrape():
         app.logger.info(f"Falling back to LLM extraction for {url}")
         llm = _llm_extract_recipe(resp.text)
         if llm:
-            return jsonify(_llm_result(llm, scraper))
+            og_image = _extract_og_image(resp.text)
+            return jsonify(_llm_result(llm, scraper, og_image=og_image))
         if not scraper:
             return jsonify({"error": "Could not find recipe data on this page"}), 422
 
