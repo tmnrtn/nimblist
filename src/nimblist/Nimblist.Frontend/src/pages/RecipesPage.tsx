@@ -95,16 +95,12 @@ const RecipesPage: React.FC = () => {
     setIsImportingImage(true);
     setImageImportError(null);
     try {
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = ev => resolve((ev.target?.result as string).split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(imageFile);
-      });
+      const formData = new FormData();
+      formData.append('image', imageFile);
+      // No Content-Type header — browser sets it with the multipart boundary automatically
       const response = await authenticatedFetch('/api/recipes/import-image', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mediaType: imageFile.type || 'image/jpeg' }),
+        body: formData,
       });
       if (response.ok) {
         const newRecipe = await response.json();
