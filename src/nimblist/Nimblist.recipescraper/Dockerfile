@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY src/nimblist/Nimblist.recipescraper/requirements.lock .
-RUN pip install --no-cache-dir --only-binary :all: --require-hashes -r requirements.lock
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 COPY src/nimblist/Nimblist.recipescraper/app.py .
 
