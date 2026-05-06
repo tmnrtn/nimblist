@@ -40,7 +40,7 @@ namespace Nimblist.api.Controllers
         }
 
         public record ImportRecipeRequest(string Url);
-        public record ImportRecipeFromImageRequest(string? ImageUrl, string? Image, string? MediaType);
+
 
         // POST /api/recipes/import
         [HttpPost("import")]
@@ -81,26 +81,34 @@ namespace Nimblist.api.Controllers
             return await SaveScrapedRecipe(scraped, sourceUrl: request.Url, userId);
         }
 
-        // POST /api/recipes/import-image
+        // POST /api/recipes/import-image  (multipart/form-data: image file)
         [HttpPost("import-image")]
-        public async Task<ActionResult<RecipeDetailDto>> ImportRecipeFromImage([FromBody] ImportRecipeFromImageRequest request)
+        public async Task<ActionResult<RecipeDetailDto>> ImportRecipeFromImage(IFormFile image)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            if (string.IsNullOrWhiteSpace(request.ImageUrl) && string.IsNullOrWhiteSpace(request.Image))
-                return BadRequest("Provide either imageUrl or image.");
+            if (image == null || image.Length == 0)
+                return BadRequest("An image file is required.");
 
             var scrapeImageUrl = _configuration["RecipeScraperService:ScrapeImageUrl"];
             if (string.IsNullOrEmpty(scrapeImageUrl))
                 return StatusCode(503, "Recipe scraper image service is not configured.");
 
+            // Read and base64-encode here so we can send with a known Content-Length,
+            // avoiding chunked transfer encoding which gunicorn sync workers reject for large bodies.
+            using var ms = new MemoryStream();
+            await image.CopyToAsync(ms);
+            var base64 = Convert.ToBase64String(ms.ToArray());
+            var mediaType = image.ContentType ?? "image/jpeg";
+
             ScraperResponseDto? scraped;
             try
             {
                 var client = _httpClientFactory.CreateClient("RecipeScraperClient");
-                var payload = new { image_url = request.ImageUrl, image = request.Image, media_type = request.MediaType ?? "image/jpeg" };
-                var response = await client.PostAsJsonAsync(scrapeImageUrl, payload);
+                var json = System.Text.Json.JsonSerializer.Serialize(new { image = base64, media_type = mediaType });
+                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                var response = await client.PostAsync(scrapeImageUrl, content);
                 scraped = await response.Content.ReadFromJsonAsync<ScraperResponseDto>();
 
                 if (!response.IsSuccessStatusCode || scraped?.Error != null)
