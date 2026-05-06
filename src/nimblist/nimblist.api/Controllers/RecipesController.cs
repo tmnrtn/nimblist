@@ -40,6 +40,7 @@ namespace Nimblist.api.Controllers
         }
 
         public record ImportRecipeRequest(string Url);
+        public record ImportRecipeFromImageRequest(string? ImageUrl, string? Image, string? MediaType);
 
         // POST /api/recipes/import
         [HttpPost("import")]
@@ -77,12 +78,57 @@ namespace Nimblist.api.Controllers
             if (scraped == null)
                 return UnprocessableEntity(new { error = "No data returned from scraper." });
 
+            return await SaveScrapedRecipe(scraped, sourceUrl: request.Url, userId);
+        }
+
+        // POST /api/recipes/import-image
+        [HttpPost("import-image")]
+        public async Task<ActionResult<RecipeDetailDto>> ImportRecipeFromImage([FromBody] ImportRecipeFromImageRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(request.ImageUrl) && string.IsNullOrWhiteSpace(request.Image))
+                return BadRequest("Provide either imageUrl or image.");
+
+            var scrapeImageUrl = _configuration["RecipeScraperService:ScrapeImageUrl"];
+            if (string.IsNullOrEmpty(scrapeImageUrl))
+                return StatusCode(503, "Recipe scraper image service is not configured.");
+
+            ScraperResponseDto? scraped;
+            try
+            {
+                var client = _httpClientFactory.CreateClient("RecipeScraperClient");
+                var payload = new { image_url = request.ImageUrl, image = request.Image, media_type = request.MediaType ?? "image/jpeg" };
+                var response = await client.PostAsJsonAsync(scrapeImageUrl, payload);
+                scraped = await response.Content.ReadFromJsonAsync<ScraperResponseDto>();
+
+                if (!response.IsSuccessStatusCode || scraped?.Error != null)
+                {
+                    var errorMsg = scraped?.Error ?? $"Scraper returned {(int)response.StatusCode}";
+                    return UnprocessableEntity(new { error = errorMsg });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to call recipe image scraper");
+                return StatusCode(503, "Recipe scraper service is unavailable.");
+            }
+
+            if (scraped == null)
+                return UnprocessableEntity(new { error = "No data returned from scraper." });
+
+            return await SaveScrapedRecipe(scraped, sourceUrl: null, userId);
+        }
+
+        private async Task<ActionResult<RecipeDetailDto>> SaveScrapedRecipe(ScraperResponseDto scraped, string? sourceUrl, string userId)
+        {
             var recipe = new Recipe
             {
                 Id = Guid.NewGuid(),
                 Title = scraped.Title ?? "Untitled Recipe",
                 Description = scraped.Description,
-                SourceUrl = request.Url,
+                SourceUrl = sourceUrl,
                 ImageUrl = scraped.Image,
                 Yields = scraped.Yields,
                 TotalTimeMinutes = scraped.TotalTime,
@@ -107,7 +153,7 @@ namespace Nimblist.api.Controllers
             _context.Recipes.Add(recipe);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetRecipe), new { id = recipe.Id }, ToDetailDto(recipe, userId!));
+            return CreatedAtAction(nameof(GetRecipe), new { id = recipe.Id }, ToDetailDto(recipe, userId));
         }
 
         // POST /api/recipes

@@ -8,14 +8,15 @@ from ingredient_parser import parse_ingredient
 
 app = Flask(__name__)
 
-# LLM fallback config — set LLM_PROVIDER to 'openrouter' or 'ollama' to enable
+# LLM config — set LLM_PROVIDER to 'openrouter' or 'ollama' to enable
 _LLM_PROVIDER = os.environ.get('LLM_PROVIDER', '').lower().strip()
 _LLM_MODEL = os.environ.get('LLM_MODEL', '').strip()
+_LLM_VISION_MODEL = os.environ.get('LLM_VISION_MODEL', '').strip()  # falls back to _LLM_MODEL if unset
 _OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '').strip()
 _OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')
 
-_LLM_PROMPT = """\
-Extract the recipe from the text below. Return ONLY a JSON object with these exact fields (no markdown, no explanation):
+_LLM_RECIPE_PROMPT = """\
+Extract the recipe and return ONLY a JSON object with these exact fields (no markdown, no explanation):
 {
   "title": "string",
   "description": "string or null",
@@ -24,8 +25,6 @@ Extract the recipe from the text below. Return ONLY a JSON object with these exa
   "ingredients": ["list of raw ingredient strings"],
   "instructions": "string with steps separated by newlines"
 }
-
-Text:
 """
 
 
@@ -63,45 +62,36 @@ def parse_ingredient_text(text):
         return {"text": text, "parsed_name": None, "parsed_quantity": None}
 
 
-def _llm_extract_recipe(page_html: str) -> dict | None:
-    """Extract recipe data from page HTML using the configured LLM provider.
-    Returns a dict matching the /scrape response shape, or None on failure."""
-    if not _LLM_PROVIDER or not _LLM_MODEL:
-        return None
-
-    page_text = trafilatura.extract(page_html, include_comments=False, include_tables=True)
-    if not page_text:
-        return None
-
+def _llm_api_url_and_auth():
+    """Return (api_url, auth_header) for the configured provider, or (None, None)."""
     if _LLM_PROVIDER == 'openrouter':
-        api_url = 'https://openrouter.ai/api/v1/chat/completions'
-        auth_header = f'Bearer {_OPENROUTER_API_KEY}'
-    elif _LLM_PROVIDER == 'ollama':
-        api_url = f'{_OLLAMA_BASE_URL}/v1/chat/completions'
-        auth_header = 'Bearer ollama'
-    else:
-        app.logger.warning(f"Unknown LLM_PROVIDER '{_LLM_PROVIDER}' — skipping fallback")
-        return None
+        return 'https://openrouter.ai/api/v1/chat/completions', f'Bearer {_OPENROUTER_API_KEY}'
+    if _LLM_PROVIDER == 'ollama':
+        return f'{_OLLAMA_BASE_URL}/v1/chat/completions', 'Bearer ollama'
+    app.logger.warning(f"Unknown LLM_PROVIDER '{_LLM_PROVIDER}'")
+    return None, None
 
+
+def _llm_chat(messages: list, model: str, timeout: int = 30) -> dict | None:
+    """Send a chat completion to the configured provider; return parsed JSON or None."""
+    if not _LLM_PROVIDER or not model:
+        return None
+    api_url, auth_header = _llm_api_url_and_auth()
+    if not api_url:
+        return None
     try:
         resp = requests.post(
             api_url,
             headers={'Authorization': auth_header, 'Content-Type': 'application/json'},
-            json={
-                'model': _LLM_MODEL,
-                'messages': [{'role': 'user', 'content': _LLM_PROMPT + page_text[:6000]}],
-                'temperature': 0.1,
-            },
-            timeout=30,
+            json={'model': model, 'messages': messages, 'temperature': 0.1},
+            timeout=timeout,
         )
         resp.raise_for_status()
         content = resp.json()['choices'][0]['message']['content'].strip()
-        # Strip markdown fences some models add
         if content.startswith('```'):
             lines = content.splitlines()
             content = '\n'.join(lines[1:-1] if lines[-1].strip() == '```' else lines[1:])
         data = json.loads(content)
-        # Normalise total_time — model may return a string
         tt = data.get('total_time')
         if isinstance(tt, str):
             try:
@@ -110,8 +100,30 @@ def _llm_extract_recipe(page_html: str) -> dict | None:
                 data['total_time'] = None
         return data
     except Exception as e:
-        app.logger.warning(f"LLM recipe extraction failed: {e}")
+        app.logger.warning(f"LLM call failed ({model}): {e}")
         return None
+
+
+def _llm_extract_recipe(page_html: str) -> dict | None:
+    """LLM fallback for text pages — extracts clean text via trafilatura first."""
+    page_text = trafilatura.extract(page_html, include_comments=False, include_tables=True)
+    if not page_text:
+        return None
+    messages = [{'role': 'user', 'content': _LLM_RECIPE_PROMPT + '\nText:\n' + page_text[:6000]}]
+    return _llm_chat(messages, _LLM_MODEL)
+
+
+def _llm_extract_from_image(image_source: str) -> dict | None:
+    """Extract recipe from an image using the configured vision model."""
+    model = _LLM_VISION_MODEL or _LLM_MODEL
+    messages = [{
+        'role': 'user',
+        'content': [
+            {'type': 'image_url', 'image_url': {'url': image_source}},
+            {'type': 'text', 'text': _LLM_RECIPE_PROMPT},
+        ],
+    }]
+    return _llm_chat(messages, model, timeout=60)
 
 
 @app.route('/health', methods=['GET'])
@@ -227,6 +239,36 @@ def scrape():
             return jsonify({"error": "Could not find recipe data on this page"}), 422
 
     return jsonify(result)
+
+
+@app.route('/scrape-image', methods=['POST'])
+def scrape_image():
+    if not _LLM_PROVIDER:
+        return jsonify({"error": "LLM_PROVIDER is not configured"}), 503
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Missing request body"}), 400
+
+    if 'image_url' in data:
+        image_source = data['image_url'].strip()
+        if not image_source.startswith(('http://', 'https://')):
+            return jsonify({"error": "image_url must start with http:// or https://"}), 400
+    elif 'image' in data:
+        image_b64 = data['image'].strip()
+        if image_b64.startswith('data:'):
+            image_source = image_b64
+        else:
+            media_type = data.get('media_type', 'image/jpeg')
+            image_source = f"data:{media_type};base64,{image_b64}"
+    else:
+        return jsonify({"error": "Provide either 'image_url' or 'image' in the request body"}), 400
+
+    result = _llm_extract_from_image(image_source)
+    if not result:
+        return jsonify({"error": "Could not extract recipe from image"}), 422
+
+    return jsonify(_llm_result(result, None))
 
 
 if __name__ == '__main__':
