@@ -81,10 +81,24 @@ app = Flask(__name__)
 def health_check():
     return jsonify({"status": "ok"})
 
+def _predict_sub_category(primary_cat, input_vector):
+    sanitized = sanitize_filename(primary_cat)
+    if sanitized not in sub_models or sanitized not in sub_vectorizers:
+        print(f"Warning: No sub-model found for '{primary_cat}' (Sanitized: '{sanitized}').")
+        return "No Sub-Model"
+    try:
+        sub_features = sub_vectorizers[sanitized].transform(input_vector)
+        result = sub_models[sanitized].predict(sub_features)
+        return result[0] if len(result) > 0 else "Unknown"
+    except Exception as e:
+        print(f"Error during sub-category prediction for '{primary_cat}': {e}")
+        return "Prediction Error"
+
+
 @app.route('/predict', methods=['POST'])
 def predict():
     if not primary_model or not primary_vectorizer:
-         return jsonify({"error": "Models not loaded properly"}), 500
+        return jsonify({"error": "Models not loaded properly"}), 500
 
     try:
         data = request.get_json()
@@ -96,53 +110,27 @@ def predict():
         return jsonify({"error": "Invalid JSON format"}), 400
 
     product_name = data['product_name']
-
-    # 1. Clean input text
     cleaned_name = clean_text(product_name)
-    input_vector = [cleaned_name] # Vectorizer expects iterable
+    input_vector = [cleaned_name]
 
-    # 2. Predict Primary Category
     try:
         primary_features = primary_vectorizer.transform(input_vector)
-        predicted_primary_cat_arr = primary_model.predict(primary_features)
-        predicted_primary_cat = predicted_primary_cat_arr[0] if len(predicted_primary_cat_arr) > 0 else "Unknown"
+        predicted_arr = primary_model.predict(primary_features)
+        predicted_primary_cat = predicted_arr[0] if len(predicted_arr) > 0 else "Unknown"
     except Exception as e:
         print(f"Error during primary prediction: {e}")
         return jsonify({"error": "Failed to predict primary category"}), 500
 
-
-    predicted_sub_cat = "N/A" # Default if sub-model not found or error occurs
-
-    # 3. Predict Sub-Category (if primary prediction successful)
+    predicted_sub_cat = "N/A"
     if predicted_primary_cat != "Unknown":
-        # Sanitize the *predicted* primary category name to match the keys used for loading
-        sanitized_primary_cat = sanitize_filename(predicted_primary_cat)
+        predicted_sub_cat = _predict_sub_category(predicted_primary_cat, input_vector)
 
-        if sanitized_primary_cat in sub_models and sanitized_primary_cat in sub_vectorizers:
-            try:
-                sub_vectorizer = sub_vectorizers[sanitized_primary_cat]
-                sub_model = sub_models[sanitized_primary_cat]
-
-                sub_features = sub_vectorizer.transform(input_vector)
-                predicted_sub_cat_arr = sub_model.predict(sub_features)
-                predicted_sub_cat = predicted_sub_cat_arr[0] if len(predicted_sub_cat_arr) > 0 else "Unknown"
-
-            except Exception as e:
-                print(f"Error during sub-category prediction for '{predicted_primary_cat}': {e}")
-                predicted_sub_cat = "Prediction Error"
-        else:
-            print(f"Warning: No sub-model found for predicted primary category '{predicted_primary_cat}' (Sanitized: '{sanitized_primary_cat}').")
-            predicted_sub_cat = "No Sub-Model"
-
-
-    # 4. Return results
-    result = {
+    return jsonify({
         "input_product_name": product_name,
         "cleaned_product_name": cleaned_name,
         "predicted_primary_category": predicted_primary_cat,
         "predicted_sub_category": predicted_sub_cat
-    }
-    return jsonify(result)
+    })
 
 # Run directly for development (python app.py)
 # Use Gunicorn for production (see Dockerfile CMD)
