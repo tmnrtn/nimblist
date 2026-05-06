@@ -83,7 +83,8 @@ namespace Nimblist.api.Controllers
 
         // POST /api/recipes/import-image  (multipart/form-data: image file)
         [HttpPost("import-image")]
-        public async Task<ActionResult<RecipeDetailDto>> ImportRecipeFromImage(IFormFile image)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<RecipeDetailDto>> ImportRecipeFromImage([FromForm] IFormFile image)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
