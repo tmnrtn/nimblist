@@ -236,9 +236,10 @@ namespace Nimblist.api.Controllers
             for (int i = 0; i < request.Ingredients.Count; i++)
             {
                 var ing = request.Ingredients[i];
-                recipe.Ingredients.Add(new RecipeIngredient
+                _context.RecipeIngredients.Add(new RecipeIngredient
                 {
                     Id = Guid.NewGuid(),
+                    RecipeId = recipe.Id,
                     Text = ing.Text,
                     ParsedName = reparsed[i].ParsedName,
                     ParsedQuantity = reparsed[i].ParsedQuantity,
