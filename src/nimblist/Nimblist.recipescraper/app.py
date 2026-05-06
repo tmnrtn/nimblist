@@ -56,6 +56,21 @@ def parse_ingredients_endpoint():
     return jsonify([parse_ingredient_text(str(t)) for t in texts])
 
 
+def _create_scraper(html, url):
+    try:
+        return scrape_html(html, org_url=url)
+    except WebsiteNotImplementedError:
+        return scrape_html(html, org_url=url, supported_only=False)
+
+
+def _extract_instructions(scraper):
+    if hasattr(scraper, 'instructions_list'):
+        steps = safe_call(scraper.instructions_list)
+        if steps and isinstance(steps, list) and len(steps) > 0:
+            return '\n'.join(steps)
+    return safe_call(scraper.instructions)
+
+
 @app.route('/scrape', methods=['POST'])
 def scrape():
     data = request.get_json(silent=True)
@@ -80,23 +95,9 @@ def scrape():
         return jsonify({"error": f"Failed to fetch URL: {str(e)}"}), 422
 
     try:
-        scraper = scrape_html(resp.text, org_url=url)
-    except WebsiteNotImplementedError:
-        try:
-            scraper = scrape_html(resp.text, org_url=url, supported_only=False)
-        except Exception as e:
-            return jsonify({"error": f"Could not find recipe data on this page: {str(e)}"}), 422
+        scraper = _create_scraper(resp.text, url)
     except Exception as e:
         return jsonify({"error": f"Could not find recipe data on this page: {str(e)}"}), 422
-
-    # Try structured steps list first, fall back to single string
-    instructions = None
-    if hasattr(scraper, 'instructions_list'):
-        steps = safe_call(scraper.instructions_list)
-        if steps and isinstance(steps, list) and len(steps) > 0:
-            instructions = '\n'.join(steps)
-    if instructions is None:
-        instructions = safe_call(scraper.instructions)
 
     raw_ingredients = safe_call(scraper.ingredients) or []
     parsed_ingredients = [parse_ingredient_text(ing) for ing in raw_ingredients]
@@ -108,7 +109,7 @@ def scrape():
         "yields": safe_call(scraper.yields),
         "total_time": safe_call(scraper.total_time),
         "ingredients": parsed_ingredients,
-        "instructions": instructions,
+        "instructions": _extract_instructions(scraper),
     })
 
 

@@ -80,6 +80,17 @@ const ShoppingListsPage: React.FC = () => {
     setShowNew(!showNew); // Toggle the new list form
   };
 
+  const handleDeleteList = async (id: string) => {
+    if (!confirm('Delete this list and all its items? This cannot be undone.')) return;
+    const prev = lists;
+    setLists(l => l.filter(x => x.id !== id));
+    try {
+      await authenticatedFetch(`/api/shoppinglists/${id}`, { method: 'DELETE' });
+    } catch {
+      setLists(prev);
+    }
+  };
+
   const handleAddList = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -221,6 +232,15 @@ const ShoppingListsPage: React.FC = () => {
                   >
                     {shareOpen ? 'Close' : 'Share'}
                   </button>
+                  {isOwner && (
+                    <button
+                      onClick={() => handleDeleteList(list.id)}
+                      className="text-xs text-red-500 hover:text-red-700 border border-red-200 hover:bg-red-50 px-2 py-0.5 rounded transition-colors"
+                      title="Delete list"
+                    >
+                      Delete
+                    </button>
+                  )}
                   <span className="text-xs text-gray-400">
                     {new Date(list.createdAt).toLocaleDateString()}
                   </span>

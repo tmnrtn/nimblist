@@ -71,23 +71,39 @@ dotnet ef database update
 
 ### Python classification service
 
+Runs on **Python 3.11** (Docker image `python:3.11-slim`).
+
 ```bash
 cd src/nimblist/Nimblist.classification
-pip install -r requirements.txt
-python app.py          # Dev (port 5000)
+pip install -r requirements.txt   # local dev (loose pins OK)
+python app.py                      # Dev (port 5000)
 ```
 
 Set `FLASK_HOST=0.0.0.0` to bind to all interfaces (e.g. in Docker). Default is `127.0.0.1`.
 
 ### Python recipe scraper service
 
+Runs on **Python 3.11** (Docker image `python:3.11-slim`).
+
 ```bash
 cd src/nimblist/Nimblist.recipescraper
-pip install -r requirements.txt
-python app.py          # Dev (port 5001)
+pip install -r requirements.txt   # local dev (loose pins OK)
+python app.py                      # Dev (port 5001)
 ```
 
 Set `FLASK_HOST=0.0.0.0` to bind to all interfaces. Default is `127.0.0.1`.
+
+### Python dependency lock files
+
+Both Python services have a `requirements.lock` alongside `requirements.txt`. The lock file contains exact `==` pinned versions with SHA-256 hashes and is used by Docker builds (`pip install --only-binary :all: --require-hashes -r requirements.lock`). `requirements.txt` keeps the loose `>=` bounds and is used for local dev.
+
+**When adding or upgrading a Python dependency:**
+1. Edit `requirements.txt` with the new/changed constraint.
+2. Regenerate the lock file from the service directory:
+   ```bash
+   pip-compile requirements.txt --output-file requirements.lock --no-header --generate-hashes
+   ```
+3. Commit both `requirements.txt` and `requirements.lock`.
 
 The scraper uses `recipe-scrapers` v15+. The scrape endpoint tries the site-specific scraper first, then falls back with `supported_only=False` if `WebsiteNotImplementedError` is raised. The old `wild_mode=True` parameter was removed in v15.
 
