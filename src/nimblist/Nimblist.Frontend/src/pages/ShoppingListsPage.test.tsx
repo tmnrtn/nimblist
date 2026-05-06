@@ -574,4 +574,59 @@ describe("ShoppingListsPage Component", () => {
     // Wait for state update after promise resolves
     await screen.findByText("New List");
   });
+
+  it("shows Delete button only for owned lists", async () => {
+    const sharedList: ShoppingList = { id: "list-3", name: "Shared List", createdAt: "2025-04-03T12:00:00Z", items: [], userId: "other-user-id" };
+    mockAuthFetch.mockResolvedValue({ ok: true, json: async () => [...mockListsData, sharedList] } as Response);
+    render(<MemoryRouter><ShoppingListsPage /></MemoryRouter>);
+    await screen.findByText("Groceries");
+    const deleteButtons = screen.getAllByRole("button", { name: /delete/i });
+    // Only the two owned lists get Delete buttons
+    expect(deleteButtons).toHaveLength(2);
+  });
+
+  it("delete button prompts for confirmation and removes list on confirm", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    mockAuthFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => mockListsData } as Response)
+      .mockResolvedValueOnce({ ok: true, status: 204 } as Response);
+
+    render(<MemoryRouter><ShoppingListsPage /></MemoryRouter>);
+    await screen.findByText("Groceries");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /delete/i })[0]);
+
+    await screen.findByText("Hardware Store");
+    expect(screen.queryByText("Groceries")).not.toBeInTheDocument();
+    expect(mockAuthFetch).toHaveBeenCalledWith("/api/shoppinglists/list-1", { method: "DELETE" });
+  });
+
+  it("delete does nothing when confirmation is cancelled", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    mockAuthFetch.mockResolvedValue({ ok: true, json: async () => mockListsData } as Response);
+
+    render(<MemoryRouter><ShoppingListsPage /></MemoryRouter>);
+    await screen.findByText("Groceries");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /delete/i })[0]);
+
+    expect(screen.getByText("Groceries")).toBeInTheDocument();
+    // DELETE was never called (only the initial GET)
+    expect(mockAuthFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores list in state when delete request fails", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    mockAuthFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => mockListsData } as Response)
+      .mockRejectedValueOnce(new Error("Network error"));
+
+    render(<MemoryRouter><ShoppingListsPage /></MemoryRouter>);
+    await screen.findByText("Groceries");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /delete/i })[0]);
+
+    // After network failure the list should be restored
+    await screen.findByText("Groceries");
+  });
 });
