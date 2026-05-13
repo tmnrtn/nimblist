@@ -9,6 +9,8 @@ export interface Item {
     subCategoryName: string; // Ensure this is defined
     categoryId?: string | null; // <-- PATCHED: for edit support
     subCategoryId?: string | null; // <-- PATCHED: for edit support
+    recipeId?: string | null;
+    recipeTitle?: string | null;
   }
   
   export interface ShoppingList {

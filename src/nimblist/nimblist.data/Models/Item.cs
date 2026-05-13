@@ -26,6 +26,7 @@ namespace Nimblist.Data.Models
 
         public Guid? CategoryId { get; set; } // Foreign key property for category
         public Guid? SubCategoryId { get; set; } // Foreign key property for subcategory
+        public Guid? RecipeId { get; set; } // Foreign key property for the source recipe
 
         // Navigation property back to the list this item belongs to
         [ForeignKey(nameof(ShoppingListId))]
@@ -35,5 +36,8 @@ namespace Nimblist.Data.Models
         public virtual Category? Category { get; set; } // Reference to the related Category
         [ForeignKey(nameof(SubCategoryId))]
         public virtual SubCategory? SubCategory { get; set; } // Reference to the related SubCategory
+
+        [ForeignKey(nameof(RecipeId))]
+        public virtual Recipe? Recipe { get; set; } // Reference to the source recipe
     }
 }

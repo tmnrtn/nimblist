@@ -19,6 +19,11 @@ namespace Nimblist.api.DTO
         // SubCategory information
         public Guid? SubCategoryId { get; set; }
         public string? SubCategoryName { get; set; }
+
+        // Recipe information
+        public Guid? RecipeId { get; set; }
+        public string? RecipeTitle { get; set; }
+
         public ShoppingList? List { get; set; } // Reference to the related ShoppingList - made nullable
     }
 }

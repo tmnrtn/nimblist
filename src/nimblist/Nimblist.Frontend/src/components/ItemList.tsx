@@ -292,6 +292,11 @@ const ItemList: React.FC<ItemListProps> = ({
               {info.row.original.quantity && (
                 <span className="ml-1 text-xs text-gray-500">({info.row.original.quantity})</span>
               )}
+              {info.row.original.recipeTitle && (
+                <span className="ml-2 text-[10px] uppercase font-bold text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded tracking-tight" title={`From recipe: ${info.row.original.recipeTitle}`}>
+                  {info.row.original.recipeTitle}
+                </span>
+              )}
             </span>
           );
         },
