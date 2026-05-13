@@ -1,0 +1,145 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Nimblist.api.DTO;
+using Nimblist.Data;
+using Nimblist.Data.Models;
+using System.Security.Claims;
+
+namespace Nimblist.api.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize(Roles = "Admin")]
+    public class AdminController : ControllerBase
+    {
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly NimblistContext _context;
+
+        public AdminController(UserManager<ApplicationUser> userManager, NimblistContext context)
+        {
+            _userManager = userManager;
+            _context = context;
+        }
+
+        // GET /api/admin/users
+        [HttpGet("users")]
+        public async Task<IActionResult> GetUsers()
+        {
+            var users = await _userManager.Users.ToListAsync();
+            var result = new List<AdminUserDto>();
+
+            foreach (var user in users)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                result.Add(new AdminUserDto
+                {
+                    UserId = user.Id,
+                    Email = user.Email,
+                    Roles = roles,
+                });
+            }
+
+            return Ok(result);
+        }
+
+        // PUT /api/admin/users/{id}/role
+        [HttpPut("users/{id}/role")]
+        public async Task<IActionResult> SetUserRole(string id, [FromBody] SetRoleDto dto)
+        {
+            if (dto.Role != "Admin" && dto.Role != "Standard")
+                return BadRequest("Role must be 'Admin' or 'Standard'.");
+
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (id == currentUserId)
+                return BadRequest("You cannot change your own role.");
+
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            await _userManager.RemoveFromRolesAsync(user, currentRoles);
+            await _userManager.AddToRoleAsync(user, dto.Role);
+
+            return NoContent();
+        }
+
+        // DELETE /api/admin/users/{id}
+        [HttpDelete("users/{id}")]
+        public async Task<IActionResult> DeleteUser(string id)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (id == currentUserId)
+                return BadRequest("You cannot delete your own account.");
+
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            var result = await _userManager.DeleteAsync(user);
+            if (!result.Succeeded)
+                return StatusCode(500, result.Errors);
+
+            return NoContent();
+        }
+
+        // GET /api/admin/families
+        [HttpGet("families")]
+        public async Task<IActionResult> GetFamilies()
+        {
+            var families = await _context.Families
+                .Include(f => f.Members)
+                    .ThenInclude(m => m.User)
+                .ToListAsync();
+
+            var result = new List<AdminFamilyDto>();
+            foreach (var family in families)
+            {
+                var owner = await _userManager.FindByIdAsync(family.UserId);
+                result.Add(new AdminFamilyDto
+                {
+                    Id = family.Id,
+                    Name = family.Name,
+                    OwnerUserId = family.UserId,
+                    OwnerEmail = owner?.Email,
+                    Members = family.Members.Select(m => new AdminFamilyMemberDto
+                    {
+                        MemberId = m.Id,
+                        UserId = m.UserId,
+                        Email = m.User?.Email,
+                        Role = m.Role,
+                        JoinedAt = m.JoinedAt,
+                    }).ToList(),
+                });
+            }
+
+            return Ok(result);
+        }
+
+        // DELETE /api/admin/families/{familyId}/members/{memberId}
+        [HttpDelete("families/{familyId}/members/{memberId}")]
+        public async Task<IActionResult> RemoveFamilyMember(Guid familyId, Guid memberId)
+        {
+            var member = await _context.FamilyMembers
+                .FirstOrDefaultAsync(m => m.FamilyId == familyId && m.Id == memberId);
+
+            if (member == null) return NotFound();
+
+            _context.FamilyMembers.Remove(member);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // DELETE /api/admin/families/{familyId}
+        [HttpDelete("families/{familyId}")]
+        public async Task<IActionResult> DeleteFamily(Guid familyId)
+        {
+            var family = await _context.Families.FindAsync(familyId);
+            if (family == null) return NotFound();
+
+            _context.Families.Remove(family);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+    }
+}

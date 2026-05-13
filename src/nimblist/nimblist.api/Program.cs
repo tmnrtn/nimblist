@@ -291,17 +291,40 @@ namespace Nimblist.api
                 try
                 {
                     var dbContext = scope.ServiceProvider.GetRequiredService<NimblistContext>();
-                    // Check if DB exists, create if not (optional, MigrateAsync handles creation)
-                    // dbContext.Database.EnsureCreated(); // Use ONLY if not using migrations OR for initial creation
                     Console.WriteLine("Applying database migrations...");
-                    dbContext.Database.Migrate(); // Applies pending migrations
+                    dbContext.Database.Migrate();
                     Console.WriteLine("Database migrations applied successfully.");
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"An error occurred while migrating the database: {ex.Message}");
-                    // Optionally, rethrow or handle failure to prevent app start
-                    // throw;
+                }
+
+                try
+                {
+                    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+                    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+                    foreach (var role in new[] { "Admin", "Standard" })
+                    {
+                        if (!roleManager.RoleExistsAsync(role).GetAwaiter().GetResult())
+                            roleManager.CreateAsync(new IdentityRole(role)).GetAwaiter().GetResult();
+                    }
+
+                    var adminEmail = app.Configuration["AdminSettings:AdminEmail"];
+                    if (!string.IsNullOrEmpty(adminEmail))
+                    {
+                        var adminUser = userManager.FindByEmailAsync(adminEmail).GetAwaiter().GetResult();
+                        if (adminUser != null && !userManager.IsInRoleAsync(adminUser, "Admin").GetAwaiter().GetResult())
+                        {
+                            userManager.AddToRoleAsync(adminUser, "Admin").GetAwaiter().GetResult();
+                            Console.WriteLine($"Admin role assigned to {adminEmail}.");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"An error occurred while seeding roles: {ex.Message}");
                 }
             }
 

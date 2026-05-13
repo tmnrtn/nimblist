@@ -3,7 +3,7 @@ import { Outlet, Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
 const Layout: React.FC = () => {
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { isAuthenticated, user, isAdmin, logout } = useAuthStore();
   const backendUrl = import.meta.env.VITE_API_BASE_URL;
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = () => setMenuOpen(false);
@@ -26,6 +26,9 @@ const Layout: React.FC = () => {
                     <li><Link to="/recipes" className="text-sm font-medium hover:text-gray-200 transition-colors">Recipes</Link></li>
                     <li><Link to="/families" className="text-sm font-medium hover:text-gray-200 transition-colors">Families</Link></li>
                     <li><Link to="/meal-planner" className="text-sm font-medium hover:text-gray-200 transition-colors">Meal Planner</Link></li>
+                    {isAdmin && (
+                      <li><Link to="/admin" className="text-sm font-medium text-yellow-300 hover:text-yellow-100 transition-colors">Admin</Link></li>
+                    )}
                   </>
                 )}
                 <li>
@@ -74,6 +77,9 @@ const Layout: React.FC = () => {
                     <li><Link to="/recipes" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Recipes</Link></li>
                     <li><Link to="/families" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Families</Link></li>
                     <li><Link to="/meal-planner" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Meal Planner</Link></li>
+                    {isAdmin && (
+                      <li><Link to="/admin" onClick={closeMenu} className="block py-2 text-sm font-medium text-yellow-300 hover:text-yellow-100 transition-colors">Admin</Link></li>
+                    )}
                   </>
                 )}
                 <li className="pt-1">

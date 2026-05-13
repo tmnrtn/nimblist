@@ -1,0 +1,32 @@
+namespace Nimblist.api.DTO
+{
+    public class AdminUserDto
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public IList<string> Roles { get; set; } = new List<string>();
+    }
+
+    public class AdminFamilyMemberDto
+    {
+        public Guid MemberId { get; set; }
+        public string UserId { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string Role { get; set; } = string.Empty;
+        public DateTimeOffset JoinedAt { get; set; }
+    }
+
+    public class AdminFamilyDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string OwnerUserId { get; set; } = string.Empty;
+        public string? OwnerEmail { get; set; }
+        public List<AdminFamilyMemberDto> Members { get; set; } = new();
+    }
+
+    public class SetRoleDto
+    {
+        public string Role { get; set; } = string.Empty;
+    }
+}
