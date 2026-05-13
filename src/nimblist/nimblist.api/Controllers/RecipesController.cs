@@ -358,6 +358,7 @@ namespace Nimblist.api.Controllers
                     ShoppingListId = listId,
                     CategoryId = categoryId,
                     SubCategoryId = subCategoryId,
+                    RecipeId = recipe.Id,
                     IsChecked = false,
                     AddedAt = DateTimeOffset.UtcNow,
                 };
@@ -380,6 +381,8 @@ namespace Nimblist.api.Controllers
                     CategoryName = item.Category?.Name,
                     SubCategoryId = item.SubCategoryId,
                     SubCategoryName = item.SubCategory?.Name,
+                    RecipeId = item.RecipeId,
+                    RecipeTitle = recipe.Title,
                 };
 
                 addedItems.Add(dto);

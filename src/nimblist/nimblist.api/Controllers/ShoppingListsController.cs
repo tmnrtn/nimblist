@@ -39,6 +39,8 @@ namespace Nimblist.api.Controllers
                     .ThenInclude(i => i.Category) // Include Category information
                 .Include(sl => sl.Items)
                     .ThenInclude(i => i.SubCategory) // Include SubCategory information
+                .Include(sl => sl.Items)
+                    .ThenInclude(i => i.Recipe) // Include Recipe information
                 .ToListAsync();
 
             var famiySharedLists = await _context.ShoppingLists
@@ -57,6 +59,8 @@ namespace Nimblist.api.Controllers
                     .ThenInclude(i => i.Category) // Include Category information
                 .Include(sl => sl.Items)
                     .ThenInclude(i => i.SubCategory) // Include SubCategory information
+                .Include(sl => sl.Items)
+                    .ThenInclude(i => i.Recipe) // Include Recipe information
                 .ToListAsync();
 
             return userSharedLists.Concat(famiySharedLists)
@@ -79,7 +83,9 @@ namespace Nimblist.api.Controllers
                 CategoryId = item.CategoryId,
                 CategoryName = item.Category?.Name,
                 SubCategoryId = item.SubCategoryId,
-                SubCategoryName = item.SubCategory?.Name
+                SubCategoryName = item.SubCategory?.Name,
+                RecipeId = item.RecipeId,
+                RecipeTitle = item.Recipe?.Title
             }).ToList();
         }
 
