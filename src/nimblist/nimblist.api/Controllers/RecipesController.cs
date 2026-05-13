@@ -364,56 +364,98 @@ namespace Nimblist.api.Controllers
 
             if (!listExists) return NotFound("Shopping list not found.");
 
+            // Load existing items once for deduplication; updated in-loop for intra-recipe dupes
+            var existingItems = await _context.Items
+                .Where(i => i.ShoppingListId == listId)
+                .ToListAsync();
+
             var addedItems = new List<ItemWithCategoryDto>();
 
             foreach (var ingredient in recipe.Ingredients)
             {
                 var itemName = ingredient.ParsedName ?? ingredient.Text;
-                var (categoryId, subCategoryId) = await _classificationService.ClassifyAsync(itemName);
-
                 var quantity = request?.QuantityOverrides?.GetValueOrDefault(ingredient.Id.ToString())
                     ?? ingredient.ParsedQuantity;
 
-                var item = new Item
+                var existing = existingItems.FirstOrDefault(i =>
+                    string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
+
+                ItemWithCategoryDto dto;
+
+                if (existing != null)
                 {
-                    Id = Guid.NewGuid(),
-                    Name = itemName,
-                    Quantity = quantity,
-                    ShoppingListId = listId,
-                    CategoryId = categoryId,
-                    SubCategoryId = subCategoryId,
-                    RecipeId = recipe.Id,
-                    IsChecked = false,
-                    AddedAt = DateTimeOffset.UtcNow,
-                };
+                    existing.Quantity = Services.QuantityHelper.Merge(existing.Quantity, quantity);
+                    await _context.SaveChangesAsync();
 
-                _context.Items.Add(item);
-                await _context.SaveChangesAsync();
+                    await _context.Entry(existing).Reference(i => i.Category).LoadAsync();
+                    await _context.Entry(existing).Reference(i => i.SubCategory).LoadAsync();
 
-                await _context.Entry(item).Reference(i => i.Category).LoadAsync();
-                await _context.Entry(item).Reference(i => i.SubCategory).LoadAsync();
+                    dto = new ItemWithCategoryDto
+                    {
+                        Id = existing.Id,
+                        Name = existing.Name,
+                        Quantity = existing.Quantity,
+                        IsChecked = existing.IsChecked,
+                        AddedAt = existing.AddedAt,
+                        ShoppingListId = existing.ShoppingListId,
+                        CategoryId = existing.CategoryId,
+                        CategoryName = existing.Category?.Name,
+                        SubCategoryId = existing.SubCategoryId,
+                        SubCategoryName = existing.SubCategory?.Name,
+                        RecipeId = existing.RecipeId,
+                        RecipeTitle = recipe.Title,
+                    };
 
-                var dto = new ItemWithCategoryDto
+                    await _hubContext.Clients
+                        .Group($"list_{listId}")
+                        .SendAsync("ReceiveItemUpdated", dto);
+                }
+                else
                 {
-                    Id = item.Id,
-                    Name = item.Name,
-                    Quantity = item.Quantity,
-                    IsChecked = item.IsChecked,
-                    AddedAt = item.AddedAt,
-                    ShoppingListId = item.ShoppingListId,
-                    CategoryId = item.CategoryId,
-                    CategoryName = item.Category?.Name,
-                    SubCategoryId = item.SubCategoryId,
-                    SubCategoryName = item.SubCategory?.Name,
-                    RecipeId = item.RecipeId,
-                    RecipeTitle = recipe.Title,
-                };
+                    var (categoryId, subCategoryId) = await _classificationService.ClassifyAsync(itemName);
+
+                    var item = new Item
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = itemName,
+                        Quantity = quantity,
+                        ShoppingListId = listId,
+                        CategoryId = categoryId,
+                        SubCategoryId = subCategoryId,
+                        RecipeId = recipe.Id,
+                        IsChecked = false,
+                        AddedAt = DateTimeOffset.UtcNow,
+                    };
+
+                    _context.Items.Add(item);
+                    await _context.SaveChangesAsync();
+                    existingItems.Add(item);
+
+                    await _context.Entry(item).Reference(i => i.Category).LoadAsync();
+                    await _context.Entry(item).Reference(i => i.SubCategory).LoadAsync();
+
+                    dto = new ItemWithCategoryDto
+                    {
+                        Id = item.Id,
+                        Name = item.Name,
+                        Quantity = item.Quantity,
+                        IsChecked = item.IsChecked,
+                        AddedAt = item.AddedAt,
+                        ShoppingListId = item.ShoppingListId,
+                        CategoryId = item.CategoryId,
+                        CategoryName = item.Category?.Name,
+                        SubCategoryId = item.SubCategoryId,
+                        SubCategoryName = item.SubCategory?.Name,
+                        RecipeId = item.RecipeId,
+                        RecipeTitle = recipe.Title,
+                    };
+
+                    await _hubContext.Clients
+                        .Group($"list_{listId}")
+                        .SendAsync("ReceiveItemAdded", dto);
+                }
 
                 addedItems.Add(dto);
-
-                await _hubContext.Clients
-                    .Group($"list_{listId}")
-                    .SendAsync("ReceiveItemAdded", dto);
             }
 
             return Ok(new { addedCount = addedItems.Count });
