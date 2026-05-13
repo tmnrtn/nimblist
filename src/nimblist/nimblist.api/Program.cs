@@ -120,77 +120,57 @@ namespace Nimblist.api
                 // are usually configured by AddIdentity/AddDefaultIdentity automatically.
             });
 
-            builder.Services.AddAuthentication(options =>
+            var authBuilder = builder.Services.AddAuthentication()
+            .AddCookie(options =>
             {
-                // Optional: Configure default schemes if needed
-                // options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                // options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme; // Example challenge
-            })
-            .AddCookie(options => // Assuming cookie authentication for Identity
-            {
-                options.LoginPath = "/Identity/Account/Login"; // Or your login path
+                options.LoginPath = "/Identity/Account/Login";
                 options.AccessDeniedPath = "/Identity/Account/AccessDenied";
-            })
-            .AddGoogle(googleOptions =>
-            {
-                // Read configuration from appsettings/user secrets/environment variables
-                IConfigurationSection googleAuthNSection =
-                    builder.Configuration.GetSection("Authentication:Google");
-
-                if (!googleAuthNSection.Exists() || string.IsNullOrEmpty(googleAuthNSection["ClientId"]) || string.IsNullOrEmpty(googleAuthNSection["ClientSecret"]))
-                {
-                    Console.WriteLine("Warning: Google Authentication credentials not found in configuration (Authentication:Google:ClientId, Authentication:Google:ClientSecret). Google login will likely fail.");
-                    // Optionally disable the provider if config is missing:
-                    // return; // Exit AddGoogle configuration if keys are missing
-                }
-                else
-                {
-                    googleOptions.ClientId = googleAuthNSection["ClientId"]!; // Use null-forgiving operator if confident or check nulls properly
-                    googleOptions.ClientSecret = googleAuthNSection["ClientSecret"]!;
-
-                    // Save tokens to allow refresh if needed
-                    googleOptions.SaveTokens = true;
-
-                    // Optional: Configure callback path if different from default /signin-google
-                    // googleOptions.CallbackPath = "/your-custom-signin-google";
-
-                    // Optional: Request specific scopes (profile and email are often default/included)
-                    // googleOptions.Scope.Add("profile");
-                    // googleOptions.Scope.Add("email");
-                }
-            })
-            .AddFacebook(facebookOptions =>
-            {
-                IConfigurationSection facebookAuthNSection =
-                    builder.Configuration.GetSection("Authentication:Facebook");
-
-                if (!facebookAuthNSection.Exists() || string.IsNullOrEmpty(facebookAuthNSection["AppId"]) || string.IsNullOrEmpty(facebookAuthNSection["AppSecret"]))
-                {
-                    Console.WriteLine("Warning: Facebook Authentication credentials not found in configuration (Authentication:Facebook:AppId, Authentication:Facebook:AppSecret). Facebook login will likely fail.");
-                }
-                else
-                {
-                    facebookOptions.AppId = facebookAuthNSection["AppId"]!;
-                    facebookOptions.AppSecret = facebookAuthNSection["AppSecret"]!;
-                    facebookOptions.SaveTokens = true;
-                }
-            })
-            .AddMicrosoftAccount(microsoftOptions =>
-            {
-                IConfigurationSection microsoftAuthNSection =
-                    builder.Configuration.GetSection("Authentication:Microsoft");
-
-                if (!microsoftAuthNSection.Exists() || string.IsNullOrEmpty(microsoftAuthNSection["ClientId"]) || string.IsNullOrEmpty(microsoftAuthNSection["ClientSecret"]))
-                {
-                    Console.WriteLine("Warning: Microsoft Authentication credentials not found in configuration (Authentication:Microsoft:ClientId, Authentication:Microsoft:ClientSecret). Microsoft login will likely fail.");
-                }
-                else
-                {
-                    microsoftOptions.ClientId = microsoftAuthNSection["ClientId"]!;
-                    microsoftOptions.ClientSecret = microsoftAuthNSection["ClientSecret"]!;
-                    microsoftOptions.SaveTokens = true;
-                }
             });
+
+            var googleSection = builder.Configuration.GetSection("Authentication:Google");
+            if (googleSection.Exists() && !string.IsNullOrEmpty(googleSection["ClientId"]) && !string.IsNullOrEmpty(googleSection["ClientSecret"]))
+            {
+                authBuilder.AddGoogle(options =>
+                {
+                    options.ClientId = googleSection["ClientId"]!;
+                    options.ClientSecret = googleSection["ClientSecret"]!;
+                    options.SaveTokens = true;
+                });
+            }
+            else
+            {
+                Console.WriteLine("Warning: Google Authentication credentials not configured. Google login will be unavailable.");
+            }
+
+            var facebookSection = builder.Configuration.GetSection("Authentication:Facebook");
+            if (facebookSection.Exists() && !string.IsNullOrEmpty(facebookSection["AppId"]) && !string.IsNullOrEmpty(facebookSection["AppSecret"]))
+            {
+                authBuilder.AddFacebook(options =>
+                {
+                    options.AppId = facebookSection["AppId"]!;
+                    options.AppSecret = facebookSection["AppSecret"]!;
+                    options.SaveTokens = true;
+                });
+            }
+            else
+            {
+                Console.WriteLine("Warning: Facebook Authentication credentials not configured. Facebook login will be unavailable.");
+            }
+
+            var microsoftSection = builder.Configuration.GetSection("Authentication:Microsoft");
+            if (microsoftSection.Exists() && !string.IsNullOrEmpty(microsoftSection["ClientId"]) && !string.IsNullOrEmpty(microsoftSection["ClientSecret"]))
+            {
+                authBuilder.AddMicrosoftAccount(options =>
+                {
+                    options.ClientId = microsoftSection["ClientId"]!;
+                    options.ClientSecret = microsoftSection["ClientSecret"]!;
+                    options.SaveTokens = true;
+                });
+            }
+            else
+            {
+                Console.WriteLine("Warning: Microsoft Authentication credentials not configured. Microsoft login will be unavailable.");
+            }
 
 
             builder.Services.AddRazorPages();
