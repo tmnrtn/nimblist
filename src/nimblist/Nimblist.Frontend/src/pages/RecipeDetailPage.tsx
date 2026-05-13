@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { authenticatedFetch } from '../components/HttpHelper';
 import { RecipeDetail, ShoppingList } from '../types/index';
 import SharePanel from '../components/SharePanel';
+import { transformQuantity, hasAnyImperialUnit } from '../utils/ingredientScaling';
 
 interface EditIngredient {
   text: string;
@@ -21,6 +22,11 @@ const RecipeDetailPage: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [addResult, setAddResult] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
+
+  // Scaling state
+  const [scaleFactor, setScaleFactor] = useState(1);
+  const [customScale, setCustomScale] = useState('');
+  const [useMetric, setUseMetric] = useState(false);
 
   // Edit mode
   const [isEditing, setIsEditing] = useState(false);
@@ -123,15 +129,39 @@ const RecipeDetailPage: React.FC = () => {
     }
   };
 
+  const scaledQuantities = useMemo(() => {
+    if (!recipe) return {};
+    return Object.fromEntries(
+      recipe.ingredients.map(ing => [
+        ing.id,
+        transformQuantity(ing.parsedQuantity, scaleFactor, useMetric),
+      ])
+    );
+  }, [recipe, scaleFactor, useMetric]);
+
+  const showMetricToggle = useMemo(
+    () => recipe ? hasAnyImperialUnit(recipe.ingredients.map(i => i.parsedQuantity)) : false,
+    [recipe]
+  );
+
+  const isScaled = scaleFactor !== 1 || useMetric;
+
   const handleAddToList = async () => {
     if (!selectedListId || !recipeId) return;
     setIsAdding(true);
     setAddResult(null);
     setAddError(null);
     try {
+      const body = isScaled
+        ? JSON.stringify({ quantityOverrides: scaledQuantities })
+        : undefined;
       const response = await authenticatedFetch(
         `/api/recipes/${recipeId}/addtolist/${selectedListId}`,
-        { method: 'POST' }
+        {
+          method: 'POST',
+          headers: body ? { 'Content-Type': 'application/json' } : undefined,
+          body,
+        }
       );
       if (response.ok) {
         const data = await response.json();
@@ -403,21 +433,80 @@ const RecipeDetailPage: React.FC = () => {
             </div>
           )}
 
+          {/* Scale / Unit controls */}
+          <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="font-semibold text-gray-700 text-sm">Scale recipe</h3>
+              {isScaled && (
+                <span className="text-xs text-indigo-600 font-medium bg-indigo-100 px-2 py-0.5 rounded-full">Scaled</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 items-center">
+              {([0.5, 1, 2, 3, 4] as const).map(factor => (
+                <button
+                  key={factor}
+                  onClick={() => { setScaleFactor(factor); setCustomScale(''); }}
+                  className={`px-3 py-1 text-sm rounded-md border transition-colors ${
+                    scaleFactor === factor && customScale === ''
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-indigo-400'
+                  }`}
+                >
+                  {factor === 0.5 ? '½×' : `${factor}×`}
+                </button>
+              ))}
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="0.1"
+                  step="0.1"
+                  value={customScale}
+                  placeholder="Custom"
+                  onChange={e => {
+                    const val = e.target.value;
+                    setCustomScale(val);
+                    const n = parseFloat(val);
+                    if (!isNaN(n) && n > 0) setScaleFactor(n);
+                  }}
+                  className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <span className="text-sm text-gray-500">×</span>
+              </div>
+              {showMetricToggle && (
+                <button
+                  onClick={() => setUseMetric(m => !m)}
+                  className={`px-3 py-1 text-sm rounded-md border transition-colors ${
+                    useMetric
+                      ? 'bg-teal-600 text-white border-teal-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-teal-400'
+                  }`}
+                >
+                  Metric
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Ingredients */}
           <div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2">
               Ingredients ({recipe.ingredients.length})
             </h3>
             <ul className="space-y-1">
-              {recipe.ingredients.map(ing => (
-                <li key={ing.id} className="flex items-start gap-2 text-sm text-gray-700">
-                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />
-                  {ing.parsedQuantity && (
-                    <span className="font-medium text-gray-500 flex-shrink-0">{ing.parsedQuantity}</span>
-                  )}
-                  <span>{ing.parsedName ?? ing.text}</span>
-                </li>
-              ))}
+              {recipe.ingredients.map(ing => {
+                const displayQty = isScaled ? scaledQuantities[ing.id] : ing.parsedQuantity;
+                return (
+                  <li key={ing.id} className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />
+                    {displayQty && (
+                      <span className={`font-medium flex-shrink-0 ${isScaled ? 'text-indigo-600' : 'text-gray-500'}`}>
+                        {displayQty}
+                      </span>
+                    )}
+                    <span>{ing.parsedName ?? ing.text}</span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
 

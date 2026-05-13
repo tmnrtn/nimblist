@@ -321,9 +321,14 @@ namespace Nimblist.api.Controllers
             return NoContent();
         }
 
+        public record AddToListRequest(Dictionary<string, string?>? QuantityOverrides);
+
         // POST /api/recipes/{id}/addtolist/{listId}
         [HttpPost("{id}/addtolist/{listId}")]
-        public async Task<ActionResult> AddIngredientsToList(Guid id, Guid listId)
+        public async Task<ActionResult> AddIngredientsToList(
+            Guid id, Guid listId,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)]
+            AddToListRequest? request = null)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
@@ -350,11 +355,14 @@ namespace Nimblist.api.Controllers
                 var itemName = ingredient.ParsedName ?? ingredient.Text;
                 var (categoryId, subCategoryId) = await _classificationService.ClassifyAsync(itemName);
 
+                var quantity = request?.QuantityOverrides?.GetValueOrDefault(ingredient.Id.ToString())
+                    ?? ingredient.ParsedQuantity;
+
                 var item = new Item
                 {
                     Id = Guid.NewGuid(),
                     Name = itemName,
-                    Quantity = ingredient.ParsedQuantity,
+                    Quantity = quantity,
                     ShoppingListId = listId,
                     CategoryId = categoryId,
                     SubCategoryId = subCategoryId,
