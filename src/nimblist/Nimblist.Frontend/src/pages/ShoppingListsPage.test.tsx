@@ -53,7 +53,8 @@ describe("ShoppingListsPage Component", () => {
     // Set default mock auth state: Authenticated, not loading
     mockStoreState = {
       isAuthenticated: true,
-      user: { userId: "test-user-id", email: "test@example.com" },
+      isAdmin: false,
+      user: { userId: "test-user-id", email: "test@example.com", roles: [] },
       isLoading: false,
       checkAuthStatus: vi.fn().mockResolvedValue(undefined),
       logout: vi.fn().mockResolvedValue(undefined),

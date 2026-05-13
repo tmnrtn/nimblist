@@ -25,7 +25,8 @@ const family1: Family = { id: "fam-1", name: "Smith Family", ownerId: "owner-id"
 
 const baseAuth: AuthState = {
   isAuthenticated: true,
-  user: { userId: "owner-id", email: "owner@test.com" },
+  isAdmin: false,
+  user: { userId: "owner-id", email: "owner@test.com", roles: [] },
   isLoading: false,
   checkAuthStatus: vi.fn(),
   logout: vi.fn(),
@@ -76,7 +77,7 @@ describe("FamiliesPage", () => {
   });
 
   it("hides Delete Family button for non-owner", async () => {
-    mockStoreState = { ...baseAuth, user: { userId: "other-id", email: "other@test.com" } };
+    mockStoreState = { ...baseAuth, user: { userId: "other-id", email: "other@test.com", roles: [] } };
     mockFetch.mockReturnValue(jsonResponse([family1]));
     renderPage();
     await waitFor(() => screen.getByText("Smith Family"));

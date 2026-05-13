@@ -20,6 +20,7 @@ describe('HomePage Component', () => {
   beforeEach(() => {
     mockStoreState = {
       isAuthenticated: false,
+      isAdmin: false,
       user: null,
       isLoading: false,
       checkAuthStatus: vi.fn(),

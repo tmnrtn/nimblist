@@ -22,6 +22,7 @@ describe('Layout Component', () => {
     // Default to a logged-out state
     mockStoreState = {
       isAuthenticated: false,
+      isAdmin: false,
       user: null,
       isLoading: false, // Assuming default is not loading
       // Provide mocks for functions even if not used in Layout, to match type
@@ -63,7 +64,7 @@ describe('Layout Component', () => {
     mockStoreState = {
       ...mockStoreState, // Keep function mocks from default state
       isAuthenticated: true,
-      user: { userId: 'user123', email: 'test@example.com' }, // Add user data
+      user: { userId: 'user123', email: 'test@example.com', roles: [] }, // Add user data
     };
 
     // Act
@@ -86,7 +87,7 @@ describe('Layout Component', () => {
     mockStoreState = {
       ...mockStoreState,
       isAuthenticated: true,
-      user: { userId: 'user123', email: 'test@example.com' },
+      user: { userId: 'user123', email: 'test@example.com', roles: [] },
     };
 
     // Act
