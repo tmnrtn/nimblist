@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Nimblist.Data.Models;
 
 namespace Nimblist.api.Areas.Identity.Pages.Account
@@ -22,11 +23,13 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
     {
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ILogger<LoginModel> _logger;
+        private readonly IConfiguration _configuration;
 
-        public LoginModel(SignInManager<ApplicationUser> signInManager, ILogger<LoginModel> logger)
+        public LoginModel(SignInManager<ApplicationUser> signInManager, ILogger<LoginModel> logger, IConfiguration configuration)
         {
             _signInManager = signInManager;
             _logger = logger;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -116,7 +119,7 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User logged in.");
-                    return LocalRedirect(returnUrl);
+                    return Redirect(GenerateSafeRedirectUrl(returnUrl));
                 }
                 if (result.RequiresTwoFactor)
                 {
@@ -136,6 +139,28 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
 
             // If we got this far, something failed, redisplay form
             return Page();
+        }
+
+        private string GenerateSafeRedirectUrl(string? returnUrl)
+        {
+            var frontendBaseUrl = _configuration["FrontendAppSettings:BaseUrl"];
+            if (string.IsNullOrEmpty(frontendBaseUrl))
+            {
+                _logger.LogError("FrontendAppSettings:BaseUrl is not configured in appsettings.");
+                return Url.Content("~/");
+            }
+
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                var absoluteRedirectUrl = frontendBaseUrl.TrimEnd('/') + returnUrl;
+                _logger.LogInformation("Redirecting to validated external URL: {Url}", absoluteRedirectUrl);
+                return absoluteRedirectUrl;
+            }
+            else
+            {
+                _logger.LogWarning("Invalid or missing returnUrl '{ReturnUrl}'. Redirecting to frontend base URL: {BaseUrl}", returnUrl, frontendBaseUrl);
+                return frontendBaseUrl;
+            }
         }
     }
 }

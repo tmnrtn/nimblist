@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Nimblist.Data.Models;
 
 namespace Nimblist.api.Areas.Identity.Pages.Account
@@ -30,13 +31,15 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
         private readonly IUserEmailStore<ApplicationUser> _emailStore;
         private readonly ILogger<RegisterModel> _logger;
         private readonly IEmailSender _emailSender;
+        private readonly IConfiguration _configuration;
 
         public RegisterModel(
             UserManager<ApplicationUser> userManager,
             IUserStore<ApplicationUser> userStore,
             SignInManager<ApplicationUser> signInManager,
             ILogger<RegisterModel> logger,
-            IEmailSender emailSender)
+            IEmailSender emailSender,
+            IConfiguration configuration)
         {
             _userManager = userManager;
             _userStore = userStore;
@@ -44,6 +47,7 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
             _signInManager = signInManager;
             _logger = logger;
             _emailSender = emailSender;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -143,7 +147,7 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
                     else
                     {
                         await _signInManager.SignInAsync(user, isPersistent: false);
-                        return LocalRedirect(returnUrl);
+                        return Redirect(GenerateSafeRedirectUrl(returnUrl));
                     }
                 }
                 foreach (var error in result.Errors)
@@ -178,5 +182,28 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
             }
             return (IUserEmailStore<ApplicationUser>)_userStore;
         }
+
+        private string GenerateSafeRedirectUrl(string? returnUrl)
+        {
+            var frontendBaseUrl = _configuration["FrontendAppSettings:BaseUrl"];
+            if (string.IsNullOrEmpty(frontendBaseUrl))
+            {
+                _logger.LogError("FrontendAppSettings:BaseUrl is not configured in appsettings.");
+                return Url.Content("~/");
+            }
+
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                var absoluteRedirectUrl = frontendBaseUrl.TrimEnd('/') + returnUrl;
+                _logger.LogInformation("Redirecting to validated external URL: {Url}", absoluteRedirectUrl);
+                return absoluteRedirectUrl;
+            }
+            else
+            {
+                _logger.LogWarning("Invalid or missing returnUrl '{ReturnUrl}'. Redirecting to frontend base URL: {BaseUrl}", returnUrl, frontendBaseUrl);
+                return frontendBaseUrl;
+            }
+        }
     }
 }
+

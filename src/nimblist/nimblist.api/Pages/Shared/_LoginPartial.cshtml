@@ -4,25 +4,26 @@
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
 
-<ul class="navbar-nav">
+<ul class="flex items-center space-x-4">
 @if (SignInManager.IsSignedIn(User))
 {
-    <li class="nav-item">
-        <a id="manage" class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Hello @UserManager.GetUserName(User)!</a>
+    <li>
+        <a id="manage" class="text-sm font-medium hover:text-gray-200 transition-colors" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Hello @UserManager.GetUserName(User)!</a>
     </li>
-    <li class="nav-item">
-        <form id="logoutForm" class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
-            <button id="logout" type="submit" class="nav-link btn btn-link text-dark border-0">Logout</button>
+    <li>
+        <form id="logoutForm" class="inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
+            <button id="logout" type="submit" class="text-sm font-medium bg-red-500 hover:bg-red-600 px-3 py-1 rounded transition-colors text-white border-0 cursor-pointer">Logout</button>
         </form>
     </li>
 }
 else
 {
-    <li class="nav-item">
-        <a class="nav-link text-dark" id="register" asp-area="Identity" asp-page="/Account/Register">Register</a>
+    <li>
+        <a class="text-sm font-medium hover:text-gray-200 transition-colors" id="register" asp-area="Identity" asp-page="/Account/Register">Register</a>
     </li>
-    <li class="nav-item">
-        <a class="nav-link text-dark" id="login" asp-area="Identity" asp-page="/Account/Login">Login</a>
+    <li>
+        <a class="text-sm font-medium bg-green-500 hover:bg-green-600 px-3 py-1 rounded transition-colors text-white" id="login" asp-area="Identity" asp-page="/Account/Login">Login</a>
     </li>
 }
 </ul>
+

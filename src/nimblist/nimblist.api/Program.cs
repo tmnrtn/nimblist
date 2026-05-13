@@ -158,6 +158,38 @@ namespace Nimblist.api
                     // googleOptions.Scope.Add("profile");
                     // googleOptions.Scope.Add("email");
                 }
+            })
+            .AddFacebook(facebookOptions =>
+            {
+                IConfigurationSection facebookAuthNSection =
+                    builder.Configuration.GetSection("Authentication:Facebook");
+
+                if (!facebookAuthNSection.Exists() || string.IsNullOrEmpty(facebookAuthNSection["AppId"]) || string.IsNullOrEmpty(facebookAuthNSection["AppSecret"]))
+                {
+                    Console.WriteLine("Warning: Facebook Authentication credentials not found in configuration (Authentication:Facebook:AppId, Authentication:Facebook:AppSecret). Facebook login will likely fail.");
+                }
+                else
+                {
+                    facebookOptions.AppId = facebookAuthNSection["AppId"]!;
+                    facebookOptions.AppSecret = facebookAuthNSection["AppSecret"]!;
+                    facebookOptions.SaveTokens = true;
+                }
+            })
+            .AddMicrosoftAccount(microsoftOptions =>
+            {
+                IConfigurationSection microsoftAuthNSection =
+                    builder.Configuration.GetSection("Authentication:Microsoft");
+
+                if (!microsoftAuthNSection.Exists() || string.IsNullOrEmpty(microsoftAuthNSection["ClientId"]) || string.IsNullOrEmpty(microsoftAuthNSection["ClientSecret"]))
+                {
+                    Console.WriteLine("Warning: Microsoft Authentication credentials not found in configuration (Authentication:Microsoft:ClientId, Authentication:Microsoft:ClientSecret). Microsoft login will likely fail.");
+                }
+                else
+                {
+                    microsoftOptions.ClientId = microsoftAuthNSection["ClientId"]!;
+                    microsoftOptions.ClientSecret = microsoftAuthNSection["ClientSecret"]!;
+                    microsoftOptions.SaveTokens = true;
+                }
             });
 
 
