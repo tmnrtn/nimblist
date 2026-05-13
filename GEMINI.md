@@ -41,7 +41,7 @@ Navigate to `src/nimblist/Nimblist.Frontend/`:
 - **Dev**: `npm run dev` (Default: `https://localhost:5173`)
 - **Build**: `npm run build`
 - **Lint**: `npm run lint`
-- **Test**: `npm run test`
+- **Test**: `npm run test -- --run` (Always use `--run` to ensure the process terminates)
 
 ### Python Services
 Navigate to the respective service directory (`Nimblist.classification` or `Nimblist.recipescraper`):
