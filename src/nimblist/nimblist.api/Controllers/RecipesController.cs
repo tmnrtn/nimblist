@@ -56,11 +56,12 @@ namespace Nimblist.api.Controllers
             if (string.IsNullOrEmpty(scraperUrl))
                 return StatusCode(503, "Recipe scraper service is not configured.");
 
+            var llmCfg = await GetLlmConfig();
             ScraperResponseDto? scraped;
             try
             {
                 var client = _httpClientFactory.CreateClient("RecipeScraperClient");
-                var response = await client.PostAsJsonAsync(scraperUrl, new { url = request.Url });
+                var response = await client.PostAsJsonAsync(scraperUrl, new { url = request.Url, llm_config = llmCfg });
                 scraped = await response.Content.ReadFromJsonAsync<ScraperResponseDto>();
 
                 if (!response.IsSuccessStatusCode || scraped?.Error != null)
@@ -102,11 +103,12 @@ namespace Nimblist.api.Controllers
             var base64 = Convert.ToBase64String(ms.ToArray());
             var mediaType = image.ContentType ?? "image/jpeg";
 
+            var llmCfg = await GetLlmConfig();
             ScraperResponseDto? scraped;
             try
             {
                 var client = _httpClientFactory.CreateClient("RecipeScraperClient");
-                var json = System.Text.Json.JsonSerializer.Serialize(new { image = base64, media_type = mediaType });
+                var json = System.Text.Json.JsonSerializer.Serialize(new { image = base64, media_type = mediaType, llm_config = llmCfg });
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 var response = await client.PostAsync(scrapeImageUrl, content);
                 scraped = await response.Content.ReadFromJsonAsync<ScraperResponseDto>();
@@ -205,6 +207,20 @@ namespace Nimblist.api.Controllers
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetRecipe), new { id = recipe.Id }, ToDetailDto(recipe, userId));
+        }
+
+        private async Task<object?> GetLlmConfig()
+        {
+            var s = await _context.LlmSettings.FirstOrDefaultAsync();
+            if (s == null || string.IsNullOrEmpty(s.Provider)) return null;
+            return new
+            {
+                provider = s.Provider,
+                model = s.Model,
+                vision_model = s.VisionModel,
+                api_key = s.ApiKey,
+                base_url = s.BaseUrl,
+            };
         }
 
         private async Task<HashSet<Guid>> GetAccessibleRecipeIdsAsync(string userId)

@@ -6,6 +6,7 @@ using Nimblist.api.DTO;
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace Nimblist.api.Controllers
 {
@@ -140,6 +141,70 @@ namespace Nimblist.api.Controllers
             _context.Families.Remove(family);
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        private static readonly string[] ValidProviders = ["openrouter", "ollama", "openai", "anthropic", "gemini"];
+        private static readonly Regex MaskedKeyPattern = new(@"\*{4}", RegexOptions.Compiled);
+
+        // GET /api/admin/llm-settings
+        [HttpGet("llm-settings")]
+        public async Task<IActionResult> GetLlmSettings()
+        {
+            var settings = await _context.LlmSettings.FirstOrDefaultAsync();
+            if (settings == null)
+                return Ok(new LlmSettingsDto());
+
+            return Ok(new LlmSettingsDto
+            {
+                Provider = settings.Provider,
+                Model = settings.Model,
+                VisionModel = settings.VisionModel,
+                ApiKey = MaskApiKey(settings.ApiKey),
+                BaseUrl = settings.BaseUrl,
+                UpdatedAt = settings.UpdatedAt,
+            });
+        }
+
+        // PUT /api/admin/llm-settings
+        [HttpPut("llm-settings")]
+        public async Task<IActionResult> UpdateLlmSettings([FromBody] LlmSettingsDto dto)
+        {
+            if (dto.Provider != null && !ValidProviders.Contains(dto.Provider.ToLower()))
+                return BadRequest($"Provider must be one of: {string.Join(", ", ValidProviders)}");
+
+            var settings = await _context.LlmSettings.FirstOrDefaultAsync()
+                ?? new LlmSettings { Id = 1 };
+
+            settings.Provider = dto.Provider?.ToLower().Trim();
+            settings.Model = dto.Model?.Trim();
+            settings.VisionModel = dto.VisionModel?.Trim();
+            settings.BaseUrl = dto.BaseUrl?.Trim();
+            settings.UpdatedAt = DateTimeOffset.UtcNow;
+
+            // Only overwrite key if a real value was sent (not the masked placeholder)
+            if (dto.ApiKey != null && !MaskedKeyPattern.IsMatch(dto.ApiKey))
+                settings.ApiKey = dto.ApiKey.Trim();
+
+            if (settings.Id == 1 && !await _context.LlmSettings.AnyAsync())
+                _context.LlmSettings.Add(settings);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new LlmSettingsDto
+            {
+                Provider = settings.Provider,
+                Model = settings.Model,
+                VisionModel = settings.VisionModel,
+                ApiKey = MaskApiKey(settings.ApiKey),
+                BaseUrl = settings.BaseUrl,
+                UpdatedAt = settings.UpdatedAt,
+            });
+        }
+
+        private static string? MaskApiKey(string? key)
+        {
+            if (string.IsNullOrEmpty(key)) return null;
+            return key.Length <= 8 ? "****" : key[..4] + "****" + key[^4..];
         }
     }
 }

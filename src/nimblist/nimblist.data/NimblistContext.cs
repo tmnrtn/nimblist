@@ -25,6 +25,7 @@ namespace Nimblist.Data
         public virtual DbSet<MealPlan> MealPlans { get; set; } = null!;
         public virtual DbSet<MealPlanEntry> MealPlanEntries { get; set; } = null!;
         public virtual DbSet<MealPlanShare> MealPlanShares { get; set; } = null!;
+        public virtual DbSet<LlmSettings> LlmSettings { get; set; } = null!;
 
         // Constructor needed for dependency injection.
         // It accepts DbContextOptions, allowing the configuration (like connection string)

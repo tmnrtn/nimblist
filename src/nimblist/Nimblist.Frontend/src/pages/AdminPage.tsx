@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { authenticatedFetch } from '../components/HttpHelper';
 
+const PROVIDERS = ['openrouter', 'openai', 'anthropic', 'gemini', 'ollama'] as const;
+type Provider = typeof PROVIDERS[number];
+
+interface LlmSettings {
+  provider: Provider | '';
+  model: string;
+  visionModel: string;
+  apiKey: string;
+  baseUrl: string;
+  updatedAt?: string;
+}
+
 interface AdminUser {
   userId: string;
   email: string;
@@ -23,7 +35,7 @@ interface AdminFamily {
   members: AdminFamilyMember[];
 }
 
-type Tab = 'users' | 'families';
+type Tab = 'users' | 'families' | 'llm';
 
 const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('users');
@@ -39,9 +51,18 @@ const AdminPage: React.FC = () => {
   const [familiesLoading, setFamiliesLoading] = useState(false);
   const [familiesError, setFamiliesError] = useState<string | null>(null);
 
+  // LLM settings state
+  const emptyLlm: LlmSettings = { provider: '', model: '', visionModel: '', apiKey: '', baseUrl: '' };
+  const [llm, setLlm] = useState<LlmSettings>(emptyLlm);
+  const [llmLoading, setLlmLoading] = useState(false);
+  const [llmSaving, setLlmSaving] = useState(false);
+  const [llmError, setLlmError] = useState<string | null>(null);
+  const [llmSuccess, setLlmSuccess] = useState(false);
+
   useEffect(() => {
     if (activeTab === 'users') loadUsers();
     if (activeTab === 'families') loadFamilies();
+    if (activeTab === 'llm') loadLlmSettings();
   }, [activeTab]);
 
   const loadUsers = async () => {
@@ -113,6 +134,57 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  const loadLlmSettings = async () => {
+    setLlmLoading(true);
+    setLlmError(null);
+    try {
+      const res = await authenticatedFetch('/api/admin/llm-settings');
+      if (!res.ok) throw new Error(`Failed to load LLM settings (${res.status})`);
+      const data = await res.json();
+      setLlm({
+        provider: data.provider ?? '',
+        model: data.model ?? '',
+        visionModel: data.visionModel ?? '',
+        apiKey: data.apiKey ?? '',
+        baseUrl: data.baseUrl ?? '',
+        updatedAt: data.updatedAt,
+      });
+    } catch (e) {
+      setLlmError(e instanceof Error ? e.message : 'Failed to load LLM settings');
+    } finally {
+      setLlmLoading(false);
+    }
+  };
+
+  const saveLlmSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLlmSaving(true);
+    setLlmError(null);
+    setLlmSuccess(false);
+    try {
+      const res = await authenticatedFetch('/api/admin/llm-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: llm.provider || null,
+          model: llm.model || null,
+          visionModel: llm.visionModel || null,
+          apiKey: llm.apiKey || null,
+          baseUrl: llm.baseUrl || null,
+        }),
+      });
+      if (!res.ok) throw new Error(`Failed to save LLM settings (${res.status})`);
+      const data = await res.json();
+      setLlm(prev => ({ ...prev, apiKey: data.apiKey ?? '', updatedAt: data.updatedAt }));
+      setLlmSuccess(true);
+      setTimeout(() => setLlmSuccess(false), 3000);
+    } catch (e) {
+      setLlmError(e instanceof Error ? e.message : 'Failed to save LLM settings');
+    } finally {
+      setLlmSaving(false);
+    }
+  };
+
   const handleDeleteFamily = async (familyId: string, name: string) => {
     if (!window.confirm(`Delete family "${name}"? This cannot be undone.`)) return;
     try {
@@ -138,6 +210,7 @@ const AdminPage: React.FC = () => {
       <div className="border-b border-gray-200 mb-6 flex gap-1">
         <button className={tabClass('users')} onClick={() => setActiveTab('users')}>Users</button>
         <button className={tabClass('families')} onClick={() => setActiveTab('families')}>Families</button>
+        <button className={tabClass('llm')} onClick={() => setActiveTab('llm')}>LLM Settings</button>
       </div>
 
       {activeTab === 'users' && (
@@ -265,6 +338,117 @@ const AdminPage: React.FC = () => {
               )}
             </div>
           ))}
+        </div>
+      )}
+      {activeTab === 'llm' && (
+        <div className="max-w-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">LLM Settings</h2>
+            <button onClick={loadLlmSettings} className="text-sm text-indigo-600 hover:underline">Refresh</button>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Configure the LLM provider used for recipe scraping fallback and image import.
+            Settings are applied immediately — no restart required.
+          </p>
+          {llmLoading && <p className="text-gray-500">Loading...</p>}
+          {!llmLoading && (
+            <form onSubmit={saveLlmSettings} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                <select
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  value={llm.provider}
+                  onChange={e => setLlm(prev => ({ ...prev, provider: e.target.value as Provider | '' }))}
+                >
+                  <option value="">— disabled —</option>
+                  {PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Text model</label>
+                <input
+                  type="text"
+                  className="w-full border rounded px-3 py-2 text-sm font-mono"
+                  value={llm.model}
+                  onChange={e => setLlm(prev => ({ ...prev, model: e.target.value }))}
+                  placeholder={
+                    llm.provider === 'openai' ? 'gpt-4o-mini' :
+                    llm.provider === 'anthropic' ? 'claude-3-5-haiku-20241022' :
+                    llm.provider === 'gemini' ? 'gemini-2.0-flash' :
+                    llm.provider === 'openrouter' ? 'anthropic/claude-3-haiku' :
+                    llm.provider === 'ollama' ? 'llama3.2' : 'model name'
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Vision model <span className="text-gray-400 font-normal">(optional — falls back to text model)</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full border rounded px-3 py-2 text-sm font-mono"
+                  value={llm.visionModel}
+                  onChange={e => setLlm(prev => ({ ...prev, visionModel: e.target.value }))}
+                  placeholder={
+                    llm.provider === 'openai' ? 'gpt-4o' :
+                    llm.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' :
+                    llm.provider === 'gemini' ? 'gemini-2.0-flash' :
+                    'optional vision-capable model'
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  API key {llm.provider === 'ollama' && <span className="text-gray-400 font-normal">(not required for Ollama)</span>}
+                </label>
+                <input
+                  type="password"
+                  className="w-full border rounded px-3 py-2 text-sm font-mono"
+                  value={llm.apiKey}
+                  onChange={e => setLlm(prev => ({ ...prev, apiKey: e.target.value }))}
+                  placeholder={llm.apiKey ? 'Leave blank to keep existing key' : 'Paste API key'}
+                  autoComplete="off"
+                />
+                {llm.apiKey && !llm.apiKey.includes('****') && (
+                  <p className="text-xs text-amber-600 mt-1">New key will be saved on submit.</p>
+                )}
+              </div>
+
+              {llm.provider === 'ollama' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ollama base URL</label>
+                  <input
+                    type="text"
+                    className="w-full border rounded px-3 py-2 text-sm font-mono"
+                    value={llm.baseUrl}
+                    onChange={e => setLlm(prev => ({ ...prev, baseUrl: e.target.value }))}
+                    placeholder="http://localhost:11434"
+                  />
+                </div>
+              )}
+
+              {llmError && <p className="text-sm text-red-600">{llmError}</p>}
+              {llmSuccess && <p className="text-sm text-green-600">Settings saved.</p>}
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={llmSaving}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {llmSaving ? 'Saving…' : 'Save settings'}
+                </button>
+                {llm.updatedAt && (
+                  <span className="text-xs text-gray-400">
+                    Last updated {new Date(llm.updatedAt).toLocaleString()}
+                  </span>
+                )}
+              </div>
+            </form>
+          )}
         </div>
       )}
     </div>

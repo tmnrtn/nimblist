@@ -29,4 +29,14 @@ namespace Nimblist.api.DTO
     {
         public string Role { get; set; } = string.Empty;
     }
+
+    public class LlmSettingsDto
+    {
+        public string? Provider { get; set; }
+        public string? Model { get; set; }
+        public string? VisionModel { get; set; }
+        public string? ApiKey { get; set; }
+        public string? BaseUrl { get; set; }
+        public DateTimeOffset? UpdatedAt { get; set; }
+    }
 }
