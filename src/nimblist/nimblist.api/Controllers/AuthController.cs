@@ -52,14 +52,13 @@ namespace Nimblist.api.Controllers
                 return Unauthorized(new { message = "User not found despite valid authentication." });
             }
 
-            // Create a DTO (Data Transfer Object) to return ONLY necessary, non-sensitive info
+            var roles = await _userManager.GetRolesAsync(user);
+
             var userInfo = new UserInfoDto
             {
                 UserId = user.Id,
                 Email = user.Email,
-                // You can add other claims or properties here if needed and safe
-                // Name = User.FindFirstValue(ClaimTypes.Name), // Example getting Name claim
-                // IsEmailConfirmed = user.EmailConfirmed // Example
+                Roles = roles,
             };
 
             return Ok(userInfo);

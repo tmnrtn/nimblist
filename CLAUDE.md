@@ -50,7 +50,7 @@ CORS requires explicit origin config in `appsettings.json` under `CorsSettings:A
 npm run dev           # Dev server at https://localhost:5173 (HTTPS via mkcert)
 npm run build         # tsc + Vite production build
 npm run lint          # ESLint
-npm run test          # Vitest (watch mode)
+npm run test -- --run # Vitest (always use --run to ensure the process terminates)
 npm run test:coverage # Vitest with LCOV coverage → ./coverage/
 ```
 

@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import requests
@@ -8,10 +9,10 @@ from ingredient_parser import parse_ingredient
 
 app = Flask(__name__)
 
-# LLM config — set LLM_PROVIDER to 'openrouter' or 'ollama' to enable
+# Env-var defaults — used when no per-request llm_config is supplied
 _LLM_PROVIDER = os.environ.get('LLM_PROVIDER', '').lower().strip()
 _LLM_MODEL = os.environ.get('LLM_MODEL', '').strip()
-_LLM_VISION_MODEL = os.environ.get('LLM_VISION_MODEL', '').strip()  # falls back to _LLM_MODEL if unset
+_LLM_VISION_MODEL = os.environ.get('LLM_VISION_MODEL', '').strip()
 _OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '').strip()
 _OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')
 
@@ -28,6 +29,25 @@ Extract the recipe and return ONLY a JSON object with these exact fields (no mar
 """
 
 
+def _resolve_cfg(request_cfg=None):
+    """Return an llm config dict from request body override or env var defaults."""
+    if request_cfg and request_cfg.get('provider'):
+        return {
+            'provider': request_cfg.get('provider', '').lower().strip(),
+            'model': (request_cfg.get('model') or '').strip(),
+            'vision_model': (request_cfg.get('vision_model') or '').strip(),
+            'api_key': (request_cfg.get('api_key') or '').strip(),
+            'base_url': (request_cfg.get('base_url') or _OLLAMA_BASE_URL).rstrip('/'),
+        }
+    return {
+        'provider': _LLM_PROVIDER,
+        'model': _LLM_MODEL,
+        'vision_model': _LLM_VISION_MODEL,
+        'api_key': _OPENROUTER_API_KEY,
+        'base_url': _OLLAMA_BASE_URL,
+    }
+
+
 def safe_call(fn):
     try:
         result = fn()
@@ -37,16 +57,12 @@ def safe_call(fn):
 
 
 def parse_ingredient_text(text):
-    """Parse a raw ingredient string into {text, parsed_name, parsed_quantity}.
-    Falls back gracefully if parsing fails or produces low-confidence results."""
     try:
         result = parse_ingredient(text)
-
         name = None
         if result.name:
             name_parts = [n.text for n in result.name if n.text]
             name = ' '.join(name_parts) if name_parts else None
-
         quantity = None
         if result.amount:
             amount = result.amount[0]
@@ -56,66 +72,174 @@ def parse_ingredient_text(text):
             if amount.unit:
                 parts.append(str(amount.unit))
             quantity = ' '.join(parts) if parts else None
-
         return {"text": text, "parsed_name": name, "parsed_quantity": quantity}
     except Exception:
         return {"text": text, "parsed_name": None, "parsed_quantity": None}
 
 
-def _llm_api_url_and_auth():
-    """Return (api_url, auth_header) for the configured provider, or (None, None)."""
-    if _LLM_PROVIDER == 'openrouter':
-        return 'https://openrouter.ai/api/v1/chat/completions', f'Bearer {_OPENROUTER_API_KEY}'
-    if _LLM_PROVIDER == 'ollama':
-        return f'{_OLLAMA_BASE_URL}/v1/chat/completions', 'Bearer ollama'
-    app.logger.warning(f"Unknown LLM_PROVIDER '{_LLM_PROVIDER}'")
-    return None, None
+# ---------------------------------------------------------------------------
+# LLM helpers
+# ---------------------------------------------------------------------------
+
+def _parse_llm_json(content):
+    """Strip markdown fences and parse JSON; normalise total_time to int."""
+    if content.startswith('```'):
+        lines = content.splitlines()
+        content = '\n'.join(lines[1:-1] if lines[-1].strip() == '```' else lines[1:])
+    data = json.loads(content)
+    tt = data.get('total_time')
+    if isinstance(tt, str):
+        try:
+            data['total_time'] = int(tt)
+        except ValueError:
+            data['total_time'] = None
+    return data
 
 
-def _llm_chat(messages: list, model: str, timeout: int = 30) -> dict | None:
-    """Send a chat completion to the configured provider; return parsed JSON or None."""
-    if not _LLM_PROVIDER or not model:
-        return None
-    api_url, auth_header = _llm_api_url_and_auth()
-    if not api_url:
+def _chat_openai_compat(messages, model, provider, api_key, base_url, timeout):
+    """OpenAI-compatible chat completions (openrouter, openai, ollama)."""
+    if provider == 'openrouter':
+        url = 'https://openrouter.ai/api/v1/chat/completions'
+    elif provider == 'openai':
+        url = 'https://api.openai.com/v1/chat/completions'
+    elif provider == 'ollama':
+        url = f'{base_url}/v1/chat/completions'
+        api_key = 'ollama'
+    else:
         return None
     try:
         resp = requests.post(
-            api_url,
-            headers={'Authorization': auth_header, 'Content-Type': 'application/json'},
+            url,
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
             json={'model': model, 'messages': messages, 'temperature': 0.1},
             timeout=timeout,
         )
         resp.raise_for_status()
         content = resp.json()['choices'][0]['message']['content'].strip()
-        if content.startswith('```'):
-            lines = content.splitlines()
-            content = '\n'.join(lines[1:-1] if lines[-1].strip() == '```' else lines[1:])
-        data = json.loads(content)
-        tt = data.get('total_time')
-        if isinstance(tt, str):
-            try:
-                data['total_time'] = int(tt)
-            except ValueError:
-                data['total_time'] = None
-        return data
+        return _parse_llm_json(content)
     except Exception as e:
-        app.logger.warning(f"LLM call failed ({model}): {e}")
+        app.logger.warning(f"OpenAI-compat LLM call failed ({provider}/{model}): {e}")
         return None
 
 
-def _llm_extract_recipe(page_html: str) -> dict | None:
-    """LLM fallback for text pages — extracts clean text via trafilatura first."""
+def _to_anthropic_content(content):
+    """Convert an OpenAI-style content value to Anthropic content blocks."""
+    if isinstance(content, str):
+        return content
+    blocks = []
+    for part in content:
+        if part['type'] == 'text':
+            blocks.append({'type': 'text', 'text': part['text']})
+        elif part['type'] == 'image_url':
+            url = part['image_url']['url']
+            if url.startswith('data:'):
+                header, data = url.split(',', 1)
+                media_type = header.split(':')[1].split(';')[0]
+                blocks.append({'type': 'image', 'source': {'type': 'base64', 'media_type': media_type, 'data': data}})
+            else:
+                blocks.append({'type': 'image', 'source': {'type': 'url', 'url': url}})
+    return blocks
+
+
+def _chat_anthropic(messages, model, api_key, timeout):
+    """Anthropic Messages API."""
+    anthropic_messages = [
+        {'role': m['role'], 'content': _to_anthropic_content(m['content'])}
+        for m in messages
+    ]
+    try:
+        resp = requests.post(
+            'https://api.anthropic.com/v1/messages',
+            headers={
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+            },
+            json={'model': model, 'max_tokens': 2048, 'messages': anthropic_messages},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        content = resp.json()['content'][0]['text'].strip()
+        return _parse_llm_json(content)
+    except Exception as e:
+        app.logger.warning(f"Anthropic call failed ({model}): {e}")
+        return None
+
+
+def _to_gemini_parts(content):
+    """Convert an OpenAI-style content value to Gemini parts."""
+    if isinstance(content, str):
+        return [{'text': content}]
+    parts = []
+    for part in content:
+        if part['type'] == 'text':
+            parts.append({'text': part['text']})
+        elif part['type'] == 'image_url':
+            url = part['image_url']['url']
+            if url.startswith('data:'):
+                header, data = url.split(',', 1)
+                media_type = header.split(':')[1].split(';')[0]
+                parts.append({'inlineData': {'mimeType': media_type, 'data': data}})
+            else:
+                # Gemini doesn't accept arbitrary URLs — fetch and inline
+                try:
+                    img_resp = requests.get(url, timeout=15)
+                    img_resp.raise_for_status()
+                    b64 = base64.b64encode(img_resp.content).decode()
+                    media_type = img_resp.headers.get('content-type', 'image/jpeg').split(';')[0]
+                    parts.append({'inlineData': {'mimeType': media_type, 'data': b64}})
+                except Exception as e:
+                    app.logger.warning(f"Failed to fetch image for Gemini: {e}")
+    return parts
+
+
+def _chat_gemini(messages, model, api_key, timeout):
+    """Google Gemini generateContent API."""
+    contents = [
+        {'role': 'user' if m['role'] == 'user' else 'model',
+         'parts': _to_gemini_parts(m['content'])}
+        for m in messages
+    ]
+    url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}'
+    try:
+        resp = requests.post(
+            url,
+            headers={'Content-Type': 'application/json'},
+            json={'contents': contents},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        text = resp.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+        return _parse_llm_json(text)
+    except Exception as e:
+        app.logger.warning(f"Gemini call failed ({model}): {e}")
+        return None
+
+
+def _llm_chat(messages, cfg, timeout=30):
+    """Dispatch to the right provider."""
+    provider = cfg['provider']
+    model = cfg['model']
+    if not provider or not model:
+        return None
+    if provider == 'anthropic':
+        return _chat_anthropic(messages, model, cfg['api_key'], timeout)
+    if provider == 'gemini':
+        return _chat_gemini(messages, model, cfg['api_key'], timeout)
+    return _chat_openai_compat(messages, model, provider, cfg['api_key'], cfg['base_url'], timeout)
+
+
+def _llm_extract_recipe(page_html, cfg):
     page_text = trafilatura.extract(page_html, include_comments=False, include_tables=True)
     if not page_text:
         return None
     messages = [{'role': 'user', 'content': _LLM_RECIPE_PROMPT + '\nText:\n' + page_text[:6000]}]
-    return _llm_chat(messages, _LLM_MODEL)
+    return _llm_chat(messages, cfg)
 
 
-def _llm_extract_from_image(image_source: str) -> dict | None:
-    """Extract recipe from an image using the configured vision model."""
-    model = _LLM_VISION_MODEL or _LLM_MODEL
+def _llm_extract_from_image(image_source, cfg):
+    model = cfg['vision_model'] or cfg['model']
+    vision_cfg = {**cfg, 'model': model}
     messages = [{
         'role': 'user',
         'content': [
@@ -123,8 +247,12 @@ def _llm_extract_from_image(image_source: str) -> dict | None:
             {'type': 'text', 'text': _LLM_RECIPE_PROMPT},
         ],
     }]
-    return _llm_chat(messages, model, timeout=60)
+    return _llm_chat(messages, vision_cfg, timeout=60)
 
+
+# ---------------------------------------------------------------------------
+# Scraping helpers
+# ---------------------------------------------------------------------------
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -158,7 +286,6 @@ def _extract_instructions(scraper):
 
 
 def _fetch_page(url):
-    """Return (response, None) or (None, (message, status)) on failure."""
     try:
         resp = requests.get(
             url,
@@ -175,7 +302,6 @@ def _fetch_page(url):
 
 
 def _try_scraper(html, url):
-    """Return (scraper, None) or (None, exception) on failure."""
     try:
         return _create_scraper(html, url), None
     except Exception as e:
@@ -183,7 +309,6 @@ def _try_scraper(html, url):
 
 
 def _scraper_result(scraper):
-    """Return (raw_ingredients, result_dict) from a live scraper."""
     raw = safe_call(scraper.ingredients) or []
     return raw, {
         "title": safe_call(scraper.title) or "Untitled Recipe",
@@ -196,8 +321,7 @@ def _scraper_result(scraper):
     }
 
 
-def _extract_og_image(html: str) -> str | None:
-    """Extract og:image or twitter:image from page HTML as a fallback image source."""
+def _extract_og_image(html):
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(html, 'html.parser')
     for selector in [{'property': 'og:image'}, {'name': 'twitter:image'}, {'name': 'twitter:image:src'}]:
@@ -207,8 +331,7 @@ def _extract_og_image(html: str) -> str | None:
     return None
 
 
-def _llm_result(llm, scraper, og_image: str | None = None):
-    """Merge LLM-extracted data with any scraper fields available."""
+def _llm_result(llm, scraper, og_image=None):
     sc = scraper
     return {
         "title": llm.get('title') or (safe_call(sc.title) if sc else None) or "Untitled Recipe",
@@ -231,19 +354,21 @@ def scrape():
     if not url.startswith(('http://', 'https://')):
         return jsonify({"error": "Invalid URL — must start with http:// or https://"}), 400
 
+    cfg = _resolve_cfg(data.get('llm_config'))
+
     resp, fetch_err = _fetch_page(url)
     if fetch_err:
         return jsonify({"error": fetch_err[0]}), fetch_err[1]
 
     scraper, scraper_err = _try_scraper(resp.text, url)
-    if scraper_err and not _LLM_PROVIDER:
+    if scraper_err and not cfg['provider']:
         return jsonify({"error": f"Could not find recipe data on this page: {scraper_err}"}), 422
 
     raw_ingredients, result = _scraper_result(scraper) if scraper else ([], None)
 
-    if not raw_ingredients and _LLM_PROVIDER:
+    if not raw_ingredients and cfg['provider']:
         app.logger.info(f"Falling back to LLM extraction for {url}")
-        llm = _llm_extract_recipe(resp.text)
+        llm = _llm_extract_recipe(resp.text, cfg)
         if llm:
             og_image = _extract_og_image(resp.text)
             return jsonify(_llm_result(llm, scraper, og_image=og_image))
@@ -255,12 +380,13 @@ def scrape():
 
 @app.route('/scrape-image', methods=['POST'])
 def scrape_image():
-    if not _LLM_PROVIDER:
-        return jsonify({"error": "LLM_PROVIDER is not configured"}), 503
-
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Missing request body"}), 400
+
+    cfg = _resolve_cfg(data.get('llm_config'))
+    if not cfg['provider']:
+        return jsonify({"error": "LLM provider is not configured"}), 503
 
     if 'image_url' in data:
         image_source = data['image_url'].strip()
@@ -276,7 +402,7 @@ def scrape_image():
     else:
         return jsonify({"error": "Provide either 'image_url' or 'image' in the request body"}), 400
 
-    result = _llm_extract_from_image(image_source)
+    result = _llm_extract_from_image(image_source, cfg)
     if not result:
         return jsonify({"error": "Could not extract recipe from image"}), 422
 

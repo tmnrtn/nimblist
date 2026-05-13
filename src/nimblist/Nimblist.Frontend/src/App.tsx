@@ -4,8 +4,9 @@ import './App.css'
 
 import useAuthStore from './store/authStore'; // Import the auth store
 
-import Layout from './components/Layout'; // Your layout component
-import ProtectedRoute from './components/ProtectedRoute'; // Import the component
+import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import HomePage from './pages/HomePage';
 import ShoppingListsPage from './pages/ShoppingListsPage';
 import ListPageDetail from './pages/ListPageDetail';
@@ -15,6 +16,7 @@ import RecipesPage from './pages/RecipesPage';
 import RecipeDetailPage from './pages/RecipeDetailPage';
 import FamiliesPage from './pages/FamiliesPage';
 import MealPlannerPage from './pages/MealPlannerPage';
+import AdminPage from './pages/AdminPage';
 
 function App() {
     // Get state and actions from the store
@@ -53,6 +55,10 @@ function App() {
             <Route path="recipes/:recipeId" element={<RecipeDetailPage />} />
             <Route path="families" element={<FamiliesPage />} />
             <Route path="meal-planner" element={<MealPlannerPage />} />
+        </Route>
+
+        <Route element={<AdminRoute />}>
+            <Route path="admin" element={<AdminPage />} />
         </Route>
 
         {/* Catch-all route for any paths not matched above */}

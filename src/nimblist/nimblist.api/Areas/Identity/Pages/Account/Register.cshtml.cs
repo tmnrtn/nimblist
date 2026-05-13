@@ -126,6 +126,7 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User created a new account with password.");
+                    await _userManager.AddToRoleAsync(user, "Standard");
 
                     var userId = await _userManager.GetUserIdAsync(user);
                     if (_userManager.Options.SignIn.RequireConfirmedAccount)
