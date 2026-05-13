@@ -26,6 +26,7 @@ namespace Nimblist.Data
         public virtual DbSet<MealPlanEntry> MealPlanEntries { get; set; } = null!;
         public virtual DbSet<MealPlanShare> MealPlanShares { get; set; } = null!;
         public virtual DbSet<LlmSettings> LlmSettings { get; set; } = null!;
+        public virtual DbSet<UserPushSubscription> PushSubscriptions { get; set; } = null!;
 
         // Constructor needed for dependency injection.
         // It accepts DbContextOptions, allowing the configuration (like connection string)
@@ -290,6 +291,23 @@ namespace Nimblist.Data
             {
                 entity.HasKey(s => s.Id);
                 entity.HasIndex(s => s.MealPlanId).HasDatabaseName("IX_MealPlanShares_MealPlanId");
+            });
+
+            builder.Entity<ApplicationUser>()
+                .HasMany(u => u.PushSubscriptions)
+                .WithOne(s => s.User)
+                .HasForeignKey(s => s.UserId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<UserPushSubscription>(entity =>
+            {
+                entity.HasKey(s => s.Id);
+                entity.Property(s => s.Endpoint).HasMaxLength(2048).IsRequired();
+                entity.Property(s => s.P256dh).HasMaxLength(512).IsRequired();
+                entity.Property(s => s.Auth).HasMaxLength(256).IsRequired();
+                entity.HasIndex(s => s.Endpoint).IsUnique().HasDatabaseName("IX_PushSubscriptions_Endpoint");
+                entity.HasIndex(s => s.UserId).HasDatabaseName("IX_PushSubscriptions_UserId");
             });
 
             // === PostgreSQL Specific Configuration (Optional Examples) ===

@@ -17,6 +17,8 @@ import RecipeDetailPage from './pages/RecipeDetailPage';
 import FamiliesPage from './pages/FamiliesPage';
 import MealPlannerPage from './pages/MealPlannerPage';
 import AdminPage from './pages/AdminPage';
+import InstallPrompt from './components/InstallPrompt';
+import NotificationBanner from './components/NotificationBanner';
 
 function App() {
     // Get state and actions from the store
@@ -38,6 +40,9 @@ function App() {
     }
 
   return (
+    <>
+    <InstallPrompt />
+    <NotificationBanner />
     <Routes> {/* Container for all routes */}
       {/* Define the parent route that uses the Layout */}
       <Route path="/" element={<Layout />}>
@@ -69,6 +74,7 @@ function App() {
       {/* You could potentially add routes here that *don't* use the Layout if needed */}
 
     </Routes>
+    </>
   )
 }
 

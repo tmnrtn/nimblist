@@ -29,6 +29,7 @@ namespace Nimblist.test.Controllers
         private readonly Mock<IHubClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
         private readonly Mock<IClassificationService> _mockClassificationService;
+        private readonly Mock<IPushNotificationService> _mockPushNotificationService;
 
         private readonly string _testUserId = "test-user-id";
         private readonly string _otherUserId = "other-user-id";
@@ -48,6 +49,8 @@ namespace Nimblist.test.Controllers
             _mockClassificationService
                 .Setup(s => s.ClassifyAsync(It.IsAny<string>()))
                 .ReturnsAsync(((Guid?)null, (Guid?)null));
+
+            _mockPushNotificationService = new Mock<IPushNotificationService>();
         }
 
         // Helper to create DbContextOptions with a unique InMemory database name
@@ -91,7 +94,8 @@ namespace Nimblist.test.Controllers
             var controller = new ItemsController(
                 context,
                 _mockHubContext.Object,
-                _mockClassificationService.Object);
+                _mockClassificationService.Object,
+                _mockPushNotificationService.Object);
 
             if (!string.IsNullOrEmpty(userId))
             {

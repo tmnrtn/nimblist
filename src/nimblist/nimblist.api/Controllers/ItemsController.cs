@@ -19,15 +19,18 @@ namespace Nimblist.api.Controllers
         private readonly NimblistContext _context;
         private readonly IHubContext<ShoppingListHub> _hubContext;
         private readonly IClassificationService _classificationService;
+        private readonly IPushNotificationService _pushNotificationService;
 
         public ItemsController(
             NimblistContext context,
             IHubContext<ShoppingListHub> hubContext,
-            IClassificationService classificationService)
+            IClassificationService classificationService,
+            IPushNotificationService pushNotificationService)
         {
             _context = context;
             _hubContext = hubContext;
             _classificationService = classificationService;
+            _pushNotificationService = pushNotificationService;
         }
 
         // Helper method to convert Item to ItemWithCategoryDto
@@ -180,6 +183,8 @@ namespace Nimblist.api.Controllers
             await _hubContext.Clients.Group(groupName).SendAsync("ReceiveItemAdded", itemWithCategory);
             Console.WriteLine($"--> SignalR: Sent ReceiveItemAdded to {groupName} for item {item.Id}");
             // --------------------------
+
+            _ = Task.Run(() => _pushNotificationService.NotifyItemAddedAsync(item, userId));
 
             // Record or update the previous item name usage
             var prevName = await _context.PreviousItemNames.FirstOrDefaultAsync(p => p.UserId == userId && p.Name == itemDto.Name);
