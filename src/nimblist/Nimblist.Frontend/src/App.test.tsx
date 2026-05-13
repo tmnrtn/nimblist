@@ -13,6 +13,7 @@ import { ShoppingList } from './types'; // Import the interface (adjust path if 
 
 let mockStoreState: AuthState = {
   isAuthenticated: false,
+  isAdmin: false,
   user: null,
   isLoading: true, // Default to loading, perhaps
   checkAuthStatus: vi.fn().mockResolvedValue(undefined),
@@ -39,6 +40,7 @@ describe("App Component", () => {
   it("renders the loading state when isLoading is true", () => {
     mockStoreState = {
       isAuthenticated: false,
+      isAdmin: false,
       user: null,
       isLoading: true, // Default to loading, perhaps
       checkAuthStatus: vi.fn().mockResolvedValue(undefined),
@@ -57,6 +59,7 @@ describe("App Component", () => {
   it("renders the Layout and HomePage when isLoading is false", async () => {
     mockStoreState = {
       isAuthenticated: false,
+      isAdmin: false,
       user: null,
       isLoading: false, // Default to loading, perhaps
       checkAuthStatus: vi.fn().mockResolvedValue(undefined),
@@ -76,9 +79,11 @@ describe("App Component", () => {
   it("renders the ShoppingListsPage when navigating to /lists", async () => {
     mockStoreState = {
       isAuthenticated: true,
+      isAdmin: false,
       user: {
         userId: "123",
         email: "test@test.com",
+        roles: [],
       },
       isLoading: false, // Default to loading, perhaps
       checkAuthStatus: vi.fn().mockResolvedValue(undefined),
@@ -125,15 +130,17 @@ describe("App Component", () => {
   it("renders the ListPageDetail when navigating to /lists/:listId", async () => {
     mockStoreState = {
         isAuthenticated: true,
+        isAdmin: false,
         user: {
           userId: "123",
           email: "test@test.com",
+          roles: [],
         },
         isLoading: false, // Default to loading, perhaps
         checkAuthStatus: vi.fn().mockResolvedValue(undefined),
         logout: vi.fn().mockResolvedValue(undefined),
       };
-  
+
       const mockData: ShoppingList[] = [
         {
           id: "1",
@@ -174,9 +181,11 @@ describe("App Component", () => {
   it("renders the NotFoundPage for unmatched routes", async () => {
     mockStoreState = {
         isAuthenticated: true,
+        isAdmin: false,
         user: {
           userId: "123",
           email: "test@test.com",
+          roles: [],
         },
         isLoading: false, // Default to loading, perhaps
         checkAuthStatus: vi.fn().mockResolvedValue(undefined),
@@ -197,6 +206,7 @@ describe("App Component", () => {
   it("calls checkAuthStatus on mount", () => {
     mockStoreState = {
         isAuthenticated: false,
+        isAdmin: false,
         user: null,
         isLoading: false, // Default to loading, perhaps
         checkAuthStatus: vi.fn().mockResolvedValue(undefined),

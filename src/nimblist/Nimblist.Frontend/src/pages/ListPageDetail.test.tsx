@@ -56,7 +56,8 @@ describe("ListPageDetail Component", () => {
     // Set default AUTH state (e.g., authenticated)
     mockStoreState = {
       isAuthenticated: true, // Assume logged in for detail page tests
-      user: { userId: "user-xyz", email: "test@test.com" },
+      isAdmin: false,
+      user: { userId: "user-xyz", email: "test@test.com", roles: [] },
       isLoading: false,
       checkAuthStatus: vi.fn().mockResolvedValue(undefined),
       logout: vi.fn().mockResolvedValue(undefined),
