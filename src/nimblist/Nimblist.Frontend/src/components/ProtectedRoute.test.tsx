@@ -15,6 +15,7 @@ vi.mock("./LoginPrompt", () => ({
 
 const base: AuthState = {
   isAuthenticated: false,
+  isAdmin: false,
   user: null,
   isLoading: false,
   checkAuthStatus: vi.fn(),
@@ -47,7 +48,7 @@ describe("ProtectedRoute", () => {
   });
 
   it("renders outlet when authenticated", () => {
-    mockStoreState = { ...base, isAuthenticated: true, user: { userId: "u1", email: "u@test.com" } };
+    mockStoreState = { ...base, isAuthenticated: true, user: { userId: "u1", email: "u@test.com", roles: [] } };
     renderProtected();
     expect(screen.getByText("Protected content")).toBeInTheDocument();
     expect(screen.queryByText("Please log in")).not.toBeInTheDocument();
