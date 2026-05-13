@@ -20,5 +20,6 @@ namespace Nimblist.Data.Models
         public virtual ICollection<Recipe> Recipes { get; set; } = new List<Recipe>();
 
         public virtual ICollection<MealPlan> MealPlans { get; set; } = new List<MealPlan>();
+        public virtual ICollection<UserPushSubscription> PushSubscriptions { get; set; } = new List<UserPushSubscription>();
     }
 }

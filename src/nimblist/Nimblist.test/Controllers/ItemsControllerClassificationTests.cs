@@ -24,6 +24,7 @@ namespace Nimblist.test.Controllers
         private readonly Mock<IHubClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
         private readonly Mock<IClassificationService> _mockClassificationService;
+        private readonly Mock<IPushNotificationService> _mockPushNotificationService;
 
         private readonly string _testUserId = "test-user-id";
         private readonly Guid _testListId = Guid.NewGuid();
@@ -37,6 +38,7 @@ namespace Nimblist.test.Controllers
             _mockClients.Setup(c => c.Group(It.IsAny<string>())).Returns(_mockClientProxy.Object);
 
             _mockClassificationService = new Mock<IClassificationService>();
+            _mockPushNotificationService = new Mock<IPushNotificationService>();
         }
 
         private DbContextOptions<NimblistContext> CreateNewContextOptions() =>
@@ -49,7 +51,8 @@ namespace Nimblist.test.Controllers
             var controller = new ItemsController(
                 context,
                 _mockHubContext.Object,
-                _mockClassificationService.Object);
+                _mockClassificationService.Object,
+                _mockPushNotificationService.Object);
 
             var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
             {

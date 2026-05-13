@@ -8,6 +8,7 @@ export default defineConfig({
     setupFiles: './src/setupTests.ts', // Your setup file path
     env: {
       VITE_API_BASE_URL: 'https://localhost:64213',
+      VITE_VAPID_PUBLIC_KEY: 'BI_pNh-IFpXp2KJcDz9YNcGHGhQlQrsMnHTuYW4g3vcEmWQ5o0pSepDWeLMQBag9SAAxRDx0TEMzaFzOf3Xpmo4',
     },
     // ... other test options
     coverage: {

@@ -265,6 +265,7 @@ namespace Nimblist.api
 
             builder.Services.AddHttpClient();
             builder.Services.AddScoped<IClassificationService, ClassificationService>();
+            builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 
             var app = builder.Build();
 
