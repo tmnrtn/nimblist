@@ -4,7 +4,7 @@ import type { MockedFunction } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { authenticatedFetch } from "../components/HttpHelper";
 import RecipesPage from "./RecipesPage";
-import type { RecipeSummary } from "../types";
+import type { RecipeSummary, ShoppingList } from "../types";
 
 vi.mock("../components/HttpHelper");
 
@@ -24,6 +24,9 @@ const recipe2: RecipeSummary = {
   yields: null, totalTimeMinutes: null,
   ingredientCount: 2, createdAt: "2026-01-02T00:00:00Z", isOwned: false,
 };
+const list1: ShoppingList = {
+  id: "l1", name: "My List", createdAt: "2026-01-01T00:00:00Z", userId: "u1", items: []
+};
 
 function renderPage() {
   return render(<MemoryRouter><RecipesPage /></MemoryRouter>);
@@ -34,17 +37,27 @@ describe("RecipesPage", () => {
     vi.clearAllMocks();
     mockFetch.mockReset();
     vi.spyOn(window, "confirm").mockReturnValue(true);
+    // Default mock implementation
+    mockFetch.mockImplementation((url) => {
+      if (url === '/api/recipes') return jsonResponse([]);
+      if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      return jsonResponse(null);
+    });
   });
 
   it("shows loading state then renders recipes", async () => {
-    mockFetch.mockReturnValue(jsonResponse([recipe1, recipe2]));
+    mockFetch.mockImplementation((url) => {
+      if (url === '/api/recipes') return jsonResponse([recipe1, recipe2]);
+      if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      return jsonResponse(null);
+    });
     renderPage();
     await waitFor(() => expect(screen.getByText("Pasta Bolognese")).toBeInTheDocument());
     expect(screen.getByText("Shared Recipe")).toBeInTheDocument();
   });
 
   it("shows 'no recipes' message when list is empty", async () => {
-    mockFetch.mockReturnValue(jsonResponse([]));
+    // Default implementation handles empty recipes
     renderPage();
     await waitFor(() => expect(screen.getByText(/no recipes yet/i)).toBeInTheDocument());
   });
@@ -56,13 +69,21 @@ describe("RecipesPage", () => {
   });
 
   it("renders View link for each recipe", async () => {
-    mockFetch.mockReturnValue(jsonResponse([recipe1]));
+    mockFetch.mockImplementation((url) => {
+      if (url === '/api/recipes') return jsonResponse([recipe1]);
+      if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      return jsonResponse(null);
+    });
     renderPage();
     await waitFor(() => expect(screen.getByRole("link", { name: /view/i })).toBeInTheDocument());
   });
 
   it("only shows Delete button for owned recipes", async () => {
-    mockFetch.mockReturnValue(jsonResponse([recipe1, recipe2]));
+    mockFetch.mockImplementation((url) => {
+      if (url === '/api/recipes') return jsonResponse([recipe1, recipe2]);
+      if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      return jsonResponse(null);
+    });
     renderPage();
     await waitFor(() => screen.getByText("Pasta Bolognese"));
     const deleteButtons = screen.getAllByRole("button", { name: /delete/i });
@@ -70,7 +91,6 @@ describe("RecipesPage", () => {
   });
 
   it("switches to manual create tab", async () => {
-    mockFetch.mockReturnValue(jsonResponse([]));
     renderPage();
     await waitFor(() => screen.getByText(/import from url/i));
     fireEvent.click(screen.getByRole("button", { name: /create manually/i }));
@@ -80,9 +100,13 @@ describe("RecipesPage", () => {
   it("import form submits and prepends recipe to list", async () => {
     const newRecipe = { id: "r3", title: "Imported", imageUrl: null, yields: null,
       totalTimeMinutes: null, ingredients: [], createdAt: "2026-01-03T00:00:00Z" };
-    mockFetch
-      .mockReturnValueOnce(jsonResponse([recipe1]))
-      .mockReturnValueOnce(jsonResponse(newRecipe, true, 201));
+    
+    mockFetch.mockImplementation((url) => {
+      if (url === '/api/recipes') return jsonResponse([recipe1]);
+      if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      if (url === '/api/recipes/import') return jsonResponse(newRecipe, true, 201);
+      return jsonResponse(null);
+    });
 
     renderPage();
     await waitFor(() => screen.getByText("Pasta Bolognese"));
@@ -96,9 +120,12 @@ describe("RecipesPage", () => {
   });
 
   it("shows import error when import fails", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse([]))
-      .mockReturnValueOnce(jsonResponse({ error: "Scraper failed" }, false, 422));
+    mockFetch.mockImplementation((url) => {
+      if (url === '/api/recipes') return jsonResponse([]);
+      if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      if (url === '/api/recipes/import') return jsonResponse({ error: "Scraper failed" }, false, 422);
+      return jsonResponse(null);
+    });
 
     renderPage();
     await waitFor(() => screen.getByText(/no recipes yet/i));
@@ -114,9 +141,23 @@ describe("RecipesPage", () => {
   it("manual create form submits and prepends recipe", async () => {
     const newRecipe = { id: "r4", title: "My Recipe", imageUrl: null, yields: null,
       totalTimeMinutes: null, ingredients: [{}], createdAt: "2026-01-04T00:00:00Z" };
-    mockFetch
-      .mockReturnValueOnce(jsonResponse([]))
-      .mockReturnValueOnce(jsonResponse(newRecipe, true, 201));
+    
+    mockFetch.mockImplementation((url) => {
+      if (url === '/api/recipes') return jsonResponse([]);
+      if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      if (url === '/api/recipes' && !url.includes('api/recipes/')) return jsonResponse(newRecipe, true, 201); // Simplified check for POST
+      return jsonResponse(null);
+    });
+    
+    // Better implementation for dynamic tests
+    mockFetch.mockImplementation((url, init) => {
+      if (url === '/api/recipes') {
+        if (init?.method === 'POST') return jsonResponse(newRecipe, true, 201);
+        return jsonResponse([]);
+      }
+      if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      return jsonResponse(null);
+    });
 
     renderPage();
     await waitFor(() => screen.getByText(/no recipes yet/i));
@@ -132,9 +173,14 @@ describe("RecipesPage", () => {
   });
 
   it("delete removes recipe from list after confirmation", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse([recipe1]))
-      .mockReturnValueOnce(Promise.resolve({ ok: true, status: 204 } as Response));
+    mockFetch.mockImplementation((url, init) => {
+      if (url === '/api/recipes') return jsonResponse([recipe1]);
+      if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      if (url === `/api/recipes/${recipe1.id}` && init?.method === 'DELETE') {
+        return Promise.resolve({ ok: true, status: 204 } as Response);
+      }
+      return jsonResponse(null);
+    });
 
     renderPage();
     await waitFor(() => screen.getByText("Pasta Bolognese"));
@@ -144,7 +190,6 @@ describe("RecipesPage", () => {
   });
 
   it("ingredient rows can be added and removed in manual form", async () => {
-    mockFetch.mockReturnValue(jsonResponse([]));
     renderPage();
     await waitFor(() => screen.getByText(/no recipes yet/i));
 
@@ -157,4 +202,42 @@ describe("RecipesPage", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /remove ingredient/i })[0]);
     expect(screen.getAllByPlaceholderText(/e.g. 2 cups flour/i)).toHaveLength(1);
   });
+
+  it("shows list dropdown and Add to list button when lists exist", async () => {
+    mockFetch.mockImplementation((url) => {
+      if (url === '/api/recipes') return jsonResponse([recipe1]);
+      if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      return jsonResponse(null);
+    });
+
+    renderPage();
+    await waitFor(() => screen.getByText("Pasta Bolognese"));
+
+    // Click "Add ingredients to list" button
+    fireEvent.click(screen.getByText(/add ingredients to list/i));
+
+    // Should show dropdown and Add button
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^add$/i })).toBeInTheDocument();
+  });
+
+  it("Add to list shows success message on ok response", async () => {
+    mockFetch.mockImplementation((url, init) => {
+      if (url === '/api/recipes') return jsonResponse([recipe1]);
+      if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      if (url === `/api/recipes/${recipe1.id}/addtolist/${list1.id}` && init?.method === 'POST') {
+        return jsonResponse({ addedCount: 5 });
+      }
+      return jsonResponse(null);
+    });
+
+    renderPage();
+    await waitFor(() => screen.getByText("Pasta Bolognese"));
+
+    fireEvent.click(screen.getByText(/add ingredients to list/i));
+    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+
+    await waitFor(() => expect(screen.getByText(/added 5 items/i)).toBeInTheDocument());
+  });
 });
+

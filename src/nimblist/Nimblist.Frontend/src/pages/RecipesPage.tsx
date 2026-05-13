@@ -1,7 +1,7 @@
 import React, { useEffect, useState, FormEvent, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { authenticatedFetch } from '../components/HttpHelper';
-import { RecipeSummary } from '../types/index';
+import { RecipeSummary, ShoppingList } from '../types/index';
 
 interface IngredientRow {
   text: string;
@@ -9,6 +9,7 @@ interface IngredientRow {
 
 const RecipesPage: React.FC = () => {
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
+  const [lists, setLists] = useState<ShoppingList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,10 +38,22 @@ const RecipesPage: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  // Add-to-list inline state
+  const [recipeIdToAddToList, setRecipeIdToAddToList] = useState<string | null>(null);
+  const [selectedListId, setSelectedListId] = useState('');
+  const [isAddingToList, setIsAddingToList] = useState(false);
+  const [addToListResult, setAddToListResult] = useState<{ recipeId: string; message: string } | null>(null);
+
   useEffect(() => {
-    authenticatedFetch('/api/recipes')
-      .then(r => r.json())
-      .then((data: RecipeSummary[]) => setRecipes(data))
+    Promise.all([
+      authenticatedFetch('/api/recipes').then(r => r.json()),
+      authenticatedFetch('/api/shoppinglists').then(r => r.json()),
+    ])
+      .then(([recipesData, listsData]) => {
+        setRecipes(recipesData);
+        setLists(listsData);
+        if (listsData.length > 0) setSelectedListId(listsData[0].id);
+      })
       .catch(() => setError('Failed to load recipes.'))
       .finally(() => setIsLoading(false));
   }, []);
@@ -192,6 +205,27 @@ const RecipesPage: React.FC = () => {
     } catch {
       setRecipes(prev);
     }
+  };
+
+  const handleAddToList = async (recipeId: string) => {
+    if (!selectedListId) return;
+    setIsAddingToList(true);
+    try {
+      const response = await authenticatedFetch(
+        `/api/recipes/${recipeId}/addtolist/${selectedListId}`,
+        { method: 'POST' }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setAddToListResult({
+          recipeId,
+          message: `Added ${data.addedCount} item${data.addedCount !== 1 ? 's' : ''}`
+        });
+        setRecipeIdToAddToList(null);
+        setTimeout(() => setAddToListResult(null), 3000);
+      }
+    } catch { /* ignore */ }
+    finally { setIsAddingToList(false); }
   };
 
   return (
@@ -463,42 +497,85 @@ const RecipesPage: React.FC = () => {
             )}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map(recipe => (
-          <div key={recipe.id} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden flex flex-col">
-            {recipe.imageUrl && (
-              <img
-                src={recipe.imageUrl}
-                alt={recipe.title}
-                className="w-full h-40 object-cover"
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            )}
-            <div className="p-4 flex flex-col flex-grow">
-              <h3 className="font-semibold text-gray-800 mb-1 line-clamp-2">{recipe.title}</h3>
-              <div className="text-xs text-gray-500 space-x-3 mb-3">
-                {recipe.yields && <span>{recipe.yields}</span>}
-                {recipe.totalTimeMinutes != null && <span>{recipe.totalTimeMinutes} min</span>}
-                <span>{recipe.ingredientCount} ingredients</span>
-              </div>
-              <div className="mt-auto flex gap-2">
-                <Link
-                  to={`/recipes/${recipe.id}`}
-                  className="flex-1 text-center px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition-colors"
-                >
-                  View
-                </Link>
-                {recipe.isOwned && (
-                  <button
-                    onClick={() => handleDelete(recipe.id)}
-                    className="px-3 py-1.5 text-sm text-red-600 border border-red-300 rounded hover:bg-red-50 transition-colors"
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-              </div>
+                <div key={recipe.id} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden flex flex-col">
+                  {recipe.imageUrl && (
+                    <img
+                      src={recipe.imageUrl}
+                      alt={recipe.title}
+                      className="w-full h-40 object-cover"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  )}
+                  <div className="p-4 flex flex-col flex-grow">
+                    <h3 className="font-semibold text-gray-800 mb-1 line-clamp-2">{recipe.title}</h3>
+                    <div className="text-xs text-gray-500 space-x-3 mb-3">
+                      {recipe.yields && <span>{recipe.yields}</span>}
+                      {recipe.totalTimeMinutes != null && <span>{recipe.totalTimeMinutes} min</span>}
+                      <span>{recipe.ingredientCount} ingredients</span>
+                    </div>
+
+                    {/* Add to list inline UI */}
+                    <div className="mb-4 min-h-[32px]">
+                      {addToListResult?.recipeId === recipe.id ? (
+                        <p className="text-green-600 text-xs font-medium py-1">{addToListResult.message}</p>
+                      ) : recipeIdToAddToList === recipe.id ? (
+                        <div className="flex gap-1 animate-in fade-in duration-200">
+                          <select
+                            value={selectedListId}
+                            onChange={e => setSelectedListId(e.target.value)}
+                            className="flex-1 text-xs px-2 py-1 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            disabled={isAddingToList}
+                            autoFocus
+                          >
+                            {lists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                          </select>
+                          <button
+                            onClick={() => handleAddToList(recipe.id)}
+                            disabled={isAddingToList}
+                            className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 font-medium"
+                          >
+                            {isAddingToList ? '…' : 'Add'}
+                          </button>
+                          <button
+                            onClick={() => setRecipeIdToAddToList(null)}
+                            disabled={isAddingToList}
+                            className="text-xs px-1.5 py-1 text-gray-400 hover:text-gray-600"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        lists.length > 0 && (
+                          <button
+                            onClick={() => setRecipeIdToAddToList(recipe.id)}
+                            className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                          >
+                            + Add ingredients to list
+                          </button>
+                        )
+                      )}
+                    </div>
+
+                    <div className="mt-auto flex gap-2">
+                      <Link
+                        to={`/recipes/${recipe.id}`}
+                        className="flex-1 text-center px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition-colors"
+                      >
+                        View
+                      </Link>
+                      {recipe.isOwned && (
+                        <button
+                          onClick={() => handleDelete(recipe.id)}
+                          className="px-3 py-1.5 text-sm text-red-600 border border-red-300 rounded hover:bg-red-50 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
           </>
         );
       })()}
@@ -507,3 +584,4 @@ const RecipesPage: React.FC = () => {
 };
 
 export default RecipesPage;
+
