@@ -26,7 +26,7 @@ vi.mock("react-select/async-creatable", () => ({
     };
     return (
       <div>
-        <span aria-label={ariaLabel}>{value?.label ?? inputValue ?? placeholder}</span>
+        <span aria-label={ariaLabel}>{value?.label || inputValue || placeholder}</span>
         <button onClick={handleLoad} data-testid="load-opts">Load</button>
         <ul id="test-options-list" />
         <button onClick={() => onChange({ value: "Milk", label: "Milk" })} data-testid="select-opt">Select Milk</button>
