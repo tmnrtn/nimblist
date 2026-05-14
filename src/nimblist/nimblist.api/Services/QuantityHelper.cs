@@ -13,7 +13,8 @@ namespace Nimblist.api.Services
 
         private static readonly Regex QtyRegex = new(
             @"^(\d+(?:\.\d+)?)?\s*([½⅓⅔¼¾⅛⅜⅝⅞]|\d+/\d+)?\s*(.*)",
-            RegexOptions.Compiled);
+            RegexOptions.Compiled,
+            TimeSpan.FromMilliseconds(100));
 
         /// <summary>
         /// Merges two quantity strings. If both parse to the same unit, adds the amounts;

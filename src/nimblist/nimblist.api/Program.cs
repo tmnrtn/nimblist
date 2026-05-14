@@ -116,6 +116,10 @@ namespace Nimblist.api
                 options.ExpireTimeSpan = TimeSpan.FromDays(30);
                 options.SlidingExpiration = true;
 
+                // Enforce Secure flag regardless of request scheme
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+
                 // Other cookie settings like LoginPath, LogoutPath, AccessDeniedPath
                 // are usually configured by AddIdentity/AddDefaultIdentity automatically.
             });
