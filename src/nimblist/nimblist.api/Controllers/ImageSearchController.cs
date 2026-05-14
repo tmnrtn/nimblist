@@ -41,10 +41,9 @@ namespace Nimblist.api.Controllers
 
             try
             {
-                var client = _httpClientFactory.CreateClient();
+                var client = _httpClientFactory.CreateClient("BraveSearch");
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
                 request.Headers.Add("Accept", "application/json");
-                request.Headers.Add("Accept-Encoding", "gzip");
                 request.Headers.Add("X-Subscription-Token", settings.ImageSearchApiKey);
 
                 var response = await client.SendAsync(request);

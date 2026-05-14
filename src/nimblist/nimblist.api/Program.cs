@@ -268,6 +268,8 @@ namespace Nimblist.api
             }
 
             builder.Services.AddHttpClient();
+            builder.Services.AddHttpClient("BraveSearch").ConfigurePrimaryHttpMessageHandler(() =>
+                new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All });
             builder.Services.AddScoped<IClassificationService, ClassificationService>();
             builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 
