@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, vi, expect, beforeEach } from "vitest"; // Added beforeEach
 // import type { MockedFunction } from 'vitest'; // Not needed with factory mock approach
 import { MemoryRouter } from "react-router-dom";
@@ -70,11 +70,13 @@ describe('Layout Component', () => {
     // Act
     render(<MemoryRouter><Layout /></MemoryRouter>);
 
-    // Assert
+    // Assert nav links
     const myListsLink = screen.getByRole('link', { name: /my lists/i });
     expect(myListsLink).toBeInTheDocument();
     expect(myListsLink).toHaveAttribute('href', '/lists');
 
+    // Logout is inside the user dropdown — open it first
+    fireEvent.click(screen.getByRole('button', { name: /test@example\.com/i }));
     const logoutButton = screen.getByRole('button', { name: /logout/i });
     expect(logoutButton).toBeInTheDocument();
 
