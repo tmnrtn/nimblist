@@ -21,7 +21,7 @@ export default function NotificationBanner() {
         setBusy(true)
         await subscribe()
         setBusy(false)
-        setDismissed(true)
+        dismiss()
     }
 
     return (
