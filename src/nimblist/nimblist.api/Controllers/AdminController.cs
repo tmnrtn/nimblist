@@ -143,6 +143,47 @@ namespace Nimblist.api.Controllers
             return NoContent();
         }
 
+        // GET /api/admin/classification-feedback
+        [HttpGet("classification-feedback")]
+        public async Task<IActionResult> GetClassificationFeedback()
+        {
+            var rows = await _context.ClassificationFeedback
+                .Include(f => f.Category)
+                .Include(f => f.SubCategory)
+                .OrderByDescending(f => f.CreatedAt)
+                .ToListAsync();
+
+            var userIds = rows.Select(r => r.UserId).Distinct().ToList();
+            var userEmails = await _userManager.Users
+                .Where(u => userIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.Email })
+                .ToDictionaryAsync(u => u.Id, u => u.Email);
+
+            var result = rows.Select(f => new AdminFeedbackDto
+            {
+                Id = f.Id,
+                ItemName = f.ItemName,
+                CategoryName = f.Category?.Name,
+                SubCategoryName = f.SubCategory?.Name,
+                UserEmail = userEmails.TryGetValue(f.UserId, out var email) ? email : null,
+                CreatedAt = f.CreatedAt,
+            });
+
+            return Ok(result);
+        }
+
+        // DELETE /api/admin/classification-feedback/{id}
+        [HttpDelete("classification-feedback/{id:guid}")]
+        public async Task<IActionResult> DeleteClassificationFeedback(Guid id)
+        {
+            var record = await _context.ClassificationFeedback.FindAsync(id);
+            if (record == null) return NotFound();
+
+            _context.ClassificationFeedback.Remove(record);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
         private static readonly string[] ValidProviders = ["openrouter", "ollama", "openai", "anthropic", "gemini"];
         private static readonly Regex MaskedKeyPattern = new(@"\*{4}", RegexOptions.Compiled);
 
@@ -161,6 +202,7 @@ namespace Nimblist.api.Controllers
                 VisionModel = settings.VisionModel,
                 ApiKey = MaskApiKey(settings.ApiKey),
                 BaseUrl = settings.BaseUrl,
+                ImageSearchApiKey = MaskApiKey(settings.ImageSearchApiKey),
                 UpdatedAt = settings.UpdatedAt,
             });
         }
@@ -181,9 +223,11 @@ namespace Nimblist.api.Controllers
             settings.BaseUrl = dto.BaseUrl?.Trim();
             settings.UpdatedAt = DateTimeOffset.UtcNow;
 
-            // Only overwrite key if a real value was sent (not the masked placeholder)
+            // Only overwrite keys if a real value was sent (not the masked placeholder)
             if (dto.ApiKey != null && !MaskedKeyPattern.IsMatch(dto.ApiKey))
                 settings.ApiKey = dto.ApiKey.Trim();
+            if (dto.ImageSearchApiKey != null && !MaskedKeyPattern.IsMatch(dto.ImageSearchApiKey))
+                settings.ImageSearchApiKey = dto.ImageSearchApiKey.Trim();
 
             if (settings.Id == 1 && !await _context.LlmSettings.AnyAsync())
                 _context.LlmSettings.Add(settings);
@@ -197,6 +241,7 @@ namespace Nimblist.api.Controllers
                 VisionModel = settings.VisionModel,
                 ApiKey = MaskApiKey(settings.ApiKey),
                 BaseUrl = settings.BaseUrl,
+                ImageSearchApiKey = MaskApiKey(settings.ImageSearchApiKey),
                 UpdatedAt = settings.UpdatedAt,
             });
         }

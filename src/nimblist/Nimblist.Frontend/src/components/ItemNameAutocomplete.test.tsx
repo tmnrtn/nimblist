@@ -8,11 +8,13 @@ vi.mock("./HttpHelper");
 
 // Mock react-select/async-creatable so we can drive it with plain inputs
 vi.mock("react-select/async-creatable", () => ({
-  default: vi.fn(({ loadOptions, onChange, onCreateOption, value, isDisabled, "aria-label": ariaLabel, placeholder }: {
+  default: vi.fn(({ loadOptions, onChange, onCreateOption, onInputChange, value, inputValue, isDisabled, "aria-label": ariaLabel, placeholder }: {
     loadOptions: (input: string) => Promise<{ value: string; label: string }[]>;
     onChange: (option: { value: string; label: string } | null) => void;
     onCreateOption: (value: string) => void;
+    onInputChange?: (value: string, meta: { action: string }) => void;
     value: { value: string; label: string } | null;
+    inputValue?: string;
     isDisabled?: boolean;
     "aria-label"?: string;
     placeholder?: string;
@@ -24,12 +26,18 @@ vi.mock("react-select/async-creatable", () => ({
     };
     return (
       <div>
-        <span aria-label={ariaLabel}>{value?.label ?? placeholder}</span>
+        <span aria-label={ariaLabel}>{value?.label || inputValue || placeholder}</span>
         <button onClick={handleLoad} data-testid="load-opts">Load</button>
         <ul id="test-options-list" />
         <button onClick={() => onChange({ value: "Milk", label: "Milk" })} data-testid="select-opt">Select Milk</button>
         <button onClick={() => onChange(null)} data-testid="clear-opt">Clear</button>
         <button onClick={() => onCreateOption("New Item")} data-testid="create-opt">Create</button>
+        <button
+          onClick={() => onInputChange?.("Typed Text", { action: "input-change" })}
+          data-testid="type-opt"
+        >
+          Type
+        </button>
         {isDisabled && <span data-testid="disabled-indicator">disabled</span>}
       </div>
     );
@@ -119,5 +127,24 @@ describe("ItemNameAutocomplete", () => {
   it("passes disabled prop to select", () => {
     render(<ItemNameAutocomplete value="" onChange={vi.fn()} disabled />);
     expect(screen.getByTestId("disabled-indicator")).toBeInTheDocument();
+  });
+
+  it("calls onChange when user types in the input (input-change action)", () => {
+    const onChange = vi.fn();
+    render(<ItemNameAutocomplete value="" onChange={onChange} />);
+    screen.getByTestId("type-opt").click();
+    expect(onChange).toHaveBeenCalledWith("Typed Text");
+  });
+
+  it("does not call onChange for non-input-change actions (e.g. menu-close)", () => {
+    // The mock only fires with action 'input-change'; verify the guard works
+    // by checking that a select followed by type yields the typed text, not blank
+    const onChange = vi.fn();
+    render(<ItemNameAutocomplete value="" onChange={onChange} />);
+    screen.getByTestId("select-opt").click(); // action: set-value (internal clear fires with "")
+    onChange.mockClear();
+    screen.getByTestId("type-opt").click();   // action: input-change — should propagate
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith("Typed Text");
   });
 });

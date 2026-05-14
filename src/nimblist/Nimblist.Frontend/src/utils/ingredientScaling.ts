@@ -7,10 +7,13 @@ const UNICODE_FRACTIONS: Record<string, number> = {
   '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875,
 };
 
-// Regex: optional whole number, optional fraction (n/d or unicode), then unit text
-const QTY_RE = /^(\d+)?\s*(\d+\/\d+|[½⅓⅔¼¾⅛⅜⅝⅞])?\s*(.*)/;
-// Range: e.g. "2-3 cups" or "2 to 3 cups"
+// Patterns tried in priority order to avoid misparse of "3/2" as whole=3, unit="/2 cups"
 const RANGE_RE = /^(\d+(?:\.\d+)?)\s*(?:-|to)\s*(\d+(?:\.\d+)?)\s*(.*)/i;
+const MIXED_RE  = /^(\d+)\s+(\d+)\/(\d+)\s*(.*)/;   // "1 1/2 cups"
+const FRAC_RE   = /^(\d+)\/(\d+)\s*(.*)/;             // "3/2 cups" or "1/4 tsp"
+const WHOLE_UNI = /^(\d+)\s*([½⅓⅔¼¾⅛⅜⅝⅞])\s*(.*)/;  // "1½ cups"
+const UNI_RE    = /^([½⅓⅔¼¾⅛⅜⅝⅞])\s*(.*)/;           // "½ cup"
+const DECIMAL_RE = /^(\d+(?:\.\d+)?)\s*(.*)/;         // "2 cups" or "2.5 tbsp"
 
 interface ParsedQty {
   amount: number;
@@ -29,25 +32,46 @@ export function parseQuantity(str: string | null | undefined): ParsedQty | null 
     return { amount: (lo + hi) / 2, unit: rangeMatch[3].trim() };
   }
 
-  const m = QTY_RE.exec(s);
-  if (!m) return null;
-
-  const [, wholeStr, fracStr, unitStr] = m;
-  if (!wholeStr && !fracStr) return null;
-
-  let amount = 0;
-  if (wholeStr) amount += parseInt(wholeStr, 10);
-  if (fracStr) {
-    if (fracStr in UNICODE_FRACTIONS) {
-      amount += UNICODE_FRACTIONS[fracStr];
-    } else {
-      const [num, den] = fracStr.split('/').map(Number);
-      if (den) amount += num / den;
-    }
+  // Mixed number: "1 1/2 cups"
+  const mixed = MIXED_RE.exec(s);
+  if (mixed) {
+    const whole = parseInt(mixed[1], 10);
+    const num   = parseInt(mixed[2], 10);
+    const den   = parseInt(mixed[3], 10);
+    if (den !== 0) return { amount: whole + num / den, unit: mixed[4].trim() };
   }
 
-  if (amount === 0) return null;
-  return { amount, unit: unitStr.trim() };
+  // Pure fraction: "3/2 cups" or "1/4 tsp"
+  const frac = FRAC_RE.exec(s);
+  if (frac) {
+    const num = parseInt(frac[1], 10);
+    const den = parseInt(frac[2], 10);
+    if (den !== 0 && num > 0) return { amount: num / den, unit: frac[3].trim() };
+  }
+
+  // Whole + unicode: "1½ cups"
+  const wholeUni = WHOLE_UNI.exec(s);
+  if (wholeUni) {
+    const whole   = parseInt(wholeUni[1], 10);
+    const fracVal = UNICODE_FRACTIONS[wholeUni[2]] ?? 0;
+    return { amount: whole + fracVal, unit: wholeUni[3].trim() };
+  }
+
+  // Unicode only: "½ cup"
+  const uni = UNI_RE.exec(s);
+  if (uni) {
+    const fracVal = UNICODE_FRACTIONS[uni[1]];
+    if (fracVal !== undefined) return { amount: fracVal, unit: uni[2].trim() };
+  }
+
+  // Decimal / whole number: "2 cups" or "2.5 tbsp"
+  const dec = DECIMAL_RE.exec(s);
+  if (dec) {
+    const amount = parseFloat(dec[1]);
+    if (amount > 0) return { amount, unit: dec[2].trim() };
+  }
+
+  return null;
 }
 
 // ---------------------------------------------------------------------------

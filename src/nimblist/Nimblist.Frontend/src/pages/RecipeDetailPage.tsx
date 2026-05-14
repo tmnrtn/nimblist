@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { authenticatedFetch } from '../components/HttpHelper';
 import { RecipeDetail, ShoppingList } from '../types/index';
 import SharePanel from '../components/SharePanel';
+import ImageSearchModal from '../components/ImageSearchModal';
 import { transformQuantity, hasAnyImperialUnit } from '../utils/ingredientScaling';
 
 interface EditIngredient {
@@ -39,6 +40,7 @@ const RecipeDetailPage: React.FC = () => {
   const [editIngredients, setEditIngredients] = useState<EditIngredient[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [showImageSearch, setShowImageSearch] = useState(false);
 
   useEffect(() => {
     if (!recipeId) return;
@@ -192,6 +194,13 @@ const RecipeDetailPage: React.FC = () => {
     <div className="space-y-6 max-w-3xl">
       <Link to="/recipes" className="text-sm text-blue-600 hover:underline">&larr; Back to Recipes</Link>
 
+      <ImageSearchModal
+        isOpen={showImageSearch}
+        onClose={() => setShowImageSearch(false)}
+        onSelect={url => setEditImageUrl(url)}
+        initialQuery={editTitle}
+      />
+
       {isEditing ? (
         /* ── Edit form ── */
         <div className="space-y-4">
@@ -265,6 +274,15 @@ const RecipeDetailPage: React.FC = () => {
                   disabled={isSaving}
                   className="flex-grow px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowImageSearch(true)}
+                  disabled={isSaving}
+                  title="Search Google Images"
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 hover:border-indigo-400 disabled:opacity-30 transition-colors flex items-center gap-1"
+                >
+                  🔍 Find image
+                </button>
                 {editImageUrl && (
                   <button
                     type="button"
@@ -494,7 +512,7 @@ const RecipeDetailPage: React.FC = () => {
             </h3>
             <ul className="space-y-1">
               {recipe.ingredients.map(ing => {
-                const displayQty = isScaled ? scaledQuantities[ing.id] : ing.parsedQuantity;
+                const displayQty = scaledQuantities[ing.id] ?? ing.parsedQuantity;
                 return (
                   <li key={ing.id} className="flex items-start gap-2 text-sm text-gray-700">
                     <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />

@@ -10,6 +10,7 @@ interface LlmSettings {
   visionModel: string;
   apiKey: string;
   baseUrl: string;
+  imageSearchApiKey: string;
   updatedAt?: string;
 }
 
@@ -35,7 +36,16 @@ interface AdminFamily {
   members: AdminFamilyMember[];
 }
 
-type Tab = 'users' | 'families' | 'llm';
+interface AdminFeedback {
+  id: string;
+  itemName: string;
+  categoryName: string | null;
+  subCategoryName: string | null;
+  userEmail: string | null;
+  createdAt: string;
+}
+
+type Tab = 'users' | 'families' | 'llm' | 'feedback';
 
 const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('users');
@@ -51,8 +61,13 @@ const AdminPage: React.FC = () => {
   const [familiesLoading, setFamiliesLoading] = useState(false);
   const [familiesError, setFamiliesError] = useState<string | null>(null);
 
+  // Feedback state
+  const [feedback, setFeedback] = useState<AdminFeedback[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+
   // LLM settings state
-  const emptyLlm: LlmSettings = { provider: '', model: '', visionModel: '', apiKey: '', baseUrl: '' };
+  const emptyLlm: LlmSettings = { provider: '', model: '', visionModel: '', apiKey: '', baseUrl: '', imageSearchApiKey: '' };
   const [llm, setLlm] = useState<LlmSettings>(emptyLlm);
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmSaving, setLlmSaving] = useState(false);
@@ -63,6 +78,7 @@ const AdminPage: React.FC = () => {
     if (activeTab === 'users') loadUsers();
     if (activeTab === 'families') loadFamilies();
     if (activeTab === 'llm') loadLlmSettings();
+    if (activeTab === 'feedback') loadFeedback();
   }, [activeTab]);
 
   const loadUsers = async () => {
@@ -90,6 +106,31 @@ const AdminPage: React.FC = () => {
       setFamiliesError(e instanceof Error ? e.message : 'Failed to load families');
     } finally {
       setFamiliesLoading(false);
+    }
+  };
+
+  const loadFeedback = async () => {
+    setFeedbackLoading(true);
+    setFeedbackError(null);
+    try {
+      const res = await authenticatedFetch('/api/admin/classification-feedback');
+      if (!res.ok) throw new Error(`Failed to load feedback (${res.status})`);
+      setFeedback(await res.json());
+    } catch (e) {
+      setFeedbackError(e instanceof Error ? e.message : 'Failed to load feedback');
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
+  const handleDeleteFeedback = async (id: string, itemName: string) => {
+    if (!window.confirm(`Delete feedback record for "${itemName}"?`)) return;
+    try {
+      const res = await authenticatedFetch(`/api/admin/classification-feedback/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`Failed to delete record (${res.status})`);
+      setFeedback(prev => prev.filter(f => f.id !== id));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to delete record');
     }
   };
 
@@ -147,6 +188,7 @@ const AdminPage: React.FC = () => {
         visionModel: data.visionModel ?? '',
         apiKey: data.apiKey ?? '',
         baseUrl: data.baseUrl ?? '',
+        imageSearchApiKey: data.imageSearchApiKey ?? '',
         updatedAt: data.updatedAt,
       });
     } catch (e) {
@@ -171,11 +213,17 @@ const AdminPage: React.FC = () => {
           visionModel: llm.visionModel || null,
           apiKey: llm.apiKey || null,
           baseUrl: llm.baseUrl || null,
+          imageSearchApiKey: llm.imageSearchApiKey || null,
         }),
       });
       if (!res.ok) throw new Error(`Failed to save LLM settings (${res.status})`);
       const data = await res.json();
-      setLlm(prev => ({ ...prev, apiKey: data.apiKey ?? '', updatedAt: data.updatedAt }));
+      setLlm(prev => ({
+        ...prev,
+        apiKey: data.apiKey ?? '',
+        imageSearchApiKey: data.imageSearchApiKey ?? '',
+        updatedAt: data.updatedAt,
+      }));
       setLlmSuccess(true);
       setTimeout(() => setLlmSuccess(false), 3000);
     } catch (e) {
@@ -211,6 +259,7 @@ const AdminPage: React.FC = () => {
         <button className={tabClass('users')} onClick={() => setActiveTab('users')}>Users</button>
         <button className={tabClass('families')} onClick={() => setActiveTab('families')}>Families</button>
         <button className={tabClass('llm')} onClick={() => setActiveTab('llm')}>LLM Settings</button>
+        <button className={tabClass('feedback')} onClick={() => setActiveTab('feedback')}>Classification Feedback</button>
       </div>
 
       {activeTab === 'users' && (
@@ -340,6 +389,62 @@ const AdminPage: React.FC = () => {
           ))}
         </div>
       )}
+      {activeTab === 'feedback' && (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800">Classification Feedback</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                User-corrected item classifications stored for ML retraining. {feedback.length > 0 && `${feedback.length} record${feedback.length !== 1 ? 's' : ''}.`}
+              </p>
+            </div>
+            <button onClick={loadFeedback} className="text-sm text-indigo-600 hover:underline">Refresh</button>
+          </div>
+          {feedbackLoading && <p className="text-gray-500">Loading...</p>}
+          {feedbackError && <p className="text-red-600">{feedbackError}</p>}
+          {!feedbackLoading && !feedbackError && feedback.length === 0 && (
+            <p className="text-sm text-gray-500 italic">No feedback records.</p>
+          )}
+          {!feedbackLoading && !feedbackError && feedback.length > 0 && (
+            <div className="overflow-x-auto rounded-md border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 bg-white">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Item Name</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Subcategory</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Recorded</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {feedback.map(f => (
+                    <tr key={f.id}>
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{f.itemName}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600">{f.categoryName ?? <span className="italic text-gray-400">None</span>}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600">{f.subCategoryName ?? <span className="italic text-gray-400">None</span>}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500">{f.userEmail ?? '—'}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500 whitespace-nowrap">
+                        {new Date(f.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-2">
+                        <button
+                          onClick={() => handleDeleteFeedback(f.id, f.itemName)}
+                          className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {activeTab === 'llm' && (
         <div className="max-w-lg">
           <div className="flex justify-between items-center mb-4">
@@ -429,6 +534,37 @@ const AdminPage: React.FC = () => {
                   />
                 </div>
               )}
+
+              {/* ── Bing Image Search ────────────────────────────────── */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-medium text-gray-700 mb-1">Image Search</h3>
+                <p className="text-xs text-gray-400 mb-3">
+                  Used for the "Find image" feature when editing recipes. Requires a free{' '}
+                  <a
+                    href="https://api.search.brave.com/"
+                    target="_blank" rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline"
+                  >
+                    Brave Search API
+                  </a>{' '}
+                  key (free tier: 2,000 calls/month). Sign up, create a subscription under
+                  "Data for Search", and copy the API key.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Brave Search API key</label>
+                  <input
+                    type="password"
+                    className="w-full border rounded px-3 py-2 text-sm font-mono"
+                    value={llm.imageSearchApiKey}
+                    onChange={e => setLlm(prev => ({ ...prev, imageSearchApiKey: e.target.value }))}
+                    placeholder={llm.imageSearchApiKey ? 'Leave blank to keep existing key' : 'Paste Brave Search API key'}
+                    autoComplete="off"
+                  />
+                  {llm.imageSearchApiKey && !llm.imageSearchApiKey.includes('****') && (
+                    <p className="text-xs text-amber-600 mt-1">New key will be saved on submit.</p>
+                  )}
+                </div>
+              </div>
 
               {llmError && <p className="text-sm text-red-600">{llmError}</p>}
               {llmSuccess && <p className="text-sm text-green-600">Settings saved.</p>}
