@@ -202,6 +202,8 @@ namespace Nimblist.api.Controllers
                 VisionModel = settings.VisionModel,
                 ApiKey = MaskApiKey(settings.ApiKey),
                 BaseUrl = settings.BaseUrl,
+                GoogleSearchApiKey = MaskApiKey(settings.GoogleSearchApiKey),
+                GoogleSearchCseId = settings.GoogleSearchCseId,
                 UpdatedAt = settings.UpdatedAt,
             });
         }
@@ -220,11 +222,14 @@ namespace Nimblist.api.Controllers
             settings.Model = dto.Model?.Trim();
             settings.VisionModel = dto.VisionModel?.Trim();
             settings.BaseUrl = dto.BaseUrl?.Trim();
+            settings.GoogleSearchCseId = dto.GoogleSearchCseId?.Trim();
             settings.UpdatedAt = DateTimeOffset.UtcNow;
 
-            // Only overwrite key if a real value was sent (not the masked placeholder)
+            // Only overwrite keys if a real value was sent (not the masked placeholder)
             if (dto.ApiKey != null && !MaskedKeyPattern.IsMatch(dto.ApiKey))
                 settings.ApiKey = dto.ApiKey.Trim();
+            if (dto.GoogleSearchApiKey != null && !MaskedKeyPattern.IsMatch(dto.GoogleSearchApiKey))
+                settings.GoogleSearchApiKey = dto.GoogleSearchApiKey.Trim();
 
             if (settings.Id == 1 && !await _context.LlmSettings.AnyAsync())
                 _context.LlmSettings.Add(settings);
@@ -238,6 +243,8 @@ namespace Nimblist.api.Controllers
                 VisionModel = settings.VisionModel,
                 ApiKey = MaskApiKey(settings.ApiKey),
                 BaseUrl = settings.BaseUrl,
+                GoogleSearchApiKey = MaskApiKey(settings.GoogleSearchApiKey),
+                GoogleSearchCseId = settings.GoogleSearchCseId,
                 UpdatedAt = settings.UpdatedAt,
             });
         }

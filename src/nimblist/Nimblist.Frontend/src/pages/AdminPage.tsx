@@ -10,6 +10,8 @@ interface LlmSettings {
   visionModel: string;
   apiKey: string;
   baseUrl: string;
+  googleSearchApiKey: string;
+  googleSearchCseId: string;
   updatedAt?: string;
 }
 
@@ -66,7 +68,7 @@ const AdminPage: React.FC = () => {
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
   // LLM settings state
-  const emptyLlm: LlmSettings = { provider: '', model: '', visionModel: '', apiKey: '', baseUrl: '' };
+  const emptyLlm: LlmSettings = { provider: '', model: '', visionModel: '', apiKey: '', baseUrl: '', googleSearchApiKey: '', googleSearchCseId: '' };
   const [llm, setLlm] = useState<LlmSettings>(emptyLlm);
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmSaving, setLlmSaving] = useState(false);
@@ -187,6 +189,8 @@ const AdminPage: React.FC = () => {
         visionModel: data.visionModel ?? '',
         apiKey: data.apiKey ?? '',
         baseUrl: data.baseUrl ?? '',
+        googleSearchApiKey: data.googleSearchApiKey ?? '',
+        googleSearchCseId: data.googleSearchCseId ?? '',
         updatedAt: data.updatedAt,
       });
     } catch (e) {
@@ -211,11 +215,18 @@ const AdminPage: React.FC = () => {
           visionModel: llm.visionModel || null,
           apiKey: llm.apiKey || null,
           baseUrl: llm.baseUrl || null,
+          googleSearchApiKey: llm.googleSearchApiKey || null,
+          googleSearchCseId: llm.googleSearchCseId || null,
         }),
       });
       if (!res.ok) throw new Error(`Failed to save LLM settings (${res.status})`);
       const data = await res.json();
-      setLlm(prev => ({ ...prev, apiKey: data.apiKey ?? '', updatedAt: data.updatedAt }));
+      setLlm(prev => ({
+        ...prev,
+        apiKey: data.apiKey ?? '',
+        googleSearchApiKey: data.googleSearchApiKey ?? '',
+        updatedAt: data.updatedAt,
+      }));
       setLlmSuccess(true);
       setTimeout(() => setLlmSuccess(false), 3000);
     } catch (e) {
@@ -526,6 +537,57 @@ const AdminPage: React.FC = () => {
                   />
                 </div>
               )}
+
+              {/* ── Google Image Search ──────────────────────────────── */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-medium text-gray-700 mb-1">Google Image Search</h3>
+                <p className="text-xs text-gray-400 mb-3">
+                  Used for the "Find image" feature when editing recipes.
+                  Requires a{' '}
+                  <a
+                    href="https://developers.google.com/custom-search/v1/overview"
+                    target="_blank" rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline"
+                  >
+                    Custom Search JSON API
+                  </a>{' '}
+                  key and a{' '}
+                  <a
+                    href="https://programmablesearchengine.google.com/"
+                    target="_blank" rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline"
+                  >
+                    Programmable Search Engine
+                  </a>{' '}
+                  ID configured to search the entire web with image results enabled.
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">API key</label>
+                    <input
+                      type="password"
+                      className="w-full border rounded px-3 py-2 text-sm font-mono"
+                      value={llm.googleSearchApiKey}
+                      onChange={e => setLlm(prev => ({ ...prev, googleSearchApiKey: e.target.value }))}
+                      placeholder={llm.googleSearchApiKey ? 'Leave blank to keep existing key' : 'Paste Google API key'}
+                      autoComplete="off"
+                    />
+                    {llm.googleSearchApiKey && !llm.googleSearchApiKey.includes('****') && (
+                      <p className="text-xs text-amber-600 mt-1">New key will be saved on submit.</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Search Engine ID (cx)</label>
+                    <input
+                      type="text"
+                      className="w-full border rounded px-3 py-2 text-sm font-mono"
+                      value={llm.googleSearchCseId}
+                      onChange={e => setLlm(prev => ({ ...prev, googleSearchCseId: e.target.value }))}
+                      placeholder="e.g. 017576662512468239146:omuauf_lfve"
+                    />
+                  </div>
+                </div>
+              </div>
 
               {llmError && <p className="text-sm text-red-600">{llmError}</p>}
               {llmSuccess && <p className="text-sm text-green-600">Settings saved.</p>}

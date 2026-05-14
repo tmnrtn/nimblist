@@ -22,6 +22,12 @@ namespace Nimblist.Data.Models
         [MaxLength(300)]
         public string? BaseUrl { get; set; }
 
+        [MaxLength(500)]
+        public string? GoogleSearchApiKey { get; set; }
+
+        [MaxLength(200)]
+        public string? GoogleSearchCseId { get; set; }
+
         public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     }
 }
