@@ -56,6 +56,28 @@ def safe_call(fn):
         return None
 
 
+def _format_quantity(qty) -> str:
+    """Format a parsed quantity value as a human-readable string.
+
+    ingredient-parser-nlp returns quantity values as Python Fraction objects
+    (e.g. Fraction(3, 2) for 1½).  str() on an improper Fraction gives "3/2",
+    which is hard to read and breaks the frontend scaling parser.  Convert to
+    mixed-number notation instead: Fraction(3, 2) → "1 1/2".
+    """
+    from fractions import Fraction
+    try:
+        f = Fraction(qty).limit_denominator(16)
+    except (TypeError, ValueError):
+        return str(qty)
+    if f.denominator == 1:
+        return str(f.numerator)
+    whole = f.numerator // f.denominator
+    remainder = f - whole
+    if whole > 0:
+        return f"{whole} {remainder.numerator}/{remainder.denominator}"
+    return f"{remainder.numerator}/{remainder.denominator}"
+
+
 def parse_ingredient_text(text):
     try:
         result = parse_ingredient(text)
@@ -68,7 +90,7 @@ def parse_ingredient_text(text):
             amount = result.amount[0]
             parts = []
             if amount.quantity:
-                parts.append(str(amount.quantity))
+                parts.append(_format_quantity(amount.quantity))
             if amount.unit:
                 parts.append(str(amount.unit))
             quantity = ' '.join(parts) if parts else None

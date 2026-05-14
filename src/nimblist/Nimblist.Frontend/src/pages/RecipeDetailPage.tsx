@@ -494,7 +494,7 @@ const RecipeDetailPage: React.FC = () => {
             </h3>
             <ul className="space-y-1">
               {recipe.ingredients.map(ing => {
-                const displayQty = isScaled ? scaledQuantities[ing.id] : ing.parsedQuantity;
+                const displayQty = scaledQuantities[ing.id] ?? ing.parsedQuantity;
                 return (
                   <li key={ing.id} className="flex items-start gap-2 text-sm text-gray-700">
                     <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />
