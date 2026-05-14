@@ -539,24 +539,25 @@ const AdminPage: React.FC = () => {
               <div className="pt-4 border-t border-gray-200">
                 <h3 className="text-sm font-medium text-gray-700 mb-1">Image Search</h3>
                 <p className="text-xs text-gray-400 mb-3">
-                  Used for the "Find image" feature when editing recipes. Requires a{' '}
+                  Used for the "Find image" feature when editing recipes. Requires a free{' '}
                   <a
-                    href="https://portal.azure.com/#create/microsoft.bingsearch"
+                    href="https://api.search.brave.com/"
                     target="_blank" rel="noopener noreferrer"
                     className="text-indigo-600 hover:underline"
                   >
-                    Bing Search v7
+                    Brave Search API
                   </a>{' '}
-                  resource on Azure (free tier: 1,000 calls/month).
+                  key (free tier: 2,000 calls/month). Sign up, create a subscription under
+                  "Data for Search", and copy the API key.
                 </p>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bing Search API key</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Brave Search API key</label>
                   <input
                     type="password"
                     className="w-full border rounded px-3 py-2 text-sm font-mono"
                     value={llm.imageSearchApiKey}
                     onChange={e => setLlm(prev => ({ ...prev, imageSearchApiKey: e.target.value }))}
-                    placeholder={llm.imageSearchApiKey ? 'Leave blank to keep existing key' : 'Paste Bing API key'}
+                    placeholder={llm.imageSearchApiKey ? 'Leave blank to keep existing key' : 'Paste Brave Search API key'}
                     autoComplete="off"
                   />
                   {llm.imageSearchApiKey && !llm.imageSearchApiKey.includes('****') && (

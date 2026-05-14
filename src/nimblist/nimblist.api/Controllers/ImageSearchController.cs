@@ -31,45 +31,46 @@ namespace Nimblist.api.Controllers
             var settings = await _context.LlmSettings.FirstOrDefaultAsync();
             if (settings == null || string.IsNullOrEmpty(settings.ImageSearchApiKey))
             {
-                return StatusCode(503, new { error = "Image search is not configured. Add a Bing Search API key in Admin → LLM / Search Settings." });
+                return StatusCode(503, new { error = "Image search is not configured. Add a Brave Search API key in Admin → LLM / Search Settings." });
             }
 
-            var url = $"https://api.bing.microsoft.com/v7.0/images/search"
+            var url = $"https://api.search.brave.com/res/v1/images/search"
                     + $"?q={Uri.EscapeDataString(q)}"
                     + $"&count=10"
-                    + $"&safeSearch=Moderate"
-                    + $"&imageType=Photo";
+                    + $"&safesearch=moderate";
 
             try
             {
                 var client = _httpClientFactory.CreateClient();
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
-                request.Headers.Add("Ocp-Apim-Subscription-Key", settings.ImageSearchApiKey);
+                request.Headers.Add("Accept", "application/json");
+                request.Headers.Add("Accept-Encoding", "gzip");
+                request.Headers.Add("X-Subscription-Token", settings.ImageSearchApiKey);
 
                 var response = await client.SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorBody = await response.Content.ReadAsStringAsync();
-                    return StatusCode((int)response.StatusCode, new { error = $"Bing API returned {(int)response.StatusCode}: {errorBody}" });
+                    return StatusCode((int)response.StatusCode, new { error = $"Brave Search API returned {(int)response.StatusCode}: {errorBody}" });
                 }
 
-                var bingResponse = await response.Content.ReadFromJsonAsync<BingSearchResponse>();
-                var results = (bingResponse?.Value ?? [])
-                    .Where(item => !string.IsNullOrEmpty(item.ContentUrl))
+                var braveResponse = await response.Content.ReadFromJsonAsync<BraveSearchResponse>();
+                var results = (braveResponse?.Results ?? [])
+                    .Where(item => !string.IsNullOrEmpty(item.Properties?.Url))
                     .Select(item => new ImageSearchResultDto
                     {
-                        Title = item.Name,
-                        ImageUrl = item.ContentUrl!,
-                        ThumbnailUrl = item.ThumbnailUrl,
-                        SourceUrl = item.HostPageUrl,
+                        Title = item.Title,
+                        ImageUrl = item.Properties!.Url!,
+                        ThumbnailUrl = item.Thumbnail?.Src,
+                        SourceUrl = item.Url,
                     });
 
                 return Ok(results);
             }
             catch (HttpRequestException ex)
             {
-                return StatusCode(502, new { error = $"Failed to reach Bing API: {ex.Message}" });
+                return StatusCode(502, new { error = $"Failed to reach Brave Search API: {ex.Message}" });
             }
         }
 
@@ -83,25 +84,37 @@ namespace Nimblist.api.Controllers
             public string? SourceUrl { get; init; }
         }
 
-        private record BingSearchResponse
+        private record BraveSearchResponse
         {
-            [JsonPropertyName("value")]
-            public List<BingImageResult>? Value { get; init; }
+            [JsonPropertyName("results")]
+            public List<BraveImageResult>? Results { get; init; }
         }
 
-        private record BingImageResult
+        private record BraveImageResult
         {
-            [JsonPropertyName("name")]
-            public string? Name { get; init; }
+            [JsonPropertyName("title")]
+            public string? Title { get; init; }
 
-            [JsonPropertyName("contentUrl")]
-            public string? ContentUrl { get; init; }
+            [JsonPropertyName("url")]
+            public string? Url { get; init; }
 
-            [JsonPropertyName("thumbnailUrl")]
-            public string? ThumbnailUrl { get; init; }
+            [JsonPropertyName("thumbnail")]
+            public BraveThumbnail? Thumbnail { get; init; }
 
-            [JsonPropertyName("hostPageUrl")]
-            public string? HostPageUrl { get; init; }
+            [JsonPropertyName("properties")]
+            public BraveImageProperties? Properties { get; init; }
+        }
+
+        private record BraveThumbnail
+        {
+            [JsonPropertyName("src")]
+            public string? Src { get; init; }
+        }
+
+        private record BraveImageProperties
+        {
+            [JsonPropertyName("url")]
+            public string? Url { get; init; }
         }
     }
 }
