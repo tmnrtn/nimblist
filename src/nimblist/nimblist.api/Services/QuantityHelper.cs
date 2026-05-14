@@ -12,7 +12,7 @@ namespace Nimblist.api.Services
         };
 
         private static readonly Regex QtyRegex = new(
-            @"^(\d+(?:\.\d+)?)?\s*([½⅓⅔¼¾⅛⅜⅝⅞]|\d+/\d+)?\s*(.*)",
+            @"^(\d+(?:\.\d+)?(?!/))?\s*([½⅓⅔¼¾⅛⅜⅝⅞]|\d+/\d+)?\s*(.*)",
             RegexOptions.Compiled,
             TimeSpan.FromMilliseconds(100));
 
