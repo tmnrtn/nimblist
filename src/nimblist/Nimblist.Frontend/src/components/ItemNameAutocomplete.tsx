@@ -1,4 +1,4 @@
-import React, { useRef, forwardRef, useImperativeHandle } from "react";
+import React, { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import AsyncCreatableSelect from "react-select/async-creatable";
 import type { SelectInstance } from "react-select";
 import { authenticatedFetch } from "../components/HttpHelper";
@@ -20,10 +20,17 @@ const ItemNameAutocomplete = forwardRef<ItemNameAutocompleteHandle, ItemNameAuto
   ({ value, onChange, disabled, onKeyDown }, ref) => {
     const selectRef = useRef<SelectInstance<Option>>(null);
     const cachedNamesRef = useRef<string[] | null>(null);
+    const [inputValue, setInputValue] = useState("");
 
     useImperativeHandle(ref, () => ({
       focus: () => selectRef.current?.focus(),
     }));
+
+    // When the parent resets value to "" (e.g. after a successful submit),
+    // also clear the controlled inputValue so the text box is fully empty.
+    useEffect(() => {
+      if (!value) setInputValue("");
+    }, [value]);
 
     const loadOptions = async (input: string) => {
       if (!cachedNamesRef.current) {
@@ -46,6 +53,14 @@ const ItemNameAutocomplete = forwardRef<ItemNameAutocompleteHandle, ItemNameAuto
         cacheOptions
         defaultOptions
         loadOptions={loadOptions}
+        inputValue={inputValue}
+        onInputChange={(newVal, { action }) => {
+          setInputValue(newVal);
+          // Propagate every keystroke so the parent always holds the current text.
+          // Ignore react-select's own resets (menu-close, set-value, etc.) so
+          // a confirmed selection isn't wiped out by the internal clear.
+          if (action === "input-change") onChange(newVal);
+        }}
         value={value ? { value, label: value } : null}
         onChange={(option) => {
           if (option && typeof option.value === "string") {
@@ -54,9 +69,9 @@ const ItemNameAutocomplete = forwardRef<ItemNameAutocompleteHandle, ItemNameAuto
             onChange("");
           }
         }}
-        onCreateOption={(inputValue) => {
-          if (inputValue) {
-            onChange(inputValue);
+        onCreateOption={(newValue) => {
+          if (newValue) {
+            onChange(newValue);
           }
         }}
         placeholder="Item Name (required)"
