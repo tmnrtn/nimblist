@@ -64,9 +64,7 @@ describe("AdminPage", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.spyOn(window, "alert").mockImplementation(() => {});
     // Default: users tab loads on mount
-    mockFetch.mockResolvedValue(
-      jsonResponse([]) as unknown as Promise<Response>,
-    );
+    mockFetch.mockReturnValue(jsonResponse([]));
   });
 
   it("renders tab navigation with 4 tabs", async () => {

@@ -4,7 +4,7 @@ import { authenticatedFetch } from "./HttpHelper";
 // VITE_API_BASE_URL is set to 'https://localhost:64213' in vitest.config.ts test.env
 
 describe("authenticatedFetch", () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -12,7 +12,7 @@ describe("authenticatedFetch", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
   });
 
   function makeFetchSpy(overrides: Partial<Response> = {}) {
@@ -28,7 +28,7 @@ describe("authenticatedFetch", () => {
     (response.clone as ReturnType<typeof vi.fn>).mockReturnValue({
       text: vi.fn().mockResolvedValue(""),
     });
-    const spy = vi.spyOn(global, "fetch").mockResolvedValue(response);
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
     return { spy, response };
   }
 
@@ -64,7 +64,7 @@ describe("authenticatedFetch", () => {
       url: "https://localhost:64213/api/missing",
       clone: vi.fn().mockReturnValue({ text: cloneText }),
     } as unknown as Response;
-    vi.spyOn(global, "fetch").mockResolvedValue(response);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
 
     await authenticatedFetch("/api/missing");
 
@@ -89,14 +89,14 @@ describe("authenticatedFetch", () => {
       status: 400,
       clone: vi.fn().mockReturnValue({ text: cloneText }),
     } as unknown as Response;
-    vi.spyOn(global, "fetch").mockResolvedValue(response);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
 
     const result = await authenticatedFetch("/api/bad");
     expect(result).toBe(response);
   });
 
   it("handles network errors (fetch rejects) by propagating the rejection", async () => {
-    vi.spyOn(global, "fetch").mockRejectedValue(new Error("Network failure"));
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network failure"));
     await expect(authenticatedFetch("/api/test")).rejects.toThrow(
       "Network failure"
     );
