@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
@@ -6,7 +6,20 @@ const Layout: React.FC = () => {
   const { isAuthenticated, user, isAdmin, logout } = useAuthStore();
   const backendUrl = import.meta.env.VITE_API_BASE_URL;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const closeMenu = () => setMenuOpen(false);
+
+  // Close user dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -33,14 +46,34 @@ const Layout: React.FC = () => {
                 )}
                 <li>
                   {isAuthenticated && user ? (
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm text-gray-300">({user.email})</span>
+                    <div className="relative" ref={userMenuRef}>
                       <button
-                        onClick={logout}
-                        className="text-sm font-medium bg-red-500 hover:bg-red-600 px-3 py-1 rounded transition-colors"
+                        onClick={() => setUserMenuOpen(v => !v)}
+                        className="flex items-center space-x-1 text-sm text-gray-300 hover:text-white transition-colors"
+                        aria-haspopup="true"
+                        aria-expanded={userMenuOpen}
                       >
-                        Logout
+                        <span>({user.email})</span>
+                        <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                       </button>
+                      {userMenuOpen && (
+                        <div className="absolute right-0 mt-2 w-52 bg-white rounded shadow-lg py-1 z-50 text-gray-800">
+                          <Link
+                            to="/previous-item-names"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="block px-4 py-2 text-sm hover:bg-gray-100"
+                          >
+                            Autocomplete Suggestions
+                          </Link>
+                          <hr className="my-1 border-gray-200" />
+                          <button
+                            onClick={() => { logout(); setUserMenuOpen(false); }}
+                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                          >
+                            Logout
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <a
@@ -77,6 +110,7 @@ const Layout: React.FC = () => {
                     <li><Link to="/recipes" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Recipes</Link></li>
                     <li><Link to="/families" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Families</Link></li>
                     <li><Link to="/meal-planner" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Meal Planner</Link></li>
+                    <li><Link to="/previous-item-names" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Autocomplete Suggestions</Link></li>
                     {isAdmin && (
                       <li><Link to="/admin" onClick={closeMenu} className="block py-2 text-sm font-medium text-yellow-300 hover:text-yellow-100 transition-colors">Admin</Link></li>
                     )}
