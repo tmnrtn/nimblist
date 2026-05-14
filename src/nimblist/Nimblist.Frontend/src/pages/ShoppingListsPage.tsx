@@ -21,9 +21,11 @@ const ShoppingListsPage: React.FC = () => {
   const [newListName, setNewListName] = useState<string>("");
   const [newListIsTemplate, setNewListIsTemplate] = useState<boolean>(false);
 
-  // Create-from-template modal
+  // Use-template modal
   const [fromTemplateId, setFromTemplateId] = useState<string | null>(null);
+  const [templateMode, setTemplateMode] = useState<"new" | "existing">("new");
   const [fromTemplateName, setFromTemplateName] = useState<string>("");
+  const [fromTemplateTargetListId, setFromTemplateTargetListId] = useState<string>("");
   const [fromTemplateLoading, setFromTemplateLoading] = useState<boolean>(false);
   const [fromTemplateError, setFromTemplateError] = useState<string | null>(null);
 
@@ -116,27 +118,44 @@ const ShoppingListsPage: React.FC = () => {
     }
   };
 
-  const handleCreateFromTemplate = async (event: FormEvent<HTMLFormElement>) => {
+  const handleUseTemplate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!fromTemplateId) return;
     setFromTemplateLoading(true);
     setFromTemplateError(null);
     try {
-      const response = await authenticatedFetch(
-        `/api/shoppinglists/${fromTemplateId}/createfrom`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: fromTemplateName }),
+      if (templateMode === "new") {
+        const response = await authenticatedFetch(
+          `/api/shoppinglists/${fromTemplateId}/createfrom`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: fromTemplateName }),
+          }
+        );
+        if (response.ok) {
+          const newList: ShoppingList = await response.json();
+          setLists((prev) => [...prev, newList]);
+          setFromTemplateId(null);
+          setFromTemplateName("");
+        } else {
+          setFromTemplateError("Failed to create list from template.");
         }
-      );
-      if (response.ok) {
-        const newList: ShoppingList = await response.json();
-        setLists((prev) => [...prev, newList]);
-        setFromTemplateId(null);
-        setFromTemplateName("");
       } else {
-        setFromTemplateError("Failed to create list from template.");
+        const response = await authenticatedFetch(
+          `/api/shoppinglists/${fromTemplateId}/appendto/${fromTemplateTargetListId}`,
+          { method: "POST" }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setFromTemplateError(null);
+          setFromTemplateId(null);
+          // Brief success hint via the error slot repurposed — or just close silently
+          // The list items will update via SignalR for anyone viewing that list
+          console.log(`Template applied: ${data.addedCount} added, ${data.mergedCount} merged`);
+        } else {
+          setFromTemplateError("Failed to apply template to list.");
+        }
       }
     } catch {
       setFromTemplateError("Failed to connect to the server.");
@@ -180,7 +199,14 @@ const ShoppingListsPage: React.FC = () => {
           <div className="flex items-center gap-2 flex-shrink-0">
             {list.isTemplate && isOwner && (
               <button
-                onClick={() => { setFromTemplateId(list.id); setFromTemplateName(`${list.name} (copy)`); }}
+                onClick={() => {
+                  setFromTemplateId(list.id);
+                  setFromTemplateName(`${list.name} (copy)`);
+                  setTemplateMode("new");
+                  setFromTemplateError(null);
+                  const firstActive = lists.find(l => !l.isTemplate);
+                  setFromTemplateTargetListId(firstActive?.id ?? "");
+                }}
                 className="text-xs text-green-600 hover:text-green-800 border border-green-200 hover:bg-green-50 px-2 py-0.5 rounded transition-colors"
                 title="Create list from this template"
               >
@@ -234,23 +260,58 @@ const ShoppingListsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Create-from-template modal */}
+      {/* Use-template modal */}
       {fromTemplateId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800">Create list from template</h3>
+            <h3 className="text-lg font-semibold text-gray-800">Use template</h3>
+
+            {/* Mode tabs */}
+            <div className="flex rounded-md border border-gray-200 overflow-hidden text-sm">
+              <button
+                type="button"
+                onClick={() => setTemplateMode("new")}
+                className={`flex-1 py-2 transition-colors ${templateMode === "new" ? "bg-indigo-600 text-white font-semibold" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+              >
+                Create new list
+              </button>
+              <button
+                type="button"
+                onClick={() => setTemplateMode("existing")}
+                disabled={activeLists.length === 0}
+                className={`flex-1 py-2 transition-colors ${templateMode === "existing" ? "bg-indigo-600 text-white font-semibold" : "bg-white text-gray-600 hover:bg-gray-50"} disabled:opacity-40`}
+              >
+                Add to existing list
+              </button>
+            </div>
+
             {fromTemplateError && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{fromTemplateError}</p>
             )}
-            <form onSubmit={handleCreateFromTemplate} className="space-y-3">
-              <input
-                type="text"
-                value={fromTemplateName}
-                onChange={(e) => setFromTemplateName(e.target.value)}
-                placeholder="New list name"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+
+            <form onSubmit={handleUseTemplate} className="space-y-3">
+              {templateMode === "new" ? (
+                <input
+                  type="text"
+                  value={fromTemplateName}
+                  onChange={(e) => setFromTemplateName(e.target.value)}
+                  placeholder="New list name"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <select
+                  value={fromTemplateTargetListId}
+                  onChange={(e) => setFromTemplateTargetListId(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {activeLists.map((l) => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
+                </select>
+              )}
+
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
@@ -261,10 +322,12 @@ const ShoppingListsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={fromTemplateLoading || !fromTemplateName.trim()}
+                  disabled={fromTemplateLoading || (templateMode === "new" && !fromTemplateName.trim())}
                   className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 disabled:opacity-50"
                 >
-                  {fromTemplateLoading ? "Creating..." : "Create list"}
+                  {fromTemplateLoading
+                    ? (templateMode === "new" ? "Creating..." : "Adding...")
+                    : (templateMode === "new" ? "Create list" : "Add items")}
                 </button>
               </div>
             </form>

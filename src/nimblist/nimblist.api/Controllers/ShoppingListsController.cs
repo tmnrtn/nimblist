@@ -190,6 +190,64 @@ namespace Nimblist.api.Controllers
             return CreatedAtAction(nameof(GetShoppingList), new { id = created.Id }, ConvertToShoppingListDto(created));
         }
 
+        // POST: api/ShoppingLists/{templateId}/appendto/{listId}
+        [HttpPost("{templateId}/appendto/{listId}")]
+        public async Task<ActionResult> AppendTemplateToList(Guid templateId, Guid listId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
+
+            var template = await _context.ShoppingLists
+                .Include(sl => sl.Items)
+                .FirstOrDefaultAsync(sl => sl.Id == templateId && sl.UserId == userId && sl.IsTemplate);
+
+            if (template == null) return NotFound("Template not found.");
+
+            // Target list must be accessible (owned or shared)
+            var accessibleLists = await GetUserShoppingLists(userId);
+            var targetList = accessibleLists.FirstOrDefault(sl => sl.Id == listId);
+            if (targetList == null) return NotFound("Shopping list not found.");
+
+            // Load existing unchecked items for deduplication
+            var existingItems = await _context.Items
+                .Where(i => i.ShoppingListId == listId && !i.IsChecked)
+                .ToListAsync();
+
+            int addedCount = 0, mergedCount = 0;
+
+            foreach (var templateItem in template.Items)
+            {
+                var existing = existingItems.FirstOrDefault(i =>
+                    string.Equals(i.Name, templateItem.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                {
+                    existing.Quantity = Services.QuantityHelper.Merge(existing.Quantity, templateItem.Quantity);
+                    mergedCount++;
+                }
+                else
+                {
+                    var newItem = new Item
+                    {
+                        Name = templateItem.Name,
+                        Quantity = templateItem.Quantity,
+                        IsChecked = false,
+                        ShoppingListId = listId,
+                        CategoryId = templateItem.CategoryId,
+                        SubCategoryId = templateItem.SubCategoryId,
+                        AddedAt = DateTimeOffset.UtcNow,
+                    };
+                    _context.Items.Add(newItem);
+                    existingItems.Add(newItem);
+                    addedCount++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { addedCount, mergedCount });
+        }
+
         // GET: api/ShoppingLists/5
         [HttpGet("{id}")]
         public async Task<ActionResult<ShoppingListWithItemsDto>> GetShoppingList(Guid id)
