@@ -549,6 +549,8 @@ const ItemList: React.FC<ItemListProps> = ({
                             placeholder="Select category..."
                             isClearable
                             isDisabled={loadingItemId === row.original.id}
+                            menuPortalTarget={document.body}
+                            menuPosition="fixed"
                           />
                         </div>
                         {/* Row 3: Subcategory */}
@@ -570,6 +572,8 @@ const ItemList: React.FC<ItemListProps> = ({
                             isDisabled={
                               !selectedCategory || loadingItemId === row.original.id
                             }
+                            menuPortalTarget={document.body}
+                            menuPosition="fixed"
                           />
                         </div>
                         {/* Row 4: Save/Cancel buttons */}
