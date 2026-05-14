@@ -104,6 +104,28 @@ namespace Nimblist.test.Controllers
         }
 
         [Fact]
+        public async Task GetFamilies_UserIsMemberButNotOwner_ReturnsThatFamily()
+        {
+            // Arrange: family owned by user 2, but user 1 is a member
+            var family = new Family { Id = Guid.NewGuid(), Name = "Shared Family", UserId = TestUserId2 };
+            var member = new FamilyMember { Id = Guid.NewGuid(), FamilyId = family.Id, UserId = TestUserId1 };
+            await SeedDataAsync(family, member);
+
+            using var context = new NimblistContext(_dbOptions);
+            var controller = CreateControllerWithContext(context, TestUserId1);
+
+            // Act
+            var result = await controller.GetFamilies();
+
+            // Assert
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            var families = Assert.IsAssignableFrom<IEnumerable<FamilyWithMembersDto>>(ok.Value).ToList();
+            Assert.Single(families);
+            Assert.Equal("Shared Family", families[0].Name);
+            Assert.Equal(TestUserId2, families[0].OwnerId);
+        }
+
+        [Fact]
         public async Task GetFamilies_UserHasNoFamilies_ReturnsOkWithEmptyList()
         {
             // Arrange
@@ -164,6 +186,28 @@ namespace Nimblist.test.Controllers
                 Assert.NotNull(returnedFamily.Members);
                 Assert.Contains(returnedFamily.Members, m => m.UserId == TestUserId1);
             }
+        }
+
+        [Fact]
+        public async Task GetFamily_UserIsMemberButNotOwner_ReturnsOk()
+        {
+            // Arrange: family owned by user 2, but user 1 is a member
+            var familyId = Guid.NewGuid();
+            var family = new Family { Id = familyId, Name = "Shared Family", UserId = TestUserId2 };
+            var member = new FamilyMember { Id = Guid.NewGuid(), FamilyId = familyId, UserId = TestUserId1 };
+            await SeedDataAsync(family, member);
+
+            using var context = new NimblistContext(_dbOptions);
+            var controller = CreateControllerWithContext(context, TestUserId1);
+
+            // Act
+            var result = await controller.GetFamily(familyId);
+
+            // Assert
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            var dto = Assert.IsType<FamilyWithMembersDto>(ok.Value);
+            Assert.Equal(familyId, dto.Id);
+            Assert.Equal(TestUserId2, dto.OwnerId);
         }
 
         [Fact]

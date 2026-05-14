@@ -38,7 +38,7 @@ namespace Nimblist.api.Controllers
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var families = await _context.Families
-                .Where(f => f.UserId == userId)
+                .Where(f => f.UserId == userId || f.Members.Any(m => m.UserId == userId))
                 .Include(f => f.Members).ThenInclude(m => m.User)
                 .OrderBy(f => f.Name)
                 .ToListAsync();
@@ -54,7 +54,7 @@ namespace Nimblist.api.Controllers
 
             var family = await _context.Families
                 .Include(f => f.Members).ThenInclude(m => m.User)
-                .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
+                .FirstOrDefaultAsync(f => f.Id == id && (f.UserId == userId || f.Members.Any(m => m.UserId == userId)));
 
             if (family == null) return NotFound();
             return Ok(ToDto(family));
