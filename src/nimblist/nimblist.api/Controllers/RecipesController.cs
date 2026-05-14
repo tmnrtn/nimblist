@@ -235,21 +235,34 @@ namespace Nimblist.api.Controllers
             return ownIds.Concat(userSharedIds).Concat(familySharedIds).ToHashSet();
         }
 
-        // GET /api/recipes
+        // GET /api/recipes?tagIds=id1,id2
         [HttpGet]
-        public async Task<ActionResult<List<RecipeSummaryDto>>> GetRecipes()
+        public async Task<ActionResult<List<RecipeSummaryDto>>> GetRecipes([FromQuery] string? tagIds = null)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var accessibleIds = await GetAccessibleRecipeIdsAsync(userId);
 
-            var recipes = await _context.Recipes
-                .Where(r => accessibleIds.Contains(r.Id))
+            var filterTagIds = tagIds?
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => Guid.TryParse(s.Trim(), out var g) ? (Guid?)g : null)
+                .Where(g => g.HasValue)
+                .Select(g => g!.Value)
+                .ToList() ?? [];
+
+            var query = _context.Recipes
+                .Where(r => accessibleIds.Contains(r.Id));
+
+            if (filterTagIds.Count > 0)
+                query = query.Where(r => r.Tags.Any(t => filterTagIds.Contains(t.Id)));
+
+            var recipes = await query
                 .OrderByDescending(r => r.CreatedAt)
                 .Select(r => new RecipeSummaryDto(
                     r.Id, r.Title, r.ImageUrl, r.Yields, r.TotalTimeMinutes,
-                    r.Ingredients.Count, r.CreatedAt, r.UserId == userId))
+                    r.Ingredients.Count, r.CreatedAt, r.UserId == userId,
+                    r.Tags.Select(t => new TagDto(t.Id, t.Name, t.Color)).ToList()))
                 .ToListAsync();
 
             return Ok(recipes);
@@ -267,6 +280,7 @@ namespace Nimblist.api.Controllers
 
             var recipe = await _context.Recipes
                 .Include(r => r.Ingredients.OrderBy(i => i.SortOrder))
+                .Include(r => r.Tags)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (recipe == null) return NotFound();
@@ -517,7 +531,54 @@ namespace Nimblist.api.Controllers
                     .OrderBy(i => i.SortOrder)
                     .Select(i => new RecipeIngredientDto(i.Id, i.Text, i.ParsedName, i.ParsedQuantity, i.SortOrder))
                     .ToList(),
-                recipe.UserId == userId
+                recipe.UserId == userId,
+                recipe.Tags.Select(t => new TagDto(t.Id, t.Name, t.Color)).ToList()
             );
+
+        // POST /api/recipes/{id}/tags/{tagId}
+        [HttpPost("{id}/tags/{tagId}")]
+        public async Task<IActionResult> AddTag(Guid id, Guid tagId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var recipe = await _context.Recipes
+                .Include(r => r.Tags)
+                .FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
+            if (recipe == null) return NotFound("Recipe not found.");
+
+            var tag = await _context.Tags.FirstOrDefaultAsync(t => t.Id == tagId && t.UserId == userId);
+            if (tag == null) return NotFound("Tag not found.");
+
+            if (!recipe.Tags.Any(t => t.Id == tagId))
+            {
+                recipe.Tags.Add(tag);
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new TagDto(tag.Id, tag.Name, tag.Color));
+        }
+
+        // DELETE /api/recipes/{id}/tags/{tagId}
+        [HttpDelete("{id}/tags/{tagId}")]
+        public async Task<IActionResult> RemoveTag(Guid id, Guid tagId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var recipe = await _context.Recipes
+                .Include(r => r.Tags)
+                .FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
+            if (recipe == null) return NotFound("Recipe not found.");
+
+            var tag = recipe.Tags.FirstOrDefault(t => t.Id == tagId);
+            if (tag != null)
+            {
+                recipe.Tags.Remove(tag);
+                await _context.SaveChangesAsync();
+            }
+
+            return NoContent();
+        }
     }
 }

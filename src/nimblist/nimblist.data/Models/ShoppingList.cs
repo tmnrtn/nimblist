@@ -30,5 +30,8 @@ namespace Nimblist.Data.Models
         public virtual ICollection<Item> Items { get; set; } = new List<Item>(); // Initialize collection
 
         public virtual ICollection<ListShare> ListShares { get; set; } = new List<ListShare>();
+
+        /// <summary>When true this list is a reusable template and does not appear in the active lists view.</summary>
+        public bool IsTemplate { get; set; } = false;
     }
 }

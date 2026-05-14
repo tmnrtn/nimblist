@@ -156,6 +156,29 @@ namespace Nimblist.api.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
 
+            // Check for an existing unchecked item with the same name on this list
+            var duplicate = await _context.Items
+                .Include(i => i.Category)
+                .Include(i => i.SubCategory)
+                .FirstOrDefaultAsync(i =>
+                    i.ShoppingListId == itemDto.ShoppingListId &&
+                    !i.IsChecked &&
+                    i.Name.ToLower() == itemDto.Name.ToLower());
+
+            if (duplicate != null)
+            {
+                // Merge quantities and return the updated item rather than creating a new row
+                duplicate.Quantity = Services.QuantityHelper.Merge(duplicate.Quantity, itemDto.Quantity);
+                await _context.SaveChangesAsync();
+
+                var mergedDto = ConvertToItemDto(duplicate);
+                string mergedGroup = $"list_{duplicate.ShoppingListId}";
+                await _hubContext.Clients.Group(mergedGroup).SendAsync("ReceiveItemUpdated", mergedDto);
+                Console.WriteLine($"--> SignalR: Sent ReceiveItemUpdated (merged duplicate) to {mergedGroup} for item {duplicate.Id}");
+
+                return Ok(mergedDto);
+            }
+
             var (foundCategoryId, foundSubCategoryId) = await _classificationService.ClassifyAsync(itemDto.Name);
 
             var item = new Item
@@ -177,8 +200,6 @@ namespace Nimblist.api.Controllers
 
             // --- Send SignalR Update ---
             string groupName = $"list_{item.ShoppingListId}";
-            // Message name "ReceiveItemAdded" must match client listener
-            // Convert to DTO with category information
             var itemWithCategory = ConvertToItemDto(item);
             await _hubContext.Clients.Group(groupName).SendAsync("ReceiveItemAdded", itemWithCategory);
             Console.WriteLine($"--> SignalR: Sent ReceiveItemAdded to {groupName} for item {item.Id}");

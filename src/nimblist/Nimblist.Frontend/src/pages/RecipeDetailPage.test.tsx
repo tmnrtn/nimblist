@@ -12,6 +12,9 @@ vi.mock("../components/SharePanel", () => ({
     <div data-testid="share-panel">{isOwner ? "owner-share" : "non-owner-share"}</div>
   ),
 }));
+vi.mock("../components/ImageSearchModal", () => ({
+  default: () => null,
+}));
 
 const mockFetch = authenticatedFetch as MockedFunction<typeof authenticatedFetch>;
 
@@ -30,11 +33,20 @@ const recipe: RecipeDetail = {
     { id: "i2", text: "Tomato sauce", parsedName: null, parsedQuantity: null, sortOrder: 1 },
   ],
   isOwned: true,
+  tags: [],
 };
 
 const list1: ShoppingList = {
   id: "sl1", name: "Groceries", createdAt: "2026-01-01T00:00:00Z", userId: "u1", items: [],
 };
+
+/** Mock the 3 initial-load calls: recipe, shoppinglists, tags */
+function mockLoad(r = recipe, lists = [list1]) {
+  mockFetch
+    .mockReturnValueOnce(jsonResponse(r))
+    .mockReturnValueOnce(jsonResponse(lists))
+    .mockReturnValueOnce(jsonResponse([])); // /api/tags
+}
 
 function renderPage(recipeId = "r1") {
   return render(
@@ -58,20 +70,14 @@ describe("RecipeDetailPage", () => {
   });
 
   it("renders recipe title and description", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([list1]));
-
+    mockLoad();
     renderPage();
     await waitFor(() => expect(screen.getByText("Pasta")).toBeInTheDocument());
     expect(screen.getByText("A classic.")).toBeInTheDocument();
   });
 
   it("renders ingredients list", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([list1]));
-
+    mockLoad();
     renderPage();
     await waitFor(() => screen.getByText("Pasta"));
     expect(screen.getByText("pasta")).toBeInTheDocument();
@@ -79,29 +85,20 @@ describe("RecipeDetailPage", () => {
   });
 
   it("renders instruction steps", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([list1]));
-
+    mockLoad();
     renderPage();
     await waitFor(() => screen.getByText("Boil water."));
     expect(screen.getByText("Cook pasta.")).toBeInTheDocument();
   });
 
   it("shows Edit button for owned recipes", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([list1]));
-
+    mockLoad();
     renderPage();
     await waitFor(() => expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument());
   });
 
   it("hides Edit button for non-owned recipes", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse({ ...recipe, isOwned: false }))
-      .mockReturnValueOnce(jsonResponse([list1]));
-
+    mockLoad({ ...recipe, isOwned: false });
     renderPage();
     await waitFor(() => screen.getByText("Pasta"));
     expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
@@ -114,10 +111,7 @@ describe("RecipeDetailPage", () => {
   });
 
   it("entering edit mode pre-fills title", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([list1]));
-
+    mockLoad();
     renderPage();
     await waitFor(() => screen.getByRole("button", { name: /edit/i }));
     fireEvent.click(screen.getByRole("button", { name: /edit/i }));
@@ -127,10 +121,7 @@ describe("RecipeDetailPage", () => {
   });
 
   it("cancel edit returns to view mode", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([list1]));
-
+    mockLoad();
     renderPage();
     await waitFor(() => screen.getByRole("button", { name: /edit/i }));
     fireEvent.click(screen.getByRole("button", { name: /edit/i }));
@@ -141,10 +132,9 @@ describe("RecipeDetailPage", () => {
 
   it("save PUT request updates recipe and exits edit mode", async () => {
     const updated = { ...recipe, title: "Updated Pasta" };
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([list1]))
-      .mockReturnValueOnce(jsonResponse(updated));
+    mockLoad();
+    // PUT response (save changes)
+    mockFetch.mockReturnValueOnce(jsonResponse(updated));
 
     renderPage();
     await waitFor(() => screen.getByRole("button", { name: /edit/i }));
@@ -158,10 +148,9 @@ describe("RecipeDetailPage", () => {
   });
 
   it("shows save error on failed PUT", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([list1]))
-      .mockReturnValueOnce(jsonResponse({ title: "Validation failed" }, false, 400));
+    mockLoad();
+    // PUT response (fails)
+    mockFetch.mockReturnValueOnce(jsonResponse({ title: "Validation failed" }, false, 400));
 
     renderPage();
     await waitFor(() => screen.getByRole("button", { name: /edit/i }));
@@ -172,29 +161,22 @@ describe("RecipeDetailPage", () => {
   });
 
   it("shows list dropdown and Add to list button when lists exist", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([list1]));
-
+    mockLoad();
     renderPage();
     await waitFor(() => expect(screen.getByRole("button", { name: /add to list/i })).toBeInTheDocument());
     expect(screen.getByRole("option", { name: "Groceries" })).toBeInTheDocument();
   });
 
   it("shows 'no lists yet' when lists are empty", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([]));
-
+    mockLoad(recipe, []);
     renderPage();
     await waitFor(() => expect(screen.getByText(/no lists yet/i)).toBeInTheDocument());
   });
 
   it("Add to list shows ingredient count on success", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([list1]))
-      .mockReturnValueOnce(jsonResponse({ addedCount: 2 }));
+    mockLoad();
+    // addtolist POST response
+    mockFetch.mockReturnValueOnce(jsonResponse({ addedCount: 2 }));
 
     renderPage();
     await waitFor(() => screen.getByRole("button", { name: /add to list/i }));
@@ -204,10 +186,7 @@ describe("RecipeDetailPage", () => {
   });
 
   it("shows SharePanel for recipes", async () => {
-    mockFetch
-      .mockReturnValueOnce(jsonResponse(recipe))
-      .mockReturnValueOnce(jsonResponse([list1]));
-
+    mockLoad();
     renderPage();
     await waitFor(() => expect(screen.getByTestId("share-panel")).toBeInTheDocument());
   });

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Nimblist.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nimblist.data.Migrations
 {
     [DbContext(typeof(NimblistContext))]
-    partial class NimblistContextModelSnapshot : ModelSnapshot
+    [Migration("20260514130623_AddIsTemplateToShoppingList")]
+    partial class AddIsTemplateToShoppingList
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -714,33 +717,6 @@ namespace Nimblist.data.Migrations
                     b.ToTable("SubCategories");
                 });
 
-            modelBuilder.Entity("Nimblist.Data.Models.Tag", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Color")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("IX_Tags_UserId");
-
-                    b.ToTable("Tags");
-                });
-
             modelBuilder.Entity("Nimblist.Data.Models.UserPushSubscription", b =>
                 {
                     b.Property<Guid>("Id")
@@ -779,21 +755,6 @@ namespace Nimblist.data.Migrations
                         .HasDatabaseName("IX_PushSubscriptions_UserId");
 
                     b.ToTable("PushSubscriptions");
-                });
-
-            modelBuilder.Entity("RecipeTag", b =>
-                {
-                    b.Property<Guid>("RecipesId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TagsId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("RecipesId", "TagsId");
-
-                    b.HasIndex("TagsId");
-
-                    b.ToTable("RecipeTag", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1080,17 +1041,6 @@ namespace Nimblist.data.Migrations
                     b.Navigation("ParentCategory");
                 });
 
-            modelBuilder.Entity("Nimblist.Data.Models.Tag", b =>
-                {
-                    b.HasOne("Nimblist.Data.Models.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Nimblist.Data.Models.UserPushSubscription", b =>
                 {
                     b.HasOne("Nimblist.Data.Models.ApplicationUser", "User")
@@ -1100,21 +1050,6 @@ namespace Nimblist.data.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("RecipeTag", b =>
-                {
-                    b.HasOne("Nimblist.Data.Models.Recipe", null)
-                        .WithMany()
-                        .HasForeignKey("RecipesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Nimblist.Data.Models.Tag", null)
-                        .WithMany()
-                        .HasForeignKey("TagsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("Nimblist.Data.Models.ApplicationUser", b =>

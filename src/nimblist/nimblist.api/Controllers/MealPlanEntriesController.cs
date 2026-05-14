@@ -93,6 +93,113 @@ namespace Nimblist.api.Controllers
             return NoContent();
         }
 
+        public record AddWeekToListRequest(Guid MealPlanId, Guid ListId, DateOnly WeekStart);
+
+        // POST /api/mealplanentries/addweektolist
+        [HttpPost("addweektolist")]
+        public async Task<ActionResult> AddWeekToList([FromBody] AddWeekToListRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var accessibleIds = await GetAccessibleMealPlanIdsAsync(userId);
+            if (!accessibleIds.Contains(request.MealPlanId)) return NotFound("Meal plan not found.");
+
+            var listExists = await _context.ShoppingLists.AnyAsync(sl => sl.Id == request.ListId && sl.UserId == userId);
+            if (!listExists) return NotFound("Shopping list not found.");
+
+            var weekEnd = request.WeekStart.AddDays(7);
+
+            var entries = await _context.MealPlanEntries
+                .Include(e => e.Recipe)
+                    .ThenInclude(r => r!.Ingredients)
+                .Where(e => e.MealPlanId == request.MealPlanId
+                         && e.PlannedDate >= request.WeekStart
+                         && e.PlannedDate < weekEnd)
+                .ToListAsync();
+
+            if (entries.Count == 0)
+                return Ok(new { addedCount = 0, mergedCount = 0, message = "No meals planned for this week." });
+
+            // Load existing unchecked items; track IDs so we can send correct SignalR events
+            var existingItems = await _context.Items
+                .Where(i => i.ShoppingListId == request.ListId && !i.IsChecked)
+                .ToListAsync();
+            var preExistingIds = existingItems.Select(i => i.Id).ToHashSet();
+            var mergedIds = new HashSet<Guid>();
+
+            int addedCount = 0, mergedCount = 0;
+
+            foreach (var entry in entries)
+            {
+                foreach (var ingredient in entry.Recipe!.Ingredients.OrderBy(i => i.SortOrder))
+                {
+                    var itemName = ingredient.ParsedName ?? ingredient.Text;
+                    var quantity = ingredient.ParsedQuantity;
+
+                    var existing = existingItems.FirstOrDefault(i =>
+                        string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
+
+                    if (existing != null)
+                    {
+                        existing.Quantity = Services.QuantityHelper.Merge(existing.Quantity, quantity);
+                        mergedIds.Add(existing.Id);
+                        mergedCount++;
+                    }
+                    else
+                    {
+                        var (categoryId, subCategoryId) = await _classificationService.ClassifyAsync(itemName);
+                        var item = new Item
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = itemName,
+                            Quantity = quantity,
+                            ShoppingListId = request.ListId,
+                            CategoryId = categoryId,
+                            SubCategoryId = subCategoryId,
+                            IsChecked = false,
+                            AddedAt = DateTimeOffset.UtcNow,
+                        };
+                        _context.Items.Add(item);
+                        existingItems.Add(item);
+                        addedCount++;
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Reload affected items with navigation props and broadcast per-item SignalR events
+            var affectedIds = existingItems.Select(i => i.Id).ToHashSet();
+            var reloaded = await _context.Items
+                .Include(i => i.Category)
+                .Include(i => i.SubCategory)
+                .Where(i => affectedIds.Contains(i.Id))
+                .ToListAsync();
+
+            var group = $"list_{request.ListId}";
+            foreach (var item in reloaded)
+            {
+                var dto = new ItemWithCategoryDto
+                {
+                    Id = item.Id,
+                    Name = item.Name,
+                    Quantity = item.Quantity,
+                    IsChecked = item.IsChecked,
+                    AddedAt = item.AddedAt,
+                    ShoppingListId = item.ShoppingListId,
+                    CategoryId = item.CategoryId,
+                    CategoryName = item.Category?.Name,
+                    SubCategoryId = item.SubCategoryId,
+                    SubCategoryName = item.SubCategory?.Name,
+                };
+                var eventName = preExistingIds.Contains(item.Id) ? "ReceiveItemUpdated" : "ReceiveItemAdded";
+                await _hubContext.Clients.Group(group).SendAsync(eventName, dto);
+            }
+
+            return Ok(new { addedCount, mergedCount });
+        }
+
         // POST /api/mealplanentries/{id}/addtolist/{listId}
         [HttpPost("{id}/addtolist/{listId}")]
         public async Task<ActionResult> AddEntryToList(Guid id, Guid listId)

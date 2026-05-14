@@ -19,6 +19,7 @@ export interface Item {
     createdAt: string;
     userId: string;
     items: Item[];
+    isTemplate?: boolean;
   }
 
   export interface RecipeIngredient {
@@ -27,6 +28,12 @@ export interface Item {
     parsedName: string | null;
     parsedQuantity: string | null;
     sortOrder: number;
+  }
+
+  export interface Tag {
+    id: string;
+    name: string;
+    color: string | null;
   }
 
   export interface RecipeSummary {
@@ -38,6 +45,7 @@ export interface Item {
     ingredientCount: number;
     createdAt: string;
     isOwned: boolean;
+    tags: Tag[];
   }
 
   export interface FamilyMemberDetail {
@@ -117,4 +125,5 @@ export interface Item {
     createdAt: string;
     ingredients: RecipeIngredient[];
     isOwned: boolean;
+    tags: Tag[];
   }

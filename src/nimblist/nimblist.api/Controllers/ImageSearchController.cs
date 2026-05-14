@@ -37,7 +37,7 @@ namespace Nimblist.api.Controllers
             var url = $"https://api.search.brave.com/res/v1/images/search"
                     + $"?q={Uri.EscapeDataString(q)}"
                     + $"&count=10"
-                    + $"&safesearch=moderate";
+                    + $"&safesearch=strict";
 
             try
             {

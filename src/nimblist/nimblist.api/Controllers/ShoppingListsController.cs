@@ -98,6 +98,7 @@ namespace Nimblist.api.Controllers
                 Name = shoppingList.Name,
                 UserId = shoppingList.UserId,
                 CreatedAt = shoppingList.CreatedAt,
+                IsTemplate = shoppingList.IsTemplate,
                 Items = ConvertToItemDtos(shoppingList.Items)
             };
         }
@@ -115,6 +116,136 @@ namespace Nimblist.api.Controllers
             var result = userShoppingLists.Select(list => ConvertToShoppingListDto(list)).ToList();
 
             return Ok(result);
+        }
+
+        // GET: api/ShoppingLists/templates
+        [HttpGet("templates")]
+        public async Task<ActionResult<IEnumerable<ShoppingListWithItemsDto>>> GetTemplates()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
+
+            var templates = await _context.ShoppingLists
+                .Where(sl => sl.UserId == userId && sl.IsTemplate)
+                .Include(sl => sl.Items).ThenInclude(i => i.Category)
+                .Include(sl => sl.Items).ThenInclude(i => i.SubCategory)
+                .Include(sl => sl.Items).ThenInclude(i => i.Recipe)
+                .OrderByDescending(sl => sl.CreatedAt)
+                .ToListAsync();
+
+            return Ok(templates.Select(ConvertToShoppingListDto));
+        }
+
+        // POST: api/ShoppingLists/{id}/createfrom
+        [HttpPost("{id}/createfrom")]
+        public async Task<ActionResult<ShoppingListWithItemsDto>> CreateFromTemplate(Guid id, [FromBody] ShoppingListInputDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
+
+            var template = await _context.ShoppingLists
+                .Include(sl => sl.Items)
+                .FirstOrDefaultAsync(sl => sl.Id == id && sl.UserId == userId && sl.IsTemplate);
+
+            if (template == null) return NotFound("Template not found.");
+
+            var newList = new ShoppingList
+            {
+                Name = dto.Name,
+                UserId = userId,
+                CreatedAt = DateTimeOffset.UtcNow,
+                IsTemplate = false,
+            };
+
+            _context.ShoppingLists.Add(newList);
+            await _context.SaveChangesAsync();
+
+            // Copy items from template
+            foreach (var templateItem in template.Items)
+            {
+                _context.Items.Add(new Item
+                {
+                    Name = templateItem.Name,
+                    Quantity = templateItem.Quantity,
+                    IsChecked = false,
+                    ShoppingListId = newList.Id,
+                    CategoryId = templateItem.CategoryId,
+                    SubCategoryId = templateItem.SubCategoryId,
+                    AddedAt = DateTimeOffset.UtcNow,
+                });
+            }
+            await _context.SaveChangesAsync();
+
+            // Add owner share
+            _context.ListShares.Add(new ListShare { UserId = userId, ListId = newList.Id });
+            await _context.SaveChangesAsync();
+
+            // Reload with navigation properties for DTO
+            var created = await _context.ShoppingLists
+                .Include(sl => sl.Items).ThenInclude(i => i.Category)
+                .Include(sl => sl.Items).ThenInclude(i => i.SubCategory)
+                .Include(sl => sl.Items).ThenInclude(i => i.Recipe)
+                .FirstAsync(sl => sl.Id == newList.Id);
+
+            return CreatedAtAction(nameof(GetShoppingList), new { id = created.Id }, ConvertToShoppingListDto(created));
+        }
+
+        // POST: api/ShoppingLists/{templateId}/appendto/{listId}
+        [HttpPost("{templateId}/appendto/{listId}")]
+        public async Task<ActionResult> AppendTemplateToList(Guid templateId, Guid listId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
+
+            var template = await _context.ShoppingLists
+                .Include(sl => sl.Items)
+                .FirstOrDefaultAsync(sl => sl.Id == templateId && sl.UserId == userId && sl.IsTemplate);
+
+            if (template == null) return NotFound("Template not found.");
+
+            // Target list must be accessible (owned or shared)
+            var accessibleLists = await GetUserShoppingLists(userId);
+            var targetList = accessibleLists.FirstOrDefault(sl => sl.Id == listId);
+            if (targetList == null) return NotFound("Shopping list not found.");
+
+            // Load existing unchecked items for deduplication
+            var existingItems = await _context.Items
+                .Where(i => i.ShoppingListId == listId && !i.IsChecked)
+                .ToListAsync();
+
+            int addedCount = 0, mergedCount = 0;
+
+            foreach (var templateItem in template.Items)
+            {
+                var existing = existingItems.FirstOrDefault(i =>
+                    string.Equals(i.Name, templateItem.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                {
+                    existing.Quantity = Services.QuantityHelper.Merge(existing.Quantity, templateItem.Quantity);
+                    mergedCount++;
+                }
+                else
+                {
+                    var newItem = new Item
+                    {
+                        Name = templateItem.Name,
+                        Quantity = templateItem.Quantity,
+                        IsChecked = false,
+                        ShoppingListId = listId,
+                        CategoryId = templateItem.CategoryId,
+                        SubCategoryId = templateItem.SubCategoryId,
+                        AddedAt = DateTimeOffset.UtcNow,
+                    };
+                    _context.Items.Add(newItem);
+                    existingItems.Add(newItem);
+                    addedCount++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { addedCount, mergedCount });
         }
 
         // GET: api/ShoppingLists/5
@@ -163,6 +294,7 @@ namespace Nimblist.api.Controllers
 
             // Update only allowed properties from DTO
             existingList.Name = listDto.Name;
+            existingList.IsTemplate = listDto.IsTemplate;
 
             try
             {
@@ -185,8 +317,9 @@ namespace Nimblist.api.Controllers
             var shoppingList = new ShoppingList
             {
                 Name = listDto.Name,
-                UserId = userId, // <<< Assign the current user's ID
-                CreatedAt = DateTimeOffset.UtcNow // Set server-side
+                UserId = userId,
+                CreatedAt = DateTimeOffset.UtcNow,
+                IsTemplate = listDto.IsTemplate,
             };
             // EF Core generates the Guid Id automatically
 
@@ -209,7 +342,8 @@ namespace Nimblist.api.Controllers
                 Name = shoppingList.Name,
                 UserId = shoppingList.UserId,
                 CreatedAt = shoppingList.CreatedAt,
-                Items = new List<ItemWithCategoryDto>() // Empty list for a new shopping list
+                IsTemplate = shoppingList.IsTemplate,
+                Items = new List<ItemWithCategoryDto>()
             };
 
             return CreatedAtAction(nameof(GetShoppingList), new { id = shoppingList.Id }, shoppingListDto);

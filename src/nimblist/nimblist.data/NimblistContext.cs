@@ -27,6 +27,7 @@ namespace Nimblist.Data
         public virtual DbSet<MealPlanShare> MealPlanShares { get; set; } = null!;
         public virtual DbSet<LlmSettings> LlmSettings { get; set; } = null!;
         public virtual DbSet<UserPushSubscription> PushSubscriptions { get; set; } = null!;
+        public virtual DbSet<Tag> Tags { get; set; } = null!;
 
         // Constructor needed for dependency injection.
         // It accepts DbContextOptions, allowing the configuration (like connection string)
@@ -309,6 +310,28 @@ namespace Nimblist.Data
                 entity.HasIndex(s => s.Endpoint).IsUnique().HasDatabaseName("IX_PushSubscriptions_Endpoint");
                 entity.HasIndex(s => s.UserId).HasDatabaseName("IX_PushSubscriptions_UserId");
             });
+
+            // Tag — user-scoped, many-to-many with Recipe
+            builder.Entity<ApplicationUser>()
+                .HasMany<Tag>()
+                .WithOne(t => t.User)
+                .HasForeignKey(t => t.UserId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Tag>(entity =>
+            {
+                entity.HasKey(t => t.Id);
+                entity.Property(t => t.Name).HasMaxLength(50).IsRequired();
+                entity.Property(t => t.Color).HasMaxLength(20);
+                entity.HasIndex(t => t.UserId).HasDatabaseName("IX_Tags_UserId");
+            });
+
+            // Implicit many-to-many join table: RecipeTag
+            builder.Entity<Recipe>()
+                .HasMany(r => r.Tags)
+                .WithMany(t => t.Recipes)
+                .UsingEntity(j => j.ToTable("RecipeTag"));
 
             // === PostgreSQL Specific Configuration (Optional Examples) ===
 

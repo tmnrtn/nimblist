@@ -11,5 +11,6 @@ namespace Nimblist.api.DTO
         public string UserId { get; set; } = string.Empty;
         public DateTimeOffset CreatedAt { get; set; }
         public List<ItemWithCategoryDto> Items { get; set; } = new List<ItemWithCategoryDto>();
+        public bool IsTemplate { get; set; }
     }
 }

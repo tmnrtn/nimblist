@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { authenticatedFetch } from '../components/HttpHelper';
-import { RecipeDetail, ShoppingList } from '../types/index';
+import { RecipeDetail, ShoppingList, Tag } from '../types/index';
 import SharePanel from '../components/SharePanel';
 import ImageSearchModal from '../components/ImageSearchModal';
 import { transformQuantity, hasAnyImperialUnit } from '../utils/ingredientScaling';
@@ -12,9 +12,37 @@ interface EditIngredient {
   parsedQuantity: string | null;
 }
 
+const TAG_COLORS = [
+  { name: 'red',    bg: 'bg-red-100',    text: 'text-red-700',    dot: 'bg-red-500'    },
+  { name: 'orange', bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
+  { name: 'yellow', bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500' },
+  { name: 'green',  bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500'  },
+  { name: 'teal',   bg: 'bg-teal-100',   text: 'text-teal-700',   dot: 'bg-teal-500'   },
+  { name: 'blue',   bg: 'bg-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500'   },
+  { name: 'indigo', bg: 'bg-indigo-100', text: 'text-indigo-700', dot: 'bg-indigo-500' },
+  { name: 'purple', bg: 'bg-purple-100', text: 'text-purple-700', dot: 'bg-purple-500' },
+  { name: 'pink',   bg: 'bg-pink-100',   text: 'text-pink-700',   dot: 'bg-pink-500'   },
+  { name: 'gray',   bg: 'bg-gray-100',   text: 'text-gray-600',   dot: 'bg-gray-400'   },
+] as const;
+
+function getTagColor(color: string | null) {
+  return TAG_COLORS.find(c => c.name === color) ?? TAG_COLORS[TAG_COLORS.length - 1];
+}
+
+function TagChip({ tag }: { tag: Tag }) {
+  const c = getTagColor(tag.color);
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+      {tag.name}
+    </span>
+  );
+}
+
 const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
   const [recipe, setRecipe] = useState<RecipeDetail | null>(null);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,20 +66,26 @@ const RecipeDetailPage: React.FC = () => {
   const [editImageUrl, setEditImageUrl] = useState('');
   const [editInstructions, setEditInstructions] = useState('');
   const [editIngredients, setEditIngredients] = useState<EditIngredient[]>([]);
+  const [editTagIds, setEditTagIds] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showImageSearch, setShowImageSearch] = useState(false);
+
+  const activeLists = lists.filter(l => !l.isTemplate);
 
   useEffect(() => {
     if (!recipeId) return;
     Promise.all([
       authenticatedFetch(`/api/recipes/${recipeId}`).then(r => r.json()),
       authenticatedFetch('/api/shoppinglists').then(r => r.json()),
+      authenticatedFetch('/api/tags').then(r => r.json()),
     ])
-      .then(([recipeData, listsData]) => {
+      .then(([recipeData, listsData, tagsData]) => {
         setRecipe(recipeData);
-        setLists(listsData);
-        if (listsData.length > 0) setSelectedListId(listsData[0].id);
+        setLists(Array.isArray(listsData) ? listsData : []);
+        setAllTags(Array.isArray(tagsData) ? tagsData : []);
+        const active = (Array.isArray(listsData) ? listsData as ShoppingList[] : []).filter(l => !l.isTemplate);
+        if (active.length > 0) setSelectedListId(active[0].id);
       })
       .catch(() => setError('Failed to load recipe.'))
       .finally(() => setIsLoading(false));
@@ -70,6 +104,7 @@ const RecipeDetailPage: React.FC = () => {
         ? recipe.ingredients.map(i => ({ text: i.text, parsedName: i.parsedName, parsedQuantity: i.parsedQuantity }))
         : [{ text: '', parsedName: null, parsedQuantity: null }]
     );
+    setEditTagIds(new Set(recipe.tags.map(t => t.id)));
     setSaveError(null);
     setIsEditing(true);
   };
@@ -89,6 +124,14 @@ const RecipeDetailPage: React.FC = () => {
   const removeIngredientRow = (index: number) => {
     if (editIngredients.length === 1) return;
     setEditIngredients(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleEditTag = (tagId: string) => {
+    setEditTagIds(prev => {
+      const next = new Set(prev);
+      if (next.has(tagId)) next.delete(tagId); else next.add(tagId);
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -116,14 +159,27 @@ const RecipeDetailPage: React.FC = () => {
           })),
         }),
       });
-      if (response.ok) {
-        const updated: RecipeDetail = await response.json();
-        setRecipe(updated);
-        setIsEditing(false);
-      } else {
+      if (!response.ok) {
         const body = await response.json().catch(() => null);
         setSaveError(body?.title ?? `Failed to save (${response.status})`);
+        return;
       }
+      const updated: RecipeDetail = await response.json();
+
+      // Sync tags: add new ones, remove deselected ones
+      const originalTagIds = new Set(recipe?.tags.map(t => t.id) ?? []);
+      const toAdd = [...editTagIds].filter(id => !originalTagIds.has(id));
+      const toRemove = [...originalTagIds].filter(id => !editTagIds.has(id));
+
+      await Promise.all([
+        ...toAdd.map(id => authenticatedFetch(`/api/recipes/${recipeId}/tags/${id}`, { method: 'POST' })),
+        ...toRemove.map(id => authenticatedFetch(`/api/recipes/${recipeId}/tags/${id}`, { method: 'DELETE' })),
+      ]);
+
+      // Compute updated tags from local state (avoids an extra network round-trip)
+      const newTags = allTags.filter(t => editTagIds.has(t.id));
+      setRecipe({ ...updated, tags: newTags });
+      setIsEditing(false);
     } catch {
       setSaveError('Network error — could not save changes.');
     } finally {
@@ -278,7 +334,7 @@ const RecipeDetailPage: React.FC = () => {
                   type="button"
                   onClick={() => setShowImageSearch(true)}
                   disabled={isSaving}
-                  title="Search Google Images"
+                  title="Search for images"
                   className="px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 hover:border-indigo-400 disabled:opacity-30 transition-colors flex items-center gap-1"
                 >
                   🔍 Find image
@@ -297,6 +353,38 @@ const RecipeDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Tags picker */}
+          {allTags.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-2">Tags</label>
+              <div className="flex flex-wrap gap-2">
+                {allTags.map(tag => {
+                  const selected = editTagIds.has(tag.id);
+                  const c = getTagColor(tag.color);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleEditTag(tag.id)}
+                      disabled={isSaving}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
+                        selected
+                          ? `${c.bg} ${c.text} border-current ring-1 ring-current`
+                          : 'bg-white text-gray-500 border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${selected ? c.dot : 'bg-gray-300'}`} />
+                      {tag.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                Manage tags from the <Link to="/recipes" className="underline hover:text-gray-600">Recipes page</Link>.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-2">Ingredients</label>
@@ -401,6 +489,12 @@ const RecipeDetailPage: React.FC = () => {
               {recipe.description && (
                 <p className="mt-2 text-sm text-gray-600">{recipe.description}</p>
               )}
+              {/* Tags */}
+              {recipe.tags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {recipe.tags.map(tag => <TagChip key={tag.id} tag={tag} />)}
+                </div>
+              )}
             </div>
           </div>
 
@@ -409,7 +503,7 @@ const RecipeDetailPage: React.FC = () => {
             <h3 className="font-semibold text-gray-700">Add ingredients to a shopping list</h3>
             {addResult && <p className="text-sm text-green-700 bg-green-50 p-2 rounded">{addResult}</p>}
             {addError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{addError}</p>}
-            {lists.length === 0 ? (
+            {activeLists.length === 0 ? (
               <p className="text-sm text-gray-500">
                 No lists yet. <Link to="/lists" className="text-blue-500 hover:underline">Create one</Link> first.
               </p>
@@ -421,7 +515,7 @@ const RecipeDetailPage: React.FC = () => {
                   className="flex-grow px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   disabled={isAdding}
                 >
-                  {lists.map(l => (
+                  {activeLists.map(l => (
                     <option key={l.id} value={l.id}>{l.name}</option>
                   ))}
                 </select>

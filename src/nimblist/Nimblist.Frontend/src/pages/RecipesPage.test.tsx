@@ -17,12 +17,12 @@ function jsonResponse(data: unknown, ok = true, status = 200) {
 const recipe1: RecipeSummary = {
   id: "r1", title: "Pasta Bolognese", imageUrl: null,
   yields: "4 servings", totalTimeMinutes: 30,
-  ingredientCount: 5, createdAt: "2026-01-01T00:00:00Z", isOwned: true,
+  ingredientCount: 5, createdAt: "2026-01-01T00:00:00Z", isOwned: true, tags: [],
 };
 const recipe2: RecipeSummary = {
   id: "r2", title: "Shared Recipe", imageUrl: null,
   yields: null, totalTimeMinutes: null,
-  ingredientCount: 2, createdAt: "2026-01-02T00:00:00Z", isOwned: false,
+  ingredientCount: 2, createdAt: "2026-01-02T00:00:00Z", isOwned: false, tags: [],
 };
 const list1: ShoppingList = {
   id: "l1", name: "My List", createdAt: "2026-01-01T00:00:00Z", userId: "u1", items: []
@@ -41,6 +41,7 @@ describe("RecipesPage", () => {
     mockFetch.mockImplementation((url) => {
       if (url === '/api/recipes') return jsonResponse([]);
       if (url === '/api/shoppinglists') return jsonResponse([list1]);
+      if (url === '/api/tags') return jsonResponse([]);
       return jsonResponse(null);
     });
   });
