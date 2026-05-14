@@ -30,6 +30,12 @@ export interface Item {
     sortOrder: number;
   }
 
+  export interface Tag {
+    id: string;
+    name: string;
+    color: string | null;
+  }
+
   export interface RecipeSummary {
     id: string;
     title: string;
@@ -39,6 +45,7 @@ export interface Item {
     ingredientCount: number;
     createdAt: string;
     isOwned: boolean;
+    tags: Tag[];
   }
 
   export interface FamilyMemberDetail {
@@ -118,4 +125,5 @@ export interface Item {
     createdAt: string;
     ingredients: RecipeIngredient[];
     isOwned: boolean;
+    tags: Tag[];
   }

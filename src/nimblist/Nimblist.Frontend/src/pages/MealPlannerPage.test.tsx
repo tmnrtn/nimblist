@@ -18,7 +18,7 @@ function jsonResponse(data: unknown, ok = true) {
 }
 
 const plan1: MealPlanSummary = { id: "p1", name: "Week 1", ownerId: "u1", isOwned: true, createdAt: "" };
-const recipe1: RecipeSummary = { id: "r1", title: "Pasta", imageUrl: null, yields: null, totalTimeMinutes: null, ingredientCount: 2, createdAt: "", isOwned: true };
+const recipe1: RecipeSummary = { id: "r1", title: "Pasta", imageUrl: null, yields: null, totalTimeMinutes: null, ingredientCount: 2, createdAt: "", isOwned: true, tags: [] };
 const list1: ShoppingList = { id: "sl1", name: "Groceries", createdAt: "", userId: "u1", items: [] };
 
 // Monday of the week containing 2026-05-04

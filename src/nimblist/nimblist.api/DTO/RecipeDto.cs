@@ -17,6 +17,10 @@ namespace Nimblist.api.DTO
         List<RecipeIngredientInputDto> Ingredients
     );
 
+    public record TagDto(Guid Id, string Name, string? Color);
+
+    public record TagInputDto(string Name, string? Color);
+
     public record RecipeSummaryDto(
         Guid Id,
         string Title,
@@ -25,7 +29,8 @@ namespace Nimblist.api.DTO
         int? TotalTimeMinutes,
         int IngredientCount,
         DateTimeOffset CreatedAt,
-        bool IsOwned
+        bool IsOwned,
+        List<TagDto> Tags
     );
 
     public record RecipeDetailDto(
@@ -39,7 +44,8 @@ namespace Nimblist.api.DTO
         string? Instructions,
         DateTimeOffset CreatedAt,
         List<RecipeIngredientDto> Ingredients,
-        bool IsOwned
+        bool IsOwned,
+        List<TagDto> Tags
     );
 
     public class ScraperIngredientDto

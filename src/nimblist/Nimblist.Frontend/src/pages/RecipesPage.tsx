@@ -1,20 +1,64 @@
 import React, { useEffect, useState, FormEvent, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { authenticatedFetch } from '../components/HttpHelper';
-import { RecipeSummary, ShoppingList } from '../types/index';
+import { RecipeSummary, ShoppingList, Tag } from '../types/index';
 
 interface IngredientRow {
   text: string;
 }
 
+const TAG_COLORS = [
+  { name: 'red',    bg: 'bg-red-100',    text: 'text-red-700',    dot: 'bg-red-500'    },
+  { name: 'orange', bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
+  { name: 'yellow', bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500' },
+  { name: 'green',  bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500'  },
+  { name: 'teal',   bg: 'bg-teal-100',   text: 'text-teal-700',   dot: 'bg-teal-500'   },
+  { name: 'blue',   bg: 'bg-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500'   },
+  { name: 'indigo', bg: 'bg-indigo-100', text: 'text-indigo-700', dot: 'bg-indigo-500' },
+  { name: 'purple', bg: 'bg-purple-100', text: 'text-purple-700', dot: 'bg-purple-500' },
+  { name: 'pink',   bg: 'bg-pink-100',   text: 'text-pink-700',   dot: 'bg-pink-500'   },
+  { name: 'gray',   bg: 'bg-gray-100',   text: 'text-gray-600',   dot: 'bg-gray-400'   },
+] as const;
+
+type ColorName = typeof TAG_COLORS[number]['name'];
+
+function getTagColor(color: string | null) {
+  return TAG_COLORS.find(c => c.name === color) ?? TAG_COLORS[TAG_COLORS.length - 1];
+}
+
+function TagChip({ tag, onRemove }: { tag: Tag; onRemove?: () => void }) {
+  const c = getTagColor(tag.color);
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+      {tag.name}
+      {onRemove && (
+        <button onClick={onRemove} className="ml-0.5 hover:opacity-70" aria-label={`Remove tag ${tag.name}`}>
+          ✕
+        </button>
+      )}
+    </span>
+  );
+}
+
 const RecipesPage: React.FC = () => {
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [lists, setLists] = useState<ShoppingList[]>([]);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [filterTagIds, setFilterTagIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [mode, setMode] = useState<'import' | 'image' | 'manual'>('import');
+
+  // Tag management panel state
+  const [showTagPanel, setShowTagPanel] = useState(false);
+  const [tagName, setTagName] = useState('');
+  const [tagColor, setTagColor] = useState<ColorName>('blue');
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [isSavingTag, setIsSavingTag] = useState(false);
+  const [tagError, setTagError] = useState<string | null>(null);
 
   // Import from URL state
   const [importUrl, setImportUrl] = useState('');
@@ -44,19 +88,98 @@ const RecipesPage: React.FC = () => {
   const [isAddingToList, setIsAddingToList] = useState(false);
   const [addToListResult, setAddToListResult] = useState<{ recipeId: string; message: string } | null>(null);
 
+  const activeLists = lists.filter(l => !l.isTemplate);
+
   useEffect(() => {
     Promise.all([
       authenticatedFetch('/api/recipes').then(r => r.json()),
       authenticatedFetch('/api/shoppinglists').then(r => r.json()),
+      authenticatedFetch('/api/tags').then(r => r.json()),
     ])
-      .then(([recipesData, listsData]) => {
-        setRecipes(recipesData);
-        setLists(listsData);
-        if (listsData.length > 0) setSelectedListId(listsData[0].id);
+      .then(([recipesData, listsData, tagsData]) => {
+        setRecipes(Array.isArray(recipesData) ? recipesData : []);
+        setLists(Array.isArray(listsData) ? listsData : []);
+        setAllTags(Array.isArray(tagsData) ? tagsData : []);
+        const active = (Array.isArray(listsData) ? listsData as ShoppingList[] : []).filter(l => !l.isTemplate);
+        if (active.length > 0) setSelectedListId(active[0].id);
       })
       .catch(() => setError('Failed to load recipes.'))
       .finally(() => setIsLoading(false));
   }, []);
+
+  // ── Tag management ──────────────────────────────────────────────────────────
+
+  const resetTagForm = () => {
+    setTagName('');
+    setTagColor('blue');
+    setEditingTagId(null);
+    setTagError(null);
+  };
+
+  const startEditTag = (tag: Tag) => {
+    setEditingTagId(tag.id);
+    setTagName(tag.name);
+    setTagColor((tag.color as ColorName) ?? 'blue');
+    setTagError(null);
+  };
+
+  const handleSaveTag = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!tagName.trim()) return;
+    setIsSavingTag(true);
+    setTagError(null);
+    try {
+      const url = editingTagId ? `/api/tags/${editingTagId}` : '/api/tags';
+      const method = editingTagId ? 'PUT' : 'POST';
+      const response = await authenticatedFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: tagName.trim(), color: tagColor }),
+      });
+      if (response.ok) {
+        const saved: Tag = await response.json();
+        if (editingTagId) {
+          setAllTags(prev => prev.map(t => t.id === editingTagId ? saved : t));
+          // Update tags on recipes
+          setRecipes(prev => prev.map(r => ({
+            ...r,
+            tags: r.tags.map(t => t.id === editingTagId ? saved : t),
+          })));
+        } else {
+          setAllTags(prev => [...prev, saved]);
+        }
+        resetTagForm();
+      } else {
+        const body = await response.json().catch(() => null);
+        setTagError(body?.error ?? `Failed to save tag (${response.status})`);
+      }
+    } catch {
+      setTagError('Network error — could not save tag.');
+    } finally {
+      setIsSavingTag(false);
+    }
+  };
+
+  const handleDeleteTag = async (id: string) => {
+    if (!confirm('Delete this tag? It will be removed from all recipes.')) return;
+    try {
+      await authenticatedFetch(`/api/tags/${id}`, { method: 'DELETE' });
+      setAllTags(prev => prev.filter(t => t.id !== id));
+      setRecipes(prev => prev.map(r => ({ ...r, tags: r.tags.filter(t => t.id !== id) })));
+      setFilterTagIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      if (editingTagId === id) resetTagForm();
+    } catch { /* ignore */ }
+  };
+
+  const toggleFilterTag = (tagId: string) => {
+    setFilterTagIds(prev => {
+      const next = new Set(prev);
+      if (next.has(tagId)) next.delete(tagId); else next.add(tagId);
+      return next;
+    });
+  };
+
+  // ── Import handlers ─────────────────────────────────────────────────────────
 
   const handleImport = async (e: FormEvent) => {
     e.preventDefault();
@@ -75,7 +198,7 @@ const RecipesPage: React.FC = () => {
           { id: newRecipe.id, title: newRecipe.title, imageUrl: newRecipe.imageUrl,
             yields: newRecipe.yields, totalTimeMinutes: newRecipe.totalTimeMinutes,
             ingredientCount: newRecipe.ingredients?.length ?? 0, createdAt: newRecipe.createdAt,
-            isOwned: true },
+            isOwned: true, tags: [] },
           ...prev,
         ]);
         setImportUrl('');
@@ -111,7 +234,6 @@ const RecipesPage: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('image', imageFile);
-      // No Content-Type header — browser sets it with the multipart boundary automatically
       const response = await authenticatedFetch('/api/recipes/import-image', {
         method: 'POST',
         body: formData,
@@ -122,7 +244,7 @@ const RecipesPage: React.FC = () => {
           { id: newRecipe.id, title: newRecipe.title, imageUrl: newRecipe.imageUrl,
             yields: newRecipe.yields, totalTimeMinutes: newRecipe.totalTimeMinutes,
             ingredientCount: newRecipe.ingredients?.length ?? 0, createdAt: newRecipe.createdAt,
-            isOwned: true },
+            isOwned: true, tags: [] },
           ...prev,
         ]);
         setImageFile(null);
@@ -169,7 +291,7 @@ const RecipesPage: React.FC = () => {
           { id: newRecipe.id, title: newRecipe.title, imageUrl: newRecipe.imageUrl,
             yields: newRecipe.yields, totalTimeMinutes: newRecipe.totalTimeMinutes,
             ingredientCount: newRecipe.ingredients?.length ?? 0, createdAt: newRecipe.createdAt,
-            isOwned: true },
+            isOwned: true, tags: [] },
           ...prev,
         ]);
         setTitle(''); setDescription(''); setYields(''); setTotalTimeMinutes('');
@@ -228,6 +350,13 @@ const RecipesPage: React.FC = () => {
     finally { setIsAddingToList(false); }
   };
 
+  // ── Derived filtered list ───────────────────────────────────────────────────
+
+  const q = searchQuery.trim().toLowerCase();
+  const visibleRecipes = recipes
+    .filter(r => filterTagIds.size === 0 || r.tags.some(t => filterTagIds.has(t.id)))
+    .filter(r => !q || r.title.toLowerCase().includes(q) || (r.yields ?? '').toLowerCase().includes(q));
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-800">My Recipes</h2>
@@ -235,40 +364,23 @@ const RecipesPage: React.FC = () => {
       {/* Mode tabs */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex gap-6">
-          <button
-            onClick={() => setMode('import')}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              mode === 'import'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Import from URL
-          </button>
-          <button
-            onClick={() => setMode('image')}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              mode === 'image'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Import from Image
-          </button>
-          <button
-            onClick={() => setMode('manual')}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              mode === 'manual'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Create Manually
-          </button>
+          {(['import', 'image', 'manual'] as const).map(m => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                mode === m
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {m === 'import' ? 'Import from URL' : m === 'image' ? 'Import from Image' : 'Create Manually'}
+            </button>
+          ))}
         </nav>
       </div>
 
-      {/* Import form */}
+      {/* Import from URL */}
       {mode === 'import' && (
         <form onSubmit={handleImport} className="p-4 bg-gray-100 rounded-md border border-gray-200 space-y-3">
           {importError && (
@@ -299,7 +411,7 @@ const RecipesPage: React.FC = () => {
         </form>
       )}
 
-      {/* Import from image form */}
+      {/* Import from image */}
       {mode === 'image' && (
         <form onSubmit={handleImportFromImage} className="p-4 bg-gray-100 rounded-md border border-gray-200 space-y-3">
           {imageImportError && (
@@ -357,7 +469,6 @@ const RecipesPage: React.FC = () => {
           {createError && (
             <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{createError}</p>
           )}
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-gray-600 mb-1">Title *</label>
@@ -403,8 +514,6 @@ const RecipesPage: React.FC = () => {
               />
             </div>
           </div>
-
-          {/* Ingredients */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-2">Ingredients</label>
             <div className="space-y-2">
@@ -414,7 +523,7 @@ const RecipesPage: React.FC = () => {
                     type="text"
                     value={ing.text}
                     onChange={e => updateIngredient(i, e.target.value)}
-                    placeholder={`e.g. 2 cups flour`}
+                    placeholder="e.g. 2 cups flour"
                     disabled={isCreating}
                     className="flex-grow px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-200"
                   />
@@ -439,8 +548,6 @@ const RecipesPage: React.FC = () => {
               + Add ingredient
             </button>
           </div>
-
-          {/* Instructions */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Instructions</label>
             <textarea
@@ -452,7 +559,6 @@ const RecipesPage: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-200"
             />
           </div>
-
           <button
             type="submit"
             disabled={isCreating || !title.trim()}
@@ -462,6 +568,147 @@ const RecipesPage: React.FC = () => {
             {isCreating ? 'Saving…' : 'Save Recipe'}
           </button>
         </form>
+      )}
+
+      {/* ── Tag management panel ─────────────────────────────────────────────── */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <button
+          onClick={() => setShowTagPanel(p => !p)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700"
+        >
+          <span className="flex items-center gap-2">
+            🏷️ Manage Tags
+            {allTags.length > 0 && (
+              <span className="text-xs text-gray-500">({allTags.length})</span>
+            )}
+          </span>
+          <span className="text-gray-400 text-xs">{showTagPanel ? '▲' : '▼'}</span>
+        </button>
+
+        {showTagPanel && (
+          <div className="p-4 space-y-4 bg-white">
+            {/* Existing tags */}
+            {allTags.length > 0 && (
+              <div className="space-y-2">
+                {allTags.map(tag => (
+                  <div key={tag.id} className="flex items-center gap-2">
+                    <TagChip tag={tag} />
+                    <div className="flex-1" />
+                    <button
+                      onClick={() => startEditTag(tag)}
+                      className="text-xs text-indigo-600 hover:text-indigo-800"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTag(tag.id)}
+                      className="text-xs text-red-500 hover:text-red-700"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Create / edit form */}
+            <form onSubmit={handleSaveTag} className="space-y-3 border-t border-gray-100 pt-4">
+              <p className="text-xs font-medium text-gray-600">
+                {editingTagId ? 'Edit tag' : 'New tag'}
+              </p>
+              {tagError && (
+                <p className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">{tagError}</p>
+              )}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={tagName}
+                  onChange={e => setTagName(e.target.value)}
+                  placeholder="Tag name…"
+                  required
+                  maxLength={50}
+                  disabled={isSavingTag}
+                  className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                />
+              </div>
+
+              {/* Color picker */}
+              <div className="flex flex-wrap gap-2">
+                {TAG_COLORS.map(c => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => setTagColor(c.name)}
+                    title={c.name}
+                    className={`w-6 h-6 rounded-full ${c.dot} border-2 transition-all ${
+                      tagColor === c.name ? 'border-gray-700 scale-110' : 'border-transparent hover:scale-110'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Preview */}
+              {tagName.trim() && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Preview:</span>
+                  <TagChip tag={{ id: '', name: tagName.trim(), color: tagColor }} />
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={isSavingTag || !tagName.trim()}
+                  className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  {isSavingTag ? 'Saving…' : editingTagId ? 'Update' : 'Create tag'}
+                </button>
+                {editingTagId && (
+                  <button
+                    type="button"
+                    onClick={resetTagForm}
+                    className="px-3 py-1.5 border border-gray-300 text-xs text-gray-600 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
+
+      {/* ── Tag filter chips ─────────────────────────────────────────────────── */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-gray-500 font-medium">Filter:</span>
+          {allTags.map(tag => {
+            const active = filterTagIds.has(tag.id);
+            const c = getTagColor(tag.color);
+            return (
+              <button
+                key={tag.id}
+                onClick={() => toggleFilterTag(tag.id)}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                  active
+                    ? `${c.bg} ${c.text} border-current ring-1 ring-current`
+                    : 'bg-white text-gray-500 border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${active ? c.dot : 'bg-gray-300'}`} />
+                {tag.name}
+              </button>
+            );
+          })}
+          {filterTagIds.size > 0 && (
+            <button
+              onClick={() => setFilterTagIds(new Set())}
+              className="text-xs text-gray-400 hover:text-gray-600 underline"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
       )}
 
       {/* Search */}
@@ -475,113 +722,106 @@ const RecipesPage: React.FC = () => {
         />
       )}
 
-      {/* List */}
+      {/* Recipe list */}
       {isLoading && <p className="text-gray-500">Loading recipes…</p>}
       {error && <p className="text-red-600">{error}</p>}
       {!isLoading && !error && recipes.length === 0 && (
         <p className="text-gray-500">No recipes yet. Import one or create one above!</p>
       )}
+      {!isLoading && !error && recipes.length > 0 && visibleRecipes.length === 0 && (
+        <p className="text-gray-500">No recipes match the current filters.</p>
+      )}
 
-      {(() => {
-        const q = searchQuery.trim().toLowerCase();
-        const visible = q
-          ? recipes.filter(r =>
-              r.title.toLowerCase().includes(q) ||
-              (r.yields ?? '').toLowerCase().includes(q)
-            )
-          : recipes;
-        return (
-          <>
-            {!isLoading && !error && q && visible.length === 0 && (
-              <p className="text-gray-500">No recipes match "{searchQuery}".</p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {visibleRecipes.map(recipe => (
+          <div key={recipe.id} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden flex flex-col">
+            {recipe.imageUrl && (
+              <img
+                src={recipe.imageUrl}
+                alt={recipe.title}
+                className="w-full h-40 object-cover"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
             )}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {visible.map(recipe => (
-                <div key={recipe.id} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden flex flex-col">
-                  {recipe.imageUrl && (
-                    <img
-                      src={recipe.imageUrl}
-                      alt={recipe.title}
-                      className="w-full h-40 object-cover"
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  )}
-                  <div className="p-4 flex flex-col flex-grow">
-                    <h3 className="font-semibold text-gray-800 mb-1 line-clamp-2">{recipe.title}</h3>
-                    <div className="text-xs text-gray-500 space-x-3 mb-3">
-                      {recipe.yields && <span>{recipe.yields}</span>}
-                      {recipe.totalTimeMinutes != null && <span>{recipe.totalTimeMinutes} min</span>}
-                      <span>{recipe.ingredientCount} ingredients</span>
-                    </div>
+            <div className="p-4 flex flex-col flex-grow">
+              <h3 className="font-semibold text-gray-800 mb-1 line-clamp-2">{recipe.title}</h3>
+              <div className="text-xs text-gray-500 space-x-3 mb-2">
+                {recipe.yields && <span>{recipe.yields}</span>}
+                {recipe.totalTimeMinutes != null && <span>{recipe.totalTimeMinutes} min</span>}
+                <span>{recipe.ingredientCount} ingredients</span>
+              </div>
 
-                    {/* Add to list inline UI */}
-                    <div className="mb-4 min-h-[32px]">
-                      {addToListResult?.recipeId === recipe.id ? (
-                        <p className="text-green-600 text-xs font-medium py-1">{addToListResult.message}</p>
-                      ) : recipeIdToAddToList === recipe.id ? (
-                        <div className="flex gap-1 animate-in fade-in duration-200">
-                          <select
-                            value={selectedListId}
-                            onChange={e => setSelectedListId(e.target.value)}
-                            className="flex-1 text-xs px-2 py-1 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            disabled={isAddingToList}
-                            autoFocus
-                          >
-                            {lists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                          </select>
-                          <button
-                            onClick={() => handleAddToList(recipe.id)}
-                            disabled={isAddingToList}
-                            className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 font-medium"
-                          >
-                            {isAddingToList ? '…' : 'Add'}
-                          </button>
-                          <button
-                            onClick={() => setRecipeIdToAddToList(null)}
-                            disabled={isAddingToList}
-                            className="text-xs px-1.5 py-1 text-gray-400 hover:text-gray-600"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ) : (
-                        lists.length > 0 && (
-                          <button
-                            onClick={() => setRecipeIdToAddToList(recipe.id)}
-                            className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
-                          >
-                            + Add ingredients to list
-                          </button>
-                        )
-                      )}
-                    </div>
-
-                    <div className="mt-auto flex gap-2">
-                      <Link
-                        to={`/recipes/${recipe.id}`}
-                        className="flex-1 text-center px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition-colors"
-                      >
-                        View
-                      </Link>
-                      {recipe.isOwned && (
-                        <button
-                          onClick={() => handleDelete(recipe.id)}
-                          className="px-3 py-1.5 text-sm text-red-600 border border-red-300 rounded hover:bg-red-50 transition-colors"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
+              {/* Tags */}
+              {recipe.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {recipe.tags.map(tag => <TagChip key={tag.id} tag={tag} />)}
                 </div>
-              ))}
+              )}
+
+              {/* Add to list inline UI */}
+              <div className="mb-4 min-h-[32px]">
+                {addToListResult?.recipeId === recipe.id ? (
+                  <p className="text-green-600 text-xs font-medium py-1">{addToListResult.message}</p>
+                ) : recipeIdToAddToList === recipe.id ? (
+                  <div className="flex gap-1 animate-in fade-in duration-200">
+                    <select
+                      value={selectedListId}
+                      onChange={e => setSelectedListId(e.target.value)}
+                      className="flex-1 text-xs px-2 py-1 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      disabled={isAddingToList}
+                      autoFocus
+                    >
+                      {activeLists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                    <button
+                      onClick={() => handleAddToList(recipe.id)}
+                      disabled={isAddingToList}
+                      className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 font-medium"
+                    >
+                      {isAddingToList ? '…' : 'Add'}
+                    </button>
+                    <button
+                      onClick={() => setRecipeIdToAddToList(null)}
+                      disabled={isAddingToList}
+                      className="text-xs px-1.5 py-1 text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  activeLists.length > 0 && (
+                    <button
+                      onClick={() => setRecipeIdToAddToList(recipe.id)}
+                      className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                    >
+                      + Add ingredients to list
+                    </button>
+                  )
+                )}
+              </div>
+
+              <div className="mt-auto flex gap-2">
+                <Link
+                  to={`/recipes/${recipe.id}`}
+                  className="flex-1 text-center px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition-colors"
+                >
+                  View
+                </Link>
+                {recipe.isOwned && (
+                  <button
+                    onClick={() => handleDelete(recipe.id)}
+                    className="px-3 py-1.5 text-sm text-red-600 border border-red-300 rounded hover:bg-red-50 transition-colors"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
-          </>
-        );
-      })()}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
 
 export default RecipesPage;
-

@@ -36,5 +36,7 @@ namespace Nimblist.Data.Models
         public virtual ICollection<RecipeIngredient> Ingredients { get; set; } = new List<RecipeIngredient>();
 
         public virtual ICollection<RecipeShare> Shares { get; set; } = new List<RecipeShare>();
+
+        public virtual ICollection<Tag> Tags { get; set; } = new List<Tag>();
     }
 }
