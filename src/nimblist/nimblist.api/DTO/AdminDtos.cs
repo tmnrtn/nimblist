@@ -30,6 +30,16 @@ namespace Nimblist.api.DTO
         public string Role { get; set; } = string.Empty;
     }
 
+    public class AdminFeedbackDto
+    {
+        public Guid Id { get; set; }
+        public string ItemName { get; set; } = string.Empty;
+        public string? CategoryName { get; set; }
+        public string? SubCategoryName { get; set; }
+        public string? UserEmail { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
+    }
+
     public class LlmSettingsDto
     {
         public string? Provider { get; set; }
