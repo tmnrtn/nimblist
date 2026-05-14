@@ -60,6 +60,12 @@ const MealPlannerPage: React.FC = () => {
   const [isAddingToList, setIsAddingToList] = useState(false);
   const [addToListResult, setAddToListResult] = useState<{ entryId: string; message: string } | null>(null);
 
+  // Add whole week to list
+  const [showAddWeek, setShowAddWeek] = useState(false);
+  const [addWeekListId, setAddWeekListId] = useState('');
+  const [isAddingWeek, setIsAddingWeek] = useState(false);
+  const [addWeekResult, setAddWeekResult] = useState<string | null>(null);
+
   // Load plans, recipes, lists on mount
   useEffect(() => {
     Promise.all([
@@ -71,7 +77,8 @@ const MealPlannerPage: React.FC = () => {
       setRecipes(recipesData);
       setLists(listsData);
       if (plansData.length > 0) setSelectedPlanId(plansData[0].id);
-      if (listsData.length > 0) setAddToListId(listsData[0].id);
+      const activeLists = (listsData as ShoppingList[]).filter((l: ShoppingList) => !l.isTemplate);
+    if (activeLists.length > 0) { setAddToListId(activeLists[0].id); setAddWeekListId(activeLists[0].id); }
       if (recipesData.length > 0) setAddRecipeId(recipesData[0].id);
     }).catch(() => {})
       .finally(() => setIsLoading(false));
@@ -162,6 +169,40 @@ const MealPlannerPage: React.FC = () => {
     finally { setIsAddingToList(false); }
   };
 
+  const handleAddWeekToList = async () => {
+    if (!selectedPlanId || !addWeekListId) return;
+    setIsAddingWeek(true);
+    setAddWeekResult(null);
+    try {
+      const response = await authenticatedFetch('/api/mealplanentries/addweektolist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mealPlanId: selectedPlanId,
+          listId: addWeekListId,
+          weekStart: toISODate(weekStart),
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAddWeekResult(
+          data.addedCount === 0 && data.mergedCount === 0
+            ? 'No meals planned for this week.'
+            : `Done — ${data.addedCount} added, ${data.mergedCount} merged.`
+        );
+        setShowAddWeek(false);
+        setTimeout(() => setAddWeekResult(null), 4000);
+      } else {
+        setAddWeekResult('Failed to add week ingredients.');
+      }
+    } catch {
+      setAddWeekResult('Network error.');
+    } finally {
+      setIsAddingWeek(false);
+    }
+  };
+
+  const activeLists = lists.filter(l => !l.isTemplate);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
 
@@ -242,7 +283,7 @@ const MealPlannerPage: React.FC = () => {
       ) : (
         <>
           {/* Week navigation */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setWeekStart(d => addDays(d, -7))}
               className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
@@ -264,7 +305,42 @@ const MealPlannerPage: React.FC = () => {
             >
               Next →
             </button>
+            {activeLists.length > 0 && (
+              <button
+                onClick={() => setShowAddWeek(v => !v)}
+                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                title="Add all this week's meal ingredients to a shopping list"
+              >
+                Add week to list
+              </button>
+            )}
           </div>
+
+          {/* Add week to list panel */}
+          {showAddWeek && (
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-md">
+              <span className="text-sm text-green-800 font-medium">Add {formatWeekLabel(weekStart)} to:</span>
+              <select
+                value={addWeekListId}
+                onChange={e => setAddWeekListId(e.target.value)}
+                className="flex-1 min-w-32 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500"
+                disabled={isAddingWeek}
+              >
+                {activeLists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+              <button
+                onClick={handleAddWeekToList}
+                disabled={isAddingWeek || !addWeekListId}
+                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {isAddingWeek ? 'Adding…' : 'Add all ingredients'}
+              </button>
+              <button onClick={() => setShowAddWeek(false)} className="text-sm text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+          )}
+          {addWeekResult && (
+            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">{addWeekResult}</p>
+          )}
 
           {/* Calendar grid */}
           <div className="grid grid-cols-1 md:grid-cols-7 gap-2 md:gap-1">
@@ -313,7 +389,7 @@ const MealPlannerPage: React.FC = () => {
                             className="flex-1 text-xs px-1 py-0.5 border border-gray-300 rounded"
                             disabled={isAddingToList}
                           >
-                            {lists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                            {activeLists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                           </select>
                           <button
                             onClick={() => handleAddToList(entry.id)}
@@ -330,7 +406,7 @@ const MealPlannerPage: React.FC = () => {
                           </button>
                         </div>
                       ) : (
-                        lists.length > 0 && (
+                        activeLists.length > 0 && (
                           <button
                             onClick={() => { setEntryToAddToList(entry.id); setAddingToDay(null); }}
                             className="text-indigo-500 hover:text-indigo-700 transition-colors"

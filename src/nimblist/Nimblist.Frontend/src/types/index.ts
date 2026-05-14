@@ -19,6 +19,7 @@ export interface Item {
     createdAt: string;
     userId: string;
     items: Item[];
+    isTemplate?: boolean;
   }
 
   export interface RecipeIngredient {

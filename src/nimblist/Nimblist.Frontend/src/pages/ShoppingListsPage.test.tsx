@@ -300,7 +300,7 @@ describe("ShoppingListsPage Component", () => {
       "/api/shoppinglists",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ name: "New Test List" }),
+        body: JSON.stringify({ name: "New Test List", isTemplate: false }),
       })
     );
 

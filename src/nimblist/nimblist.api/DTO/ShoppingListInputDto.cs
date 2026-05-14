@@ -7,6 +7,6 @@ namespace Nimblist.api.DTO
         [Required]
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
-        // Only include properties the client should provide
+        public bool IsTemplate { get; set; } = false;
     }
 }
