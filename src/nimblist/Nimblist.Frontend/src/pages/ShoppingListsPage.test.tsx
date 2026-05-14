@@ -628,6 +628,6 @@ describe("ShoppingListsPage Component", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /delete/i })[0]);
 
     // After network failure the list should be restored
-    await screen.findByText("Groceries");
+    expect(await screen.findByText("Groceries")).toBeInTheDocument();
   });
 });

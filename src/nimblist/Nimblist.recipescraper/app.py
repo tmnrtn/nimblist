@@ -103,6 +103,9 @@ def parse_ingredient_text(text):
 # LLM helpers
 # ---------------------------------------------------------------------------
 
+CONTENT_TYPE_JSON = 'application/json'
+DATA_URI_PREFIX = 'data:'
+
 def _parse_llm_json(content):
     """Strip markdown fences and parse JSON; normalise total_time to int."""
     if content.startswith('```'):
@@ -132,7 +135,7 @@ def _chat_openai_compat(messages, model, provider, api_key, base_url, timeout):
     try:
         resp = requests.post(
             url,
-            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': CONTENT_TYPE_JSON},
             json={'model': model, 'messages': messages, 'temperature': 0.1},
             timeout=timeout,
         )
@@ -154,7 +157,7 @@ def _to_anthropic_content(content):
             blocks.append({'type': 'text', 'text': part['text']})
         elif part['type'] == 'image_url':
             url = part['image_url']['url']
-            if url.startswith('data:'):
+            if url.startswith(DATA_URI_PREFIX):
                 header, data = url.split(',', 1)
                 media_type = header.split(':')[1].split(';')[0]
                 blocks.append({'type': 'image', 'source': {'type': 'base64', 'media_type': media_type, 'data': data}})
@@ -175,7 +178,7 @@ def _chat_anthropic(messages, model, api_key, timeout):
             headers={
                 'x-api-key': api_key,
                 'anthropic-version': '2023-06-01',
-                'content-type': 'application/json',
+                'content-type': CONTENT_TYPE_JSON,
             },
             json={'model': model, 'max_tokens': 2048, 'messages': anthropic_messages},
             timeout=timeout,
@@ -198,7 +201,7 @@ def _to_gemini_parts(content):
             parts.append({'text': part['text']})
         elif part['type'] == 'image_url':
             url = part['image_url']['url']
-            if url.startswith('data:'):
+            if url.startswith(DATA_URI_PREFIX):
                 header, data = url.split(',', 1)
                 media_type = header.split(':')[1].split(';')[0]
                 parts.append({'inlineData': {'mimeType': media_type, 'data': data}})
@@ -226,7 +229,7 @@ def _chat_gemini(messages, model, api_key, timeout):
     try:
         resp = requests.post(
             url,
-            headers={'Content-Type': 'application/json'},
+            headers={'Content-Type': CONTENT_TYPE_JSON},
             json={'contents': contents},
             timeout=timeout,
         )
@@ -416,7 +419,7 @@ def scrape_image():
             return jsonify({"error": "image_url must start with http:// or https://"}), 400
     elif 'image' in data:
         image_b64 = data['image'].strip()
-        if image_b64.startswith('data:'):
+        if image_b64.startswith(DATA_URI_PREFIX):
             image_source = image_b64
         else:
             media_type = data.get('media_type', 'image/jpeg')
