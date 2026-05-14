@@ -29,48 +29,47 @@ namespace Nimblist.api.Controllers
                 return BadRequest(new { error = "Query parameter 'q' is required." });
 
             var settings = await _context.LlmSettings.FirstOrDefaultAsync();
-            if (settings == null
-                || string.IsNullOrEmpty(settings.GoogleSearchApiKey)
-                || string.IsNullOrEmpty(settings.GoogleSearchCseId))
+            if (settings == null || string.IsNullOrEmpty(settings.ImageSearchApiKey))
             {
-                return StatusCode(503, new { error = "Google Image Search is not configured. Add an API key and CSE ID in Admin → LLM / Search Settings." });
+                return StatusCode(503, new { error = "Image search is not configured. Add a Bing Search API key in Admin → LLM / Search Settings." });
             }
 
-            var url = $"https://www.googleapis.com/customsearch/v1"
-                    + $"?key={Uri.EscapeDataString(settings.GoogleSearchApiKey)}"
-                    + $"&cx={Uri.EscapeDataString(settings.GoogleSearchCseId)}"
-                    + $"&searchType=image"
-                    + $"&q={Uri.EscapeDataString(q)}"
-                    + $"&num=10"
-                    + $"&safe=active";
+            var url = $"https://api.bing.microsoft.com/v7.0/images/search"
+                    + $"?q={Uri.EscapeDataString(q)}"
+                    + $"&count=10"
+                    + $"&safeSearch=Moderate"
+                    + $"&imageType=Photo";
 
             try
             {
                 var client = _httpClientFactory.CreateClient();
-                var response = await client.GetAsync(url);
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Add("Ocp-Apim-Subscription-Key", settings.ImageSearchApiKey);
+
+                var response = await client.SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorBody = await response.Content.ReadAsStringAsync();
-                    return StatusCode((int)response.StatusCode, new { error = $"Google API returned {(int)response.StatusCode}: {errorBody}" });
+                    return StatusCode((int)response.StatusCode, new { error = $"Bing API returned {(int)response.StatusCode}: {errorBody}" });
                 }
 
-                var googleResponse = await response.Content.ReadFromJsonAsync<GoogleSearchResponse>();
-                var results = (googleResponse?.Items ?? [])
-                    .Where(item => !string.IsNullOrEmpty(item.Link))
+                var bingResponse = await response.Content.ReadFromJsonAsync<BingSearchResponse>();
+                var results = (bingResponse?.Value ?? [])
+                    .Where(item => !string.IsNullOrEmpty(item.ContentUrl))
                     .Select(item => new ImageSearchResultDto
                     {
-                        Title = item.Title,
-                        ImageUrl = item.Link!,
-                        ThumbnailUrl = item.Image?.ThumbnailLink,
-                        SourceUrl = item.Image?.ContextLink,
+                        Title = item.Name,
+                        ImageUrl = item.ContentUrl!,
+                        ThumbnailUrl = item.ThumbnailUrl,
+                        SourceUrl = item.HostPageUrl,
                     });
 
                 return Ok(results);
             }
             catch (HttpRequestException ex)
             {
-                return StatusCode(502, new { error = $"Failed to reach Google API: {ex.Message}" });
+                return StatusCode(502, new { error = $"Failed to reach Bing API: {ex.Message}" });
             }
         }
 
@@ -84,31 +83,25 @@ namespace Nimblist.api.Controllers
             public string? SourceUrl { get; init; }
         }
 
-        private record GoogleSearchResponse
+        private record BingSearchResponse
         {
-            [JsonPropertyName("items")]
-            public List<GoogleSearchItem>? Items { get; init; }
+            [JsonPropertyName("value")]
+            public List<BingImageResult>? Value { get; init; }
         }
 
-        private record GoogleSearchItem
+        private record BingImageResult
         {
-            [JsonPropertyName("title")]
-            public string? Title { get; init; }
+            [JsonPropertyName("name")]
+            public string? Name { get; init; }
 
-            [JsonPropertyName("link")]
-            public string? Link { get; init; }
+            [JsonPropertyName("contentUrl")]
+            public string? ContentUrl { get; init; }
 
-            [JsonPropertyName("image")]
-            public GoogleSearchImageInfo? Image { get; init; }
-        }
+            [JsonPropertyName("thumbnailUrl")]
+            public string? ThumbnailUrl { get; init; }
 
-        private record GoogleSearchImageInfo
-        {
-            [JsonPropertyName("thumbnailLink")]
-            public string? ThumbnailLink { get; init; }
-
-            [JsonPropertyName("contextLink")]
-            public string? ContextLink { get; init; }
+            [JsonPropertyName("hostPageUrl")]
+            public string? HostPageUrl { get; init; }
         }
     }
 }

@@ -177,7 +177,7 @@ const ImageSearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect, initialQ
 
         {/* Footer hint */}
         <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
-          Click an image to use it as the recipe image. Powered by Google Custom Search.
+          Click an image to use it as the recipe image. Powered by Bing Image Search.
         </div>
       </div>
     </div>

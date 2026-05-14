@@ -47,8 +47,7 @@ namespace Nimblist.api.DTO
         public string? VisionModel { get; set; }
         public string? ApiKey { get; set; }
         public string? BaseUrl { get; set; }
-        public string? GoogleSearchApiKey { get; set; }
-        public string? GoogleSearchCseId { get; set; }
+        public string? ImageSearchApiKey { get; set; }
         public DateTimeOffset? UpdatedAt { get; set; }
     }
 }
