@@ -185,7 +185,7 @@ namespace Nimblist.api.Controllers
         }
 
         private static readonly string[] ValidProviders = ["openrouter", "ollama", "openai", "anthropic", "gemini"];
-        private static readonly Regex MaskedKeyPattern = new(@"\*{4}", RegexOptions.Compiled);
+        private static readonly Regex MaskedKeyPattern = new(@"\*{4}", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
 
         // GET /api/admin/llm-settings
         [HttpGet("llm-settings")]

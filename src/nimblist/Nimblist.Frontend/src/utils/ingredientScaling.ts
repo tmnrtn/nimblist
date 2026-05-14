@@ -20,6 +20,14 @@ interface ParsedQty {
   unit: string;
 }
 
+/** Parse a pure-fraction match (e.g. "3/2") into a ParsedQty, or null if invalid. */
+function parseFracMatch(frac: RegExpExecArray): ParsedQty | null {
+  const num = parseInt(frac[1], 10);
+  const den = parseInt(frac[2], 10);
+  if (den === 0 || num <= 0) return null;
+  return { amount: num / den, unit: frac[3].trim() };
+}
+
 export function parseQuantity(str: string | null | undefined): ParsedQty | null {
   if (!str?.trim()) return null;
   const s = str.trim();
@@ -42,11 +50,10 @@ export function parseQuantity(str: string | null | undefined): ParsedQty | null 
   }
 
   // Pure fraction: "3/2 cups" or "1/4 tsp"
-  const frac = FRAC_RE.exec(s);
-  if (frac) {
-    const num = parseInt(frac[1], 10);
-    const den = parseInt(frac[2], 10);
-    if (den !== 0 && num > 0) return { amount: num / den, unit: frac[3].trim() };
+  const fracMatch = FRAC_RE.exec(s);
+  if (fracMatch) {
+    const fracResult = parseFracMatch(fracMatch);
+    if (fracResult) return fracResult;
   }
 
   // Whole + unicode: "1½ cups"

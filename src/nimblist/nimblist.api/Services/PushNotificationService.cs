@@ -41,15 +41,7 @@ namespace Nimblist.api.Services
 
             if (list == null) return;
 
-            var userIdsToNotify = new HashSet<string> { list.UserId };
-            foreach (var share in list.ListShares)
-            {
-                if (share.UserId != null) userIdsToNotify.Add(share.UserId);
-                if (share.Family != null)
-                    foreach (var member in share.Family.Members)
-                        userIdsToNotify.Add(member.UserId);
-            }
-            userIdsToNotify.Remove(addedByUserId);
+            var userIdsToNotify = CollectUserIdsToNotify(list, addedByUserId);
 
             if (userIdsToNotify.Count == 0) return;
 
@@ -96,6 +88,20 @@ namespace Nimblist.api.Services
                 _context.PushSubscriptions.RemoveRange(toRemove);
                 await _context.SaveChangesAsync();
             }
+        }
+
+        private static HashSet<string> CollectUserIdsToNotify(ShoppingList list, string excludeUserId)
+        {
+            var userIds = new HashSet<string> { list.UserId };
+            foreach (var share in list.ListShares)
+            {
+                if (share.UserId != null) userIds.Add(share.UserId);
+                if (share.Family != null)
+                    foreach (var member in share.Family.Members)
+                        userIds.Add(member.UserId);
+            }
+            userIds.Remove(excludeUserId);
+            return userIds;
         }
     }
 }
