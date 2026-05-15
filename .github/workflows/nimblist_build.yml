@@ -209,3 +209,9 @@ jobs:
             ${{ env.RECIPESCRAPER_IMAGE_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Trigger deploy on target environment
+        run: |
+          curl -f -s -X POST \
+            -H "X-Webhook-Token: ${{ secrets.WEBHOOK_SECRET }}" \
+            "${{ secrets.DEPLOY_WEBHOOK_URL }}/hooks/deploy"

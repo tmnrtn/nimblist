@@ -21,4 +21,13 @@ namespace Nimblist.api.DTO
 
         public Guid? FamilyIdToShareWith { get; set; }
     }
+
+    public class RecipeBulkShareInputDto
+    {
+        public string? UserIdToShareWith { get; set; }
+
+        public Guid? FamilyIdToShareWith { get; set; }
+    }
+
+    public record RecipeBulkShareResultDto(int SharedCount, int SkippedCount);
 }

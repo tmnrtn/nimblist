@@ -1,3 +1,5 @@
+name: nimblist
+
 services:
   Nimblist.api:
     image: ${DOCKER_REGISTRY-}nimblistapi
@@ -73,6 +75,27 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  webhook:
+    build: ./webhook
+    container_name: nimblist_webhook
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+    volumes:
+      - ./webhook/hooks.json.tmpl:/etc/webhook/hooks.json.tmpl:ro
+      - ./webhook/deploy.sh:/scripts/deploy.sh:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/compose:ro
+    command:
+      - "-hooks=/etc/webhook/hooks.json.tmpl"
+      - "-template"
+      - "-hotreload"
+      - "-verbose"
+    networks:
+      - nimblistnet
+
   redis_cache: # Or just 'redis' - the service name used in connection strings
     image: redis:alpine # Use alpine for smaller image size
     container_name: nimblist_redis # Optional fixed name

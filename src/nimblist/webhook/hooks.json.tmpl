@@ -1,0 +1,21 @@
+[
+  {
+    "id": "deploy",
+    "execute-command": "/bin/sh",
+    "pass-arguments-to-command": [
+      { "source": "string", "name": "/scripts/deploy.sh" }
+    ],
+    "command-working-directory": "/",
+    "response-message": "Deploy triggered",
+    "trigger-rule": {
+      "match": {
+        "type": "value",
+        "value": "{{ getenv \"WEBHOOK_SECRET\" }}",
+        "parameter": {
+          "source": "header",
+          "name": "X-Webhook-Token"
+        }
+      }
+    }
+  }
+]
