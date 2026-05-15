@@ -212,6 +212,6 @@ jobs:
 
       - name: Trigger deploy on target environment
         run: |
-          curl -f -s -X POST \
+          curl -f --max-time 30 -X POST \
             -H "X-Webhook-Token: ${{ secrets.WEBHOOK_SECRET }}" \
             "${{ secrets.DEPLOY_WEBHOOK_URL }}/hooks/deploy"
