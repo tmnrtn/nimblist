@@ -52,6 +52,15 @@ const RecipesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [mode, setMode] = useState<'import' | 'image' | 'manual'>('import');
 
+  // Share all panel state
+  const [showShareAllPanel, setShowShareAllPanel] = useState(false);
+  const [shareAllFamilies, setShareAllFamilies] = useState<{ id: string; name: string }[]>([]);
+  const [shareAllFamilyId, setShareAllFamilyId] = useState('');
+  const [isShareAllLoading, setIsShareAllLoading] = useState(false);
+  const [isShareAllSubmitting, setIsShareAllSubmitting] = useState(false);
+  const [shareAllResult, setShareAllResult] = useState<{ sharedCount: number; skippedCount: number; familyName: string } | null>(null);
+  const [shareAllError, setShareAllError] = useState<string | null>(null);
+
   // Tag management panel state
   const [showTagPanel, setShowTagPanel] = useState(false);
   const [tagName, setTagName] = useState('');
@@ -177,6 +186,52 @@ const RecipesPage: React.FC = () => {
       if (next.has(tagId)) next.delete(tagId); else next.add(tagId);
       return next;
     });
+  };
+
+  // ── Share all handlers ──────────────────────────────────────────────────────
+
+  const handleOpenShareAll = async () => {
+    setShowShareAllPanel(p => {
+      if (p) return false;
+      return true;
+    });
+    if (!showShareAllPanel && shareAllFamilies.length === 0) {
+      setIsShareAllLoading(true);
+      try {
+        const r = await authenticatedFetch('/api/families');
+        const data = r.ok ? await r.json() : [];
+        setShareAllFamilies(Array.isArray(data) ? data : []);
+        if (Array.isArray(data) && data.length > 0) setShareAllFamilyId(data[0].id);
+      } catch { /* ignore */ }
+      finally { setIsShareAllLoading(false); }
+    }
+  };
+
+  const handleShareAll = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!shareAllFamilyId) return;
+    setIsShareAllSubmitting(true);
+    setShareAllError(null);
+    setShareAllResult(null);
+    try {
+      const response = await authenticatedFetch('/api/recipeshares/share-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ familyIdToShareWith: shareAllFamilyId }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const family = shareAllFamilies.find(f => f.id === shareAllFamilyId);
+        setShareAllResult({ sharedCount: data.sharedCount, skippedCount: data.skippedCount, familyName: family?.name ?? 'family' });
+      } else {
+        const body = await response.json().catch(() => null);
+        setShareAllError(body?.message ?? `Failed to share (${response.status})`);
+      }
+    } catch {
+      setShareAllError('Network error — could not share recipes.');
+    } finally {
+      setIsShareAllSubmitting(false);
+    }
   };
 
   // ── Import handlers ─────────────────────────────────────────────────────────
@@ -677,6 +732,66 @@ const RecipesPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ── Share all recipes panel ─────────────────────────────────────────── */}
+      {recipes.some(r => r.isOwned) && (
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <button
+            onClick={handleOpenShareAll}
+            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700"
+          >
+            <span>Share All Recipes</span>
+            <span className="text-gray-400 text-xs">{showShareAllPanel ? '▲' : '▼'}</span>
+          </button>
+
+          {showShareAllPanel && (
+            <div className="p-4 bg-white space-y-3">
+              {isShareAllLoading && <p className="text-sm text-gray-500">Loading families…</p>}
+
+              {!isShareAllLoading && shareAllFamilies.length === 0 && (
+                <p className="text-sm text-gray-500">Create a family first to share your recipes.</p>
+              )}
+
+              {!isShareAllLoading && shareAllFamilies.length > 0 && (
+                <form onSubmit={handleShareAll} className="space-y-3">
+                  <p className="text-xs text-gray-500">
+                    Share all your owned recipes with a family. Recipes already shared are skipped.
+                  </p>
+                  {shareAllError && (
+                    <p className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">{shareAllError}</p>
+                  )}
+                  {shareAllResult && (
+                    <p className="text-xs text-green-700 bg-green-50 p-2 rounded border border-green-200">
+                      Shared {shareAllResult.sharedCount} recipe{shareAllResult.sharedCount !== 1 ? 's' : ''} with {shareAllResult.familyName}
+                      {shareAllResult.skippedCount > 0 && ` (${shareAllResult.skippedCount} already shared)`}.
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <select
+                      value={shareAllFamilyId}
+                      onChange={e => { setShareAllFamilyId(e.target.value); setShareAllResult(null); }}
+                      disabled={isShareAllSubmitting}
+                      className="flex-grow text-sm px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-indigo-500 disabled:bg-gray-100"
+                    >
+                      {shareAllFamilies.map(f => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      disabled={isShareAllSubmitting || !shareAllFamilyId}
+                      aria-busy={isShareAllSubmitting}
+                      className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                    >
+                      {isShareAllSubmitting ? 'Sharing…' : 'Share All'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Tag filter chips ─────────────────────────────────────────────────── */}
       {allTags.length > 0 && (

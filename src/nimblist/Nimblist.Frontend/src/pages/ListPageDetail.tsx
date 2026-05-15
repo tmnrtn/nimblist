@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback, FormEvent } from "react";
 import { useParams, Link } from "react-router-dom";
 import useAuthStore from "../store/authStore";
-import { ShoppingList, Item } from "../types";
+import { ShoppingList, Item, RecipeSummary } from "../types";
 import ItemList from "../components/ItemList";
 import useShoppingListHub from "../hooks/useShoppingListHub";
 import { authenticatedFetch } from "../components/HttpHelper";
@@ -265,6 +265,16 @@ const ListPageDetail: React.FC = () => {
   // Delete all items
   const [deleteAllLoading, setDeleteAllLoading] = useState(false);
 
+  // --- Add from recipe ---
+  const [showRecipePanel, setShowRecipePanel] = useState(false);
+  const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
+  const [recipesLoaded, setRecipesLoaded] = useState(false);
+  const [recipeSearch, setRecipeSearch] = useState('');
+  const [selectedRecipeId, setSelectedRecipeId] = useState('');
+  const [isAddingFromRecipe, setIsAddingFromRecipe] = useState(false);
+  const [addFromRecipeResult, setAddFromRecipeResult] = useState<string | null>(null);
+  const [addFromRecipeError, setAddFromRecipeError] = useState<string | null>(null);
+
   const handleDeleteAll = async () => {
     if (!list || list.items.length === 0) return;
     setOptimisticError(null);
@@ -280,6 +290,50 @@ const ListPageDetail: React.FC = () => {
       setOptimisticError("Failed to delete all items. Please try again.");
     } finally {
       setDeleteAllLoading(false);
+    }
+  };
+
+  const handleOpenRecipePanel = async () => {
+    const opening = !showRecipePanel;
+    setShowRecipePanel(opening);
+    if (opening && !recipesLoaded) {
+      try {
+        const r = await authenticatedFetch('/api/recipes');
+        const data = r.ok ? await r.json() : [];
+        const list: RecipeSummary[] = Array.isArray(data) ? data : [];
+        setRecipes(list);
+        if (list.length > 0) setSelectedRecipeId(list[0].id);
+      } catch { /* ignore */ }
+      setRecipesLoaded(true);
+    }
+  };
+
+  const handleAddFromRecipe = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedRecipeId || !listId) return;
+    setIsAddingFromRecipe(true);
+    setAddFromRecipeError(null);
+    setAddFromRecipeResult(null);
+    try {
+      const response = await authenticatedFetch(
+        `/api/recipes/${selectedRecipeId}/addtolist/${listId}`,
+        { method: 'POST' }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const recipe = recipes.find(r => r.id === selectedRecipeId);
+        setAddFromRecipeResult(
+          `Added ${data.addedCount} item${data.addedCount !== 1 ? 's' : ''} from "${recipe?.title ?? 'recipe'}"`
+        );
+        setTimeout(() => setAddFromRecipeResult(null), 4000);
+      } else {
+        const body = await response.json().catch(() => null);
+        setAddFromRecipeError(body?.error ?? `Failed to add ingredients (${response.status})`);
+      }
+    } catch {
+      setAddFromRecipeError('Network error — could not add ingredients.');
+    } finally {
+      setIsAddingFromRecipe(false);
     }
   };
 
@@ -383,6 +437,76 @@ const ListPageDetail: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* --- Add from Recipe --- */}
+      <div className="border border-gray-200 rounded-md overflow-hidden">
+        <button
+          onClick={handleOpenRecipePanel}
+          className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700"
+        >
+          <span>Add ingredients from a recipe</span>
+          <span className="text-gray-400 text-xs">{showRecipePanel ? '▲' : '▼'}</span>
+        </button>
+
+        {showRecipePanel && (
+          <div className="p-4 bg-white space-y-3">
+            {recipesLoaded && recipes.length === 0 && (
+              <p className="text-sm text-gray-500">No recipes found. Import or create one on the Recipes page.</p>
+            )}
+            {!recipesLoaded && (
+              <p className="text-sm text-gray-500">Loading recipes…</p>
+            )}
+            {recipesLoaded && recipes.length > 0 && (() => {
+              const q = recipeSearch.trim().toLowerCase();
+              const filtered = q ? recipes.filter(r => r.title.toLowerCase().includes(q)) : recipes;
+              return (
+                <form onSubmit={handleAddFromRecipe} className="space-y-3">
+                  {addFromRecipeError && (
+                    <p className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">{addFromRecipeError}</p>
+                  )}
+                  {addFromRecipeResult && (
+                    <p className="text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200">{addFromRecipeResult}</p>
+                  )}
+                  <input
+                    type="search"
+                    value={recipeSearch}
+                    onChange={e => {
+                      setRecipeSearch(e.target.value);
+                      const q = e.target.value.trim().toLowerCase();
+                      const match = q ? recipes.find(r => r.title.toLowerCase().includes(q)) : recipes[0];
+                      if (match) setSelectedRecipeId(match.id);
+                    }}
+                    placeholder="Search recipes…"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <select
+                    value={selectedRecipeId}
+                    onChange={e => setSelectedRecipeId(e.target.value)}
+                    disabled={isAddingFromRecipe || filtered.length === 0}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                    size={Math.min(filtered.length, 6)}
+                  >
+                    {filtered.map(r => (
+                      <option key={r.id} value={r.id}>{r.title}</option>
+                    ))}
+                  </select>
+                  {filtered.length === 0 && (
+                    <p className="text-xs text-gray-400">No recipes match your search.</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isAddingFromRecipe || !selectedRecipeId || filtered.length === 0}
+                    aria-busy={isAddingFromRecipe}
+                    className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isAddingFromRecipe ? 'Adding…' : 'Add ingredients'}
+                  </button>
+                </form>
+              );
+            })()}
+          </div>
+        )}
+      </div>
 
       {/* --- Items List (remains mostly the same) --- */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">

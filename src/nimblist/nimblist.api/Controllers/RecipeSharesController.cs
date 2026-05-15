@@ -74,6 +74,59 @@ namespace Nimblist.api.Controllers
             return null;
         }
 
+        [HttpPost("share-all")]
+        public async Task<ActionResult<RecipeBulkShareResultDto>> PostBulkRecipeShare(RecipeBulkShareInputDto dto)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
+
+            if (string.IsNullOrEmpty(dto.UserIdToShareWith) && !dto.FamilyIdToShareWith.HasValue)
+                return BadRequest("Either UserIdToShareWith or FamilyIdToShareWith must be provided.");
+            if (!string.IsNullOrEmpty(dto.UserIdToShareWith) && dto.FamilyIdToShareWith.HasValue)
+                return BadRequest("Share with a user OR a family, not both.");
+
+            if (!string.IsNullOrEmpty(dto.UserIdToShareWith))
+            {
+                if (dto.UserIdToShareWith == currentUserId) return BadRequest("Cannot share with yourself.");
+                if (await _context.Users.FindAsync(dto.UserIdToShareWith) == null) return BadRequest("User not found.");
+            }
+            else
+            {
+                if (await _context.Families.FindAsync(dto.FamilyIdToShareWith!.Value) == null) return BadRequest("Family not found.");
+            }
+
+            var ownedRecipeIds = await _context.Recipes
+                .Where(r => r.UserId == currentUserId)
+                .Select(r => r.Id)
+                .ToListAsync();
+
+            var alreadySharedIds = !string.IsNullOrEmpty(dto.UserIdToShareWith)
+                ? await _context.RecipeShares
+                    .Where(rs => ownedRecipeIds.Contains(rs.RecipeId) && rs.UserId == dto.UserIdToShareWith)
+                    .Select(rs => rs.RecipeId)
+                    .ToHashSetAsync()
+                : await _context.RecipeShares
+                    .Where(rs => ownedRecipeIds.Contains(rs.RecipeId) && rs.FamilyId == dto.FamilyIdToShareWith)
+                    .Select(rs => rs.RecipeId)
+                    .ToHashSetAsync();
+
+            var newShares = ownedRecipeIds
+                .Where(id => !alreadySharedIds.Contains(id))
+                .Select(id =>
+                {
+                    var share = new RecipeShare { Id = Guid.NewGuid(), RecipeId = id, SharedAt = DateTimeOffset.UtcNow };
+                    if (!string.IsNullOrEmpty(dto.UserIdToShareWith)) share.UserId = dto.UserIdToShareWith;
+                    else share.FamilyId = dto.FamilyIdToShareWith;
+                    return share;
+                })
+                .ToList();
+
+            _context.RecipeShares.AddRange(newShares);
+            await _context.SaveChangesAsync();
+
+            return Ok(new RecipeBulkShareResultDto(newShares.Count, alreadySharedIds.Count));
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRecipeShare(Guid id)
         {
