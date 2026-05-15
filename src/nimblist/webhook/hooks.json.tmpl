@@ -10,7 +10,7 @@
     "trigger-rule": {
       "match": {
         "type": "value",
-        "value": "{{ getenv \"WEBHOOK_SECRET\" }}",
+        "value": "{{ getenv `WEBHOOK_SECRET` }}",
         "parameter": {
           "source": "header",
           "name": "X-Webhook-Token"
