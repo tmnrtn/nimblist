@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
@@ -372,6 +373,13 @@ namespace Nimblist.api
             });
 
             var app = builder.Build();
+
+            // Honour X-Forwarded-For / X-Forwarded-Proto from the reverse proxy so that
+            // rate-limit partitioning and HSTS use the real client IP and scheme.
+            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+            });
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
