@@ -432,7 +432,27 @@ namespace Nimblist.api
                 {
                     var dbContext = scope.ServiceProvider.GetRequiredService<NimblistContext>();
                     startupLogger.LogInformation("Applying database migrations...");
-                    dbContext.Database.Migrate();
+
+                    // Advisory lock prevents concurrent migration runs when multiple replicas start
+                    // simultaneously. Lock is session-scoped: released automatically on connection close.
+                    using var lockConn = new Npgsql.NpgsqlConnection(connectionString);
+                    lockConn.Open();
+                    using (var lockCmd = lockConn.CreateCommand())
+                    {
+                        lockCmd.CommandText = "SELECT pg_advisory_lock(887236419)";
+                        lockCmd.ExecuteNonQuery();
+                    }
+                    try
+                    {
+                        dbContext.Database.Migrate();
+                    }
+                    finally
+                    {
+                        using var unlockCmd = lockConn.CreateCommand();
+                        unlockCmd.CommandText = "SELECT pg_advisory_unlock(887236419)";
+                        unlockCmd.ExecuteNonQuery();
+                    }
+
                     startupLogger.LogInformation("Database migrations applied successfully.");
                 }
                 catch (Exception ex)
