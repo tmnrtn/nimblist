@@ -18,6 +18,8 @@ import FamiliesPage from './pages/FamiliesPage';
 import MealPlannerPage from './pages/MealPlannerPage';
 import AdminPage from './pages/AdminPage';
 import BillingPage from './pages/BillingPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
 import InstallPrompt from './components/InstallPrompt';
 import NotificationBanner from './components/NotificationBanner';
 
@@ -67,6 +69,10 @@ function App() {
         <Route element={<AdminRoute />}>
             <Route path="admin" element={<AdminPage />} />
         </Route>
+
+        {/* Public routes */}
+        <Route path="privacy" element={<PrivacyPolicyPage />} />
+        <Route path="terms" element={<TermsOfServicePage />} />
 
         {/* Catch-all route for any paths not matched above */}
         <Route path="*" element={<NotFoundPage />} />

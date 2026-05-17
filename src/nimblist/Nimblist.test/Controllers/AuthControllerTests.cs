@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -11,6 +12,7 @@ using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
 using Nimblist.api.Services;
+using Nimblist.Data;
 using Nimblist.Data.Models;
 using Xunit;
 
@@ -60,12 +62,21 @@ namespace Nimblist.test.Controllers
             mockSubscription.Setup(s => s.GetSubscriptionStatusAsync(It.IsAny<string>()))
                 .ReturnsAsync(new SubscriptionStatusDto { Tier = "free" });
 
+            var dbOptions = new DbContextOptionsBuilder<NimblistContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+            var dbContext = new NimblistContext(dbOptions);
+
+            var mockPayPal = new Mock<IPayPalService>();
+
             // Instantiate the controller with mocks
             _controller = new AuthController(
                 _mockUserManager.Object,
                 _mockSignInManager.Object,
                 mockSubscription.Object,
-                _nullLogger
+                _nullLogger,
+                dbContext,
+                mockPayPal.Object
             );
         }
 

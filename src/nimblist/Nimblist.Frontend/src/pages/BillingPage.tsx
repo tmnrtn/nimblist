@@ -185,8 +185,89 @@ export default function BillingPage() {
         </div>
       )}
 
+      {/* Data & Privacy */}
+      <div className="mt-8 pt-6 border-t border-gray-200 space-y-6">
+        <h2 className="text-sm font-semibold text-gray-700">Your Data</h2>
+
+        <div>
+          <p className="text-sm text-gray-500 mb-2">
+            Download a copy of all your data — lists, recipes, and meal plans.
+          </p>
+          <a
+            href="/api/auth/export"
+            className="inline-block px-4 py-2 text-sm font-medium text-indigo-600 border border-indigo-300 rounded hover:bg-indigo-50 transition-colors"
+          >
+            Export my data
+          </a>
+        </div>
+
+        <div>
+          <p className="text-sm text-gray-500 mb-2">
+            Permanently delete your account and all associated data. This cannot be undone.
+          </p>
+          <DeleteAccountButton />
+        </div>
+
+        <div className="text-xs text-gray-400 space-x-3">
+          <Link to="/privacy" className="hover:underline">Privacy Policy</Link>
+          <Link to="/terms" className="hover:underline">Terms of Service</Link>
+        </div>
+      </div>
+
       <div className="mt-6 text-center">
         <Link to="/" className="text-sm text-indigo-600 hover:underline">← Back to home</Link>
+      </div>
+    </div>
+  );
+}
+
+function DeleteAccountButton() {
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    setDeleting(true);
+    setError(null);
+    const res = await authenticatedFetch('/api/auth/account', { method: 'DELETE' });
+    if (res.ok) {
+      window.location.href = '/';
+    } else {
+      setError('Failed to delete account. Please contact support.');
+      setDeleting(false);
+      setConfirming(false);
+    }
+  }
+
+  if (!confirming) {
+    return (
+      <button
+        onClick={() => setConfirming(true)}
+        className="px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded hover:bg-red-50 transition-colors"
+      >
+        Delete my account
+      </button>
+    );
+  }
+
+  return (
+    <div className="p-4 bg-red-50 border border-red-200 rounded space-y-3">
+      <p className="text-sm font-medium text-red-800">Are you sure? This will permanently delete your account and all data.</p>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex gap-3">
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+        >
+          {deleting ? 'Deleting...' : 'Yes, delete my account'}
+        </button>
+        <button
+          onClick={() => setConfirming(false)}
+          className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );

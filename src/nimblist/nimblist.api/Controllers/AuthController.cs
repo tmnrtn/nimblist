@@ -2,8 +2,10 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Nimblist.api.DTO;
 using Nimblist.api.Services;
+using Nimblist.Data;
 using Nimblist.Data.Models;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -18,17 +20,23 @@ namespace Nimblist.api.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ISubscriptionService _subscriptionService;
         private readonly ILogger<AuthController> _logger;
+        private readonly NimblistContext _context;
+        private readonly IPayPalService _payPal;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             ISubscriptionService subscriptionService,
-            ILogger<AuthController> logger)
+            ILogger<AuthController> logger,
+            NimblistContext context,
+            IPayPalService payPal)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _subscriptionService = subscriptionService;
             _logger = logger;
+            _context = context;
+            _payPal = payPal;
         }
 
         /// <summary>
@@ -86,18 +94,109 @@ namespace Nimblist.api.Controllers
         }
 
         [HttpPost("logout")]
-        [Authorize] // IMPORTANT: Ensure only authenticated users can trigger logout
-        // Note: [ValidateAntiForgeryToken] is recommended for POST actions with cookie auth
-        // to prevent CSRF, but requires extra setup for SPA fetch calls.
-        // Ensure your frontend isn't vulnerable if you omit it here.
+        [Authorize]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Logout()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier); // Get ID for logging
-            await _signInManager.SignOutAsync(); // Clears the .AspNetCore.Identity.Application cookie
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            await _signInManager.SignOutAsync();
             _logger.LogInformation("User {UserId} logged out.", userId);
             return Ok(new { message = "Logout successful" });
+        }
+
+        // DELETE /api/auth/account — self-service account deletion (GDPR right to erasure)
+        [HttpDelete("account")]
+        [Authorize]
+        public async Task<IActionResult> DeleteAccount()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound();
+
+            // Cancel active PayPal subscription before deleting
+            var sub = await _context.UserSubscriptions.FirstOrDefaultAsync(s => s.UserId == userId);
+            if (sub is { Status: "ACTIVE" or "APPROVED" })
+            {
+                try { await _payPal.CancelSubscriptionAsync(sub.PayPalSubscriptionId, "Account deleted by user"); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Could not cancel PayPal subscription {SubId} during account deletion", sub.PayPalSubscriptionId); }
+            }
+
+            await _signInManager.SignOutAsync();
+
+            var result = await _userManager.DeleteAsync(user);
+            if (!result.Succeeded)
+            {
+                _logger.LogError("Failed to delete user {UserId}: {Errors}", userId, string.Join(", ", result.Errors.Select(e => e.Description)));
+                return StatusCode(500, new { error = "Failed to delete account. Please contact support." });
+            }
+
+            _logger.LogInformation("User {UserId} deleted their account.", userId);
+            return Ok(new { message = "Account deleted." });
+        }
+
+        // GET /api/auth/export — GDPR right to data portability
+        [HttpGet("export")]
+        [Authorize]
+        public async Task<IActionResult> ExportData()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound();
+
+            var lists = await _context.ShoppingLists
+                .Include(l => l.Items)
+                .Where(l => l.UserId == userId)
+                .Select(l => new
+                {
+                    l.Id, l.Name, l.IsTemplate,
+                    Items = l.Items.Select(i => new { i.Id, i.Name, i.Quantity, i.IsChecked })
+                })
+                .ToListAsync();
+
+            var recipes = await _context.Recipes
+                .Include(r => r.Ingredients)
+                .Where(r => r.UserId == userId)
+                .Select(r => new
+                {
+                    r.Id, r.Title, r.Description, r.SourceUrl, r.ImageUrl,
+                    Ingredients = r.Ingredients.Select(i => new { i.Text, i.ParsedName, i.ParsedQuantity })
+                })
+                .ToListAsync();
+
+            var mealPlans = await _context.MealPlans
+                .Include(m => m.Entries)
+                .Where(m => m.UserId == userId)
+                .Select(m => new
+                {
+                    m.Id, m.Name,
+                    Entries = m.Entries.Select(e => new { e.PlannedDate, e.MealType, e.RecipeId })
+                })
+                .ToListAsync();
+
+            var subscription = await _context.UserSubscriptions
+                .Where(s => s.UserId == userId)
+                .Select(s => new { s.Status, s.IsInTrial, s.TrialEndDate, s.NextBillingDate, s.CreatedAt })
+                .FirstOrDefaultAsync();
+
+            var export = new
+            {
+                ExportedAt = DateTime.UtcNow,
+                Profile = new { user.Email, user.UserName, CreatedAt = user.LockoutEnd },
+                ShoppingLists = lists,
+                Recipes = recipes,
+                MealPlans = mealPlans,
+                Subscription = subscription,
+            };
+
+            return File(
+                System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(export, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }),
+                "application/json",
+                $"nimblist-export-{DateTime.UtcNow:yyyyMMdd}.json");
         }
     }
 
