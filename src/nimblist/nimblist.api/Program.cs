@@ -21,6 +21,16 @@ namespace Nimblist.api
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            builder.Logging.ClearProviders();
+            if (builder.Environment.IsDevelopment())
+                builder.Logging.AddConsole();
+            else
+                builder.Logging.AddJsonConsole(opts =>
+                {
+                    opts.IncludeScopes = true;
+                    opts.TimestampFormat = "o";
+                });
+
             // Add services to the container.
 
             // *** 1. Define CORS Policy ***
@@ -278,6 +288,11 @@ namespace Nimblist.api
             builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
             builder.Services.AddScoped<IPayPalService, PayPalService>();
 
+            var healthChecks = builder.Services.AddHealthChecks()
+                .AddNpgSql(connectionString ?? "", name: "postgres", tags: ["ready"]);
+            if (!string.IsNullOrEmpty(redisConnectionString))
+                healthChecks.AddRedis(redisConnectionString, name: "redis", tags: ["ready"]);
+
             var rl = builder.Configuration.GetSection("RateLimits");
             var authIpLimit   = rl.GetValue("AuthIp:PermitLimit", 10);
             var authIpWindow  = rl.GetValue("AuthIp:WindowMinutes", 5);
@@ -400,18 +415,20 @@ namespace Nimblist.api
             app.UseAuthorization();
             app.UseRateLimiter();
 
+            var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+
             using (var scope = app.Services.CreateScope())
             {
                 try
                 {
                     var dbContext = scope.ServiceProvider.GetRequiredService<NimblistContext>();
-                    Console.WriteLine("Applying database migrations...");
+                    startupLogger.LogInformation("Applying database migrations...");
                     dbContext.Database.Migrate();
-                    Console.WriteLine("Database migrations applied successfully.");
+                    startupLogger.LogInformation("Database migrations applied successfully.");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"An error occurred while migrating the database: {ex.Message}");
+                    startupLogger.LogError(ex, "An error occurred while migrating the database.");
                 }
 
                 try
@@ -432,18 +449,26 @@ namespace Nimblist.api
                         if (adminUser != null && !userManager.IsInRoleAsync(adminUser, "Admin").GetAwaiter().GetResult())
                         {
                             userManager.AddToRoleAsync(adminUser, "Admin").GetAwaiter().GetResult();
-                            Console.WriteLine($"Admin role assigned to {adminEmail}.");
+                            startupLogger.LogInformation("Admin role assigned to {AdminEmail}.", adminEmail);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"An error occurred while seeding roles: {ex.Message}");
+                    startupLogger.LogError(ex, "An error occurred while seeding roles.");
                 }
             }
 
             app.MapRazorPages();
             app.MapControllers();
+
+            // Liveness: is the process up?
+            app.MapHealthChecks("/healthz").AllowAnonymous();
+            // Readiness: are dependencies (Postgres, Redis) reachable?
+            app.MapHealthChecks("/healthz/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("ready"),
+            }).AllowAnonymous();
 
             app.Run();
         }
