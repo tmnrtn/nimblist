@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
+using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using Xunit;
@@ -50,7 +51,8 @@ namespace Nimblist.test.Controllers
 
         private AdminController CreateController(NimblistContext context, string userId = AdminUserId)
         {
-            var controller = new AdminController(_mockUserManager.Object, context);
+            var mockPayPal = new Mock<IPayPalService>();
+            var controller = new AdminController(_mockUserManager.Object, context, mockPayPal.Object);
             var claims = new[] { new Claim(ClaimTypes.NameIdentifier, userId) };
             controller.ControllerContext = new ControllerContext
             {

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+﻿import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, vi, expect, beforeEach } from "vitest"; // Added beforeEach
 import { MemoryRouter, Routes, Route } from "react-router-dom"; // Import Routes/Route
 import type { MockedFunction } from 'vitest'; // Import Vitest helper type
@@ -57,7 +57,8 @@ describe("ListPageDetail Component", () => {
     mockStoreState = {
       isAuthenticated: true, // Assume logged in for detail page tests
       isAdmin: false,
-      user: { userId: "user-xyz", email: "test@test.com", roles: [] },
+  isPaid: false,
+      user: { userId: "user-xyz", email: "test@test.com", roles: [], subscriptionTier: 'free', isInTrial: false, trialEndDate: null },
       isLoading: false,
       checkAuthStatus: vi.fn().mockResolvedValue(undefined),
       logout: vi.fn().mockResolvedValue(undefined),

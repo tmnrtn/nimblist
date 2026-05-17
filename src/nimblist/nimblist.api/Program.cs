@@ -270,8 +270,11 @@ namespace Nimblist.api
             builder.Services.AddHttpClient();
             builder.Services.AddHttpClient("BraveSearch").ConfigurePrimaryHttpMessageHandler(() =>
                 new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All });
+            builder.Services.AddHttpClient("PayPal");
             builder.Services.AddScoped<IClassificationService, ClassificationService>();
             builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+            builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+            builder.Services.AddScoped<IPayPalService, PayPalService>();
 
             var app = builder.Build();
 

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+﻿import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, vi, expect, beforeEach } from "vitest"; // Added beforeEach
 // import type { MockedFunction } from 'vitest'; // Not needed with factory mock approach
 import { MemoryRouter } from "react-router-dom";
@@ -23,6 +23,7 @@ describe('Layout Component', () => {
     mockStoreState = {
       isAuthenticated: false,
       isAdmin: false,
+  isPaid: false,
       user: null,
       isLoading: false, // Assuming default is not loading
       // Provide mocks for functions even if not used in Layout, to match type
@@ -64,7 +65,7 @@ describe('Layout Component', () => {
     mockStoreState = {
       ...mockStoreState, // Keep function mocks from default state
       isAuthenticated: true,
-      user: { userId: 'user123', email: 'test@example.com', roles: [] }, // Add user data
+      user: { userId: 'user123', email: 'test@example.com', roles: [], subscriptionTier: 'free', isInTrial: false, trialEndDate: null }, // Add user data
     };
 
     // Act
@@ -89,7 +90,7 @@ describe('Layout Component', () => {
     mockStoreState = {
       ...mockStoreState,
       isAuthenticated: true,
-      user: { userId: 'user123', email: 'test@example.com', roles: [] },
+      user: { userId: 'user123', email: 'test@example.com', roles: [], subscriptionTier: 'free', isInTrial: false, trialEndDate: null },
     };
 
     // Act

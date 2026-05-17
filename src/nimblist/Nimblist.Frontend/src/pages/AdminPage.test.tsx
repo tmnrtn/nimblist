@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+﻿import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { MockedFunction } from "vitest";
 import { authenticatedFetch } from "../components/HttpHelper";
@@ -16,8 +16,8 @@ function noBodyResponse(ok = true, status = 204) {
   return Promise.resolve({ ok, status } as Response);
 }
 
-const user1 = { userId: "u1", email: "alice@example.com", roles: ["Standard"] };
-const user2 = { userId: "u2", email: "bob@example.com", roles: ["Admin"] };
+const user1 = { userId: "u1", email: "alice@example.com", roles: ["Standard"], subscriptionTier: 'free', isInTrial: false, trialEndDate: null };
+const user2 = { userId: "u2", email: "bob@example.com", roles: ["Admin"], subscriptionTier: 'free', isInTrial: false, trialEndDate: null };
 
 const member1 = {
   memberId: "m1",

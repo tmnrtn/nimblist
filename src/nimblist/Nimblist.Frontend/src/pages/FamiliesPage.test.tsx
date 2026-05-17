@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+﻿import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { MockedFunction } from "vitest";
 import { MemoryRouter } from "react-router-dom";
@@ -26,7 +26,8 @@ const family1: Family = { id: "fam-1", name: "Smith Family", ownerId: "owner-id"
 const baseAuth: AuthState = {
   isAuthenticated: true,
   isAdmin: false,
-  user: { userId: "owner-id", email: "owner@test.com", roles: [] },
+  isPaid: false,
+  user: { userId: "owner-id", email: "owner@test.com", roles: [], subscriptionTier: 'free', isInTrial: false, trialEndDate: null },
   isLoading: false,
   checkAuthStatus: vi.fn(),
   logout: vi.fn(),
@@ -77,7 +78,7 @@ describe("FamiliesPage", () => {
   });
 
   it("hides Delete Family button for non-owner", async () => {
-    mockStoreState = { ...baseAuth, user: { userId: "other-id", email: "other@test.com", roles: [] } };
+    mockStoreState = { ...baseAuth, user: { userId: "other-id", email: "other@test.com", roles: [], subscriptionTier: 'free', isInTrial: false, trialEndDate: null } };
     mockFetch.mockReturnValue(jsonResponse([family1]));
     renderPage();
     await waitFor(() => screen.getByText("Smith Family"));

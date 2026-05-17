@@ -17,6 +17,7 @@ import RecipeDetailPage from './pages/RecipeDetailPage';
 import FamiliesPage from './pages/FamiliesPage';
 import MealPlannerPage from './pages/MealPlannerPage';
 import AdminPage from './pages/AdminPage';
+import BillingPage from './pages/BillingPage';
 import InstallPrompt from './components/InstallPrompt';
 import NotificationBanner from './components/NotificationBanner';
 
@@ -60,6 +61,7 @@ function App() {
             <Route path="recipes/:recipeId" element={<RecipeDetailPage />} />
             <Route path="families" element={<FamiliesPage />} />
             <Route path="meal-planner" element={<MealPlannerPage />} />
+            <Route path="billing" element={<BillingPage />} />
         </Route>
 
         <Route element={<AdminRoute />}>

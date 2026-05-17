@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.api.DTO;
+using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using System.Security.Claims;
@@ -14,11 +15,16 @@ namespace Nimblist.api.Controllers
     public class MealPlansController : ControllerBase
     {
         private readonly NimblistContext _context;
+        private readonly ISubscriptionService _subscriptionService;
 
-        public MealPlansController(NimblistContext context)
+        public MealPlansController(NimblistContext context, ISubscriptionService subscriptionService)
         {
             _context = context;
+            _subscriptionService = subscriptionService;
         }
+
+        private async Task<bool> RequirePaidAsync(string userId)
+            => await _subscriptionService.HasActiveSubscriptionAsync(userId);
 
         private async Task<HashSet<Guid>> GetAccessibleMealPlanIdsAsync(string userId)
         {
@@ -37,6 +43,7 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            if (!await RequirePaidAsync(userId)) return StatusCode(403, new { reason = "subscription_required" });
 
             var accessibleIds = await GetAccessibleMealPlanIdsAsync(userId);
 
@@ -55,6 +62,7 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            if (!await RequirePaidAsync(userId)) return StatusCode(403, new { reason = "subscription_required" });
 
             if (string.IsNullOrWhiteSpace(request.Name))
                 return BadRequest("Name is required.");
@@ -80,6 +88,7 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            if (!await RequirePaidAsync(userId)) return StatusCode(403, new { reason = "subscription_required" });
 
             var accessibleIds = await GetAccessibleMealPlanIdsAsync(userId);
             if (!accessibleIds.Contains(id)) return NotFound();
@@ -103,6 +112,7 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            if (!await RequirePaidAsync(userId)) return StatusCode(403, new { reason = "subscription_required" });
 
             var plan = await _context.MealPlans.FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
             if (plan == null) return NotFound();

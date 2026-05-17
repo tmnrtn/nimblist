@@ -65,6 +65,13 @@ namespace Nimblist.test.Controllers
             return opts;
         }
 
+        private static ISubscriptionService BuildPaidSubscription()
+        {
+            var mock = new Mock<ISubscriptionService>();
+            mock.Setup(s => s.HasActiveSubscriptionAsync(It.IsAny<string>())).ReturnsAsync(true);
+            return mock.Object;
+        }
+
         private RecipesController CreateController(NimblistContext context, string userId,
             IHttpClientFactory? httpFactory = null, IConfiguration? config = null)
         {
@@ -75,7 +82,8 @@ namespace Nimblist.test.Controllers
                 context, factory, cfg,
                 _mockClassification.Object,
                 _mockHub.Object,
-                _mockLogger.Object);
+                _mockLogger.Object,
+                BuildPaidSubscription());
 
             controller.ControllerContext = new ControllerContext
             {
@@ -96,7 +104,8 @@ namespace Nimblist.test.Controllers
                 BuildConfig(scraperUrl: null, parseUrl: null),
                 _mockClassification.Object,
                 _mockHub.Object,
-                _mockLogger.Object);
+                _mockLogger.Object,
+                BuildPaidSubscription());
 
             controller.ControllerContext = new ControllerContext
             {

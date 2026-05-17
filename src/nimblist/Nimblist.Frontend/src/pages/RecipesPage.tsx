@@ -2,6 +2,7 @@ import React, { useEffect, useState, FormEvent, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { authenticatedFetch } from '../components/HttpHelper';
 import { RecipeSummary, ShoppingList, Tag } from '../types/index';
+import useAuthStore from '../store/authStore';
 
 interface IngredientRow {
   text: string;
@@ -41,7 +42,25 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove?: () => void }) {
   );
 }
 
+const FREE_RECIPE_LIMIT = 25;
+
+function UpgradePrompt({ message }: { message: string }) {
+  return (
+    <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-md text-center space-y-2">
+      <p className="text-sm text-indigo-800">{message}</p>
+      <Link
+        to="/billing"
+        className="inline-block px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition-colors"
+      >
+        Upgrade to Premium — £1.99/month
+      </Link>
+      <p className="text-xs text-indigo-500">7-day free trial, cancel anytime</p>
+    </div>
+  );
+}
+
 const RecipesPage: React.FC = () => {
+  const { isPaid } = useAuthStore();
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]);
@@ -414,7 +433,18 @@ const RecipesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800">My Recipes</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-800">My Recipes</h2>
+        {!isPaid && (
+          <span className={`text-sm font-medium px-3 py-1 rounded-full ${recipes.length >= FREE_RECIPE_LIMIT ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+            {recipes.length}/{FREE_RECIPE_LIMIT} recipes (free tier)
+          </span>
+        )}
+      </div>
+
+      {!isPaid && recipes.length >= FREE_RECIPE_LIMIT && (
+        <UpgradePrompt message="You've reached the 25-recipe limit on the free plan. Upgrade to save unlimited recipes." />
+      )}
 
       {/* Mode tabs */}
       <div className="border-b border-gray-200">
@@ -436,7 +466,10 @@ const RecipesPage: React.FC = () => {
       </div>
 
       {/* Import from URL */}
-      {mode === 'import' && (
+      {mode === 'import' && !isPaid && (
+        <UpgradePrompt message="Recipe import from URL is a Premium feature." />
+      )}
+      {mode === 'import' && isPaid && (
         <form onSubmit={handleImport} className="p-4 bg-gray-100 rounded-md border border-gray-200 space-y-3">
           {importError && (
             <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{importError}</p>
@@ -467,7 +500,10 @@ const RecipesPage: React.FC = () => {
       )}
 
       {/* Import from image */}
-      {mode === 'image' && (
+      {mode === 'image' && !isPaid && (
+        <UpgradePrompt message="Recipe import from image is a Premium feature." />
+      )}
+      {mode === 'image' && isPaid && (
         <form onSubmit={handleImportFromImage} className="p-4 bg-gray-100 rounded-md border border-gray-200 space-y-3">
           {imageImportError && (
             <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{imageImportError}</p>
@@ -614,14 +650,18 @@ const RecipesPage: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-200"
             />
           </div>
-          <button
-            type="submit"
-            disabled={isCreating || !title.trim()}
-            aria-busy={isCreating}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isCreating ? 'Saving…' : 'Save Recipe'}
-          </button>
+          {!isPaid && recipes.length >= FREE_RECIPE_LIMIT ? (
+            <UpgradePrompt message="You've reached the 25-recipe limit. Upgrade to save unlimited recipes." />
+          ) : (
+            <button
+              type="submit"
+              disabled={isCreating || !title.trim()}
+              aria-busy={isCreating}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isCreating ? 'Saving…' : 'Save Recipe'}
+            </button>
+          )}
         </form>
       )}
 

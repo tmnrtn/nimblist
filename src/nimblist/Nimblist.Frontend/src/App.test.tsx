@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+﻿import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, vi, expect } from "vitest";
 import type { MockedFunction } from 'vitest';
 import { MemoryRouter } from "react-router-dom";
@@ -14,6 +14,7 @@ import { ShoppingList } from './types'; // Import the interface (adjust path if 
 let mockStoreState: AuthState = {
   isAuthenticated: false,
   isAdmin: false,
+  isPaid: false,
   user: null,
   isLoading: true, // Default to loading, perhaps
   checkAuthStatus: vi.fn().mockResolvedValue(undefined),
@@ -41,6 +42,7 @@ describe("App Component", () => {
     mockStoreState = {
       isAuthenticated: false,
       isAdmin: false,
+  isPaid: false,
       user: null,
       isLoading: true, // Default to loading, perhaps
       checkAuthStatus: vi.fn().mockResolvedValue(undefined),
@@ -60,6 +62,7 @@ describe("App Component", () => {
     mockStoreState = {
       isAuthenticated: false,
       isAdmin: false,
+  isPaid: false,
       user: null,
       isLoading: false, // Default to loading, perhaps
       checkAuthStatus: vi.fn().mockResolvedValue(undefined),
@@ -80,10 +83,12 @@ describe("App Component", () => {
     mockStoreState = {
       isAuthenticated: true,
       isAdmin: false,
+  isPaid: false,
       user: {
         userId: "123",
         email: "test@test.com",
         roles: [],
+  subscriptionTier: 'free', isInTrial: false, trialEndDate: null,
       },
       isLoading: false, // Default to loading, perhaps
       checkAuthStatus: vi.fn().mockResolvedValue(undefined),
@@ -131,10 +136,12 @@ describe("App Component", () => {
     mockStoreState = {
         isAuthenticated: true,
         isAdmin: false,
+  isPaid: false,
         user: {
           userId: "123",
           email: "test@test.com",
           roles: [],
+  subscriptionTier: 'free', isInTrial: false, trialEndDate: null,
         },
         isLoading: false, // Default to loading, perhaps
         checkAuthStatus: vi.fn().mockResolvedValue(undefined),
@@ -182,10 +189,12 @@ describe("App Component", () => {
     mockStoreState = {
         isAuthenticated: true,
         isAdmin: false,
+  isPaid: false,
         user: {
           userId: "123",
           email: "test@test.com",
           roles: [],
+  subscriptionTier: 'free', isInTrial: false, trialEndDate: null,
         },
         isLoading: false, // Default to loading, perhaps
         checkAuthStatus: vi.fn().mockResolvedValue(undefined),
@@ -207,6 +216,7 @@ describe("App Component", () => {
     mockStoreState = {
         isAuthenticated: false,
         isAdmin: false,
+  isPaid: false,
         user: null,
         isLoading: false, // Default to loading, perhaps
         checkAuthStatus: vi.fn().mockResolvedValue(undefined),

@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { authenticatedFetch } from '../components/HttpHelper';
 import { MealPlanSummary, MealPlanEntry, RecipeSummary, ShoppingList } from '../types/index';
 import SharePanel from '../components/SharePanel';
+import useAuthStore from '../store/authStore';
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Other'];
 
@@ -34,6 +36,7 @@ function formatWeekLabel(monday: Date): string {
 }
 
 const MealPlannerPage: React.FC = () => {
+  const { isPaid } = useAuthStore();
   const [plans, setPlans] = useState<MealPlanSummary[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [entries, setEntries] = useState<MealPlanEntry[]>([]);
@@ -207,6 +210,26 @@ const MealPlannerPage: React.FC = () => {
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
 
   if (isLoading) return <p className="text-gray-500 mt-4">Loading meal planner…</p>;
+
+  if (!isPaid) {
+    return (
+      <div className="max-w-md mx-auto py-16 px-4 text-center space-y-4">
+        <div className="text-4xl">📅</div>
+        <h2 className="text-xl font-bold text-gray-800">Meal Planner is a Premium feature</h2>
+        <p className="text-sm text-gray-500">
+          Plan your meals for the week, add ingredients to your shopping list, and stay organised.
+          Upgrade to unlock the Meal Planner and more.
+        </p>
+        <Link
+          to="/billing"
+          className="inline-block px-6 py-2 bg-indigo-600 text-white font-medium rounded hover:bg-indigo-700 transition-colors"
+        >
+          Upgrade to Premium — £1.99/month
+        </Link>
+        <p className="text-xs text-indigo-500">7-day free trial, cancel anytime</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

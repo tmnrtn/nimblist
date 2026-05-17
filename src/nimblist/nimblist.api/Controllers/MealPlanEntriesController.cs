@@ -19,15 +19,18 @@ namespace Nimblist.api.Controllers
         private readonly NimblistContext _context;
         private readonly IClassificationService _classificationService;
         private readonly IHubContext<ShoppingListHub> _hubContext;
+        private readonly ISubscriptionService _subscriptionService;
 
         public MealPlanEntriesController(
             NimblistContext context,
             IClassificationService classificationService,
-            IHubContext<ShoppingListHub> hubContext)
+            IHubContext<ShoppingListHub> hubContext,
+            ISubscriptionService subscriptionService)
         {
             _context = context;
             _classificationService = classificationService;
             _hubContext = hubContext;
+            _subscriptionService = subscriptionService;
         }
 
         private async Task<HashSet<Guid>> GetAccessibleMealPlanIdsAsync(string userId)
@@ -47,6 +50,8 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            if (!await _subscriptionService.HasActiveSubscriptionAsync(userId))
+                return StatusCode(403, new { reason = "subscription_required" });
 
             var accessibleIds = await GetAccessibleMealPlanIdsAsync(userId);
             if (!accessibleIds.Contains(request.MealPlanId)) return NotFound("Meal plan not found.");
@@ -78,6 +83,8 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            if (!await _subscriptionService.HasActiveSubscriptionAsync(userId))
+                return StatusCode(403, new { reason = "subscription_required" });
 
             var entry = await _context.MealPlanEntries
                 .Include(e => e.MealPlan)
@@ -101,6 +108,8 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            if (!await _subscriptionService.HasActiveSubscriptionAsync(userId))
+                return StatusCode(403, new { reason = "subscription_required" });
 
             var accessibleIds = await GetAccessibleMealPlanIdsAsync(userId);
             if (!accessibleIds.Contains(request.MealPlanId)) return NotFound("Meal plan not found.");

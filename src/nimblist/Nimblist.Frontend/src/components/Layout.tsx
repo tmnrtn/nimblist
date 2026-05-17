@@ -59,6 +59,13 @@ const Layout: React.FC = () => {
                       {userMenuOpen && (
                         <div className="absolute right-0 mt-2 w-52 bg-white rounded shadow-lg py-1 z-50 text-gray-800">
                           <Link
+                            to="/billing"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="block px-4 py-2 text-sm hover:bg-gray-100"
+                          >
+                            Account &amp; Billing
+                          </Link>
+                          <Link
                             to="/previous-item-names"
                             onClick={() => setUserMenuOpen(false)}
                             className="block px-4 py-2 text-sm hover:bg-gray-100"
@@ -110,6 +117,7 @@ const Layout: React.FC = () => {
                     <li><Link to="/recipes" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Recipes</Link></li>
                     <li><Link to="/families" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Families</Link></li>
                     <li><Link to="/meal-planner" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Meal Planner</Link></li>
+                    <li><Link to="/billing" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Account &amp; Billing</Link></li>
                     <li><Link to="/previous-item-names" onClick={closeMenu} className="block py-2 text-sm font-medium hover:text-gray-200 transition-colors">Autocomplete Suggestions</Link></li>
                     {isAdmin && (
                       <li><Link to="/admin" onClick={closeMenu} className="block py-2 text-sm font-medium text-yellow-300 hover:text-yellow-100 transition-colors">Admin</Link></li>

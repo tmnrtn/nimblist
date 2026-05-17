@@ -55,10 +55,17 @@ namespace Nimblist.test.Controllers
             return opts;
         }
 
+        private static ISubscriptionService BuildPaidSubscription()
+        {
+            var mock = new Mock<ISubscriptionService>();
+            mock.Setup(s => s.HasActiveSubscriptionAsync(It.IsAny<string>())).ReturnsAsync(true);
+            return mock.Object;
+        }
+
         private MealPlanEntriesController CreateController(NimblistContext context, string userId)
         {
             var controller = new MealPlanEntriesController(
-                context, _mockClassification.Object, _mockHub.Object);
+                context, _mockClassification.Object, _mockHub.Object, BuildPaidSubscription());
             controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext
@@ -73,7 +80,7 @@ namespace Nimblist.test.Controllers
         private MealPlanEntriesController CreateControllerNoAuth(NimblistContext context)
         {
             var controller = new MealPlanEntriesController(
-                context, _mockClassification.Object, _mockHub.Object);
+                context, _mockClassification.Object, _mockHub.Object, BuildPaidSubscription());
             controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext

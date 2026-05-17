@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+﻿import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import type { AuthState } from "../store/authStore";
@@ -12,6 +12,7 @@ vi.mock("../store/authStore", () => ({
 const base: AuthState = {
   isAuthenticated: false,
   isAdmin: false,
+  isPaid: false,
   user: null,
   isLoading: false,
   checkAuthStatus: vi.fn(),
@@ -57,7 +58,8 @@ describe("AdminRoute", () => {
       ...base,
       isAuthenticated: true,
       isAdmin: false,
-      user: { userId: "u1", email: "user@test.com", roles: ["Standard"] },
+  isPaid: false,
+      user: { userId: "u1", email: "user@test.com", roles: ["Standard"], subscriptionTier: 'free', isInTrial: false, trialEndDate: null },
     };
     renderAdminRoute();
     expect(
@@ -74,7 +76,7 @@ describe("AdminRoute", () => {
       ...base,
       isAuthenticated: true,
       isAdmin: true,
-      user: { userId: "u2", email: "admin@test.com", roles: ["Admin"] },
+      user: { userId: "u2", email: "admin@test.com", roles: ["Admin"], subscriptionTier: 'free', isInTrial: false, trialEndDate: null },
     };
     renderAdminRoute();
     expect(screen.getByText("Admin content")).toBeInTheDocument();

@@ -5,12 +5,16 @@ interface User {
   userId: string;
   email: string;
   roles: string[];
+  subscriptionTier: 'free' | 'paid';
+  isInTrial: boolean;
+  trialEndDate: string | null;
 }
 
 export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
   isAdmin: boolean;
+  isPaid: boolean;
   isLoading: boolean;
   checkAuthStatus: () => Promise<void>;
   logout: () => Promise<void>;
@@ -20,6 +24,7 @@ const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   user: null,
   isAdmin: false,
+  isPaid: false,
   isLoading: true,
 
   // Actions
@@ -41,20 +46,20 @@ const useAuthStore = create<AuthState>((set) => ({
       if (response.ok) {
         const userData: User = await response.json();
         const isAdmin = userData.roles?.includes('Admin') ?? false;
-        set({ isAuthenticated: true, user: userData, isAdmin, isLoading: false });
+        const isPaid = userData.subscriptionTier === 'paid';
+        set({ isAuthenticated: true, user: userData, isAdmin, isPaid, isLoading: false });
         console.log("Auth Status: User Authenticated", userData);
-      } else if (response.status === 401) { // Explicitly Unauthorized
-        set({ isAuthenticated: false, user: null, isAdmin: false, isLoading: false });
+      } else if (response.status === 401) {
+        set({ isAuthenticated: false, user: null, isAdmin: false, isPaid: false, isLoading: false });
         console.log("Auth Status: User Not Authenticated");
       } else {
-        // Handle other errors (e.g., server error on the endpoint)
         console.error(`Auth Status Check Failed: ${response.status} ${response.statusText}`);
-        set({ isAuthenticated: false, user: null, isAdmin: false, isLoading: false });
+        set({ isAuthenticated: false, user: null, isAdmin: false, isPaid: false, isLoading: false });
       }
     } catch (error) {
       // Handle network errors
       console.error("Auth Status Check Network Error:", error);
-      set({ isAuthenticated: false, user: null, isAdmin: false, isLoading: false });
+      set({ isAuthenticated: false, user: null, isAdmin: false, isPaid: false, isLoading: false });
     }
   },
 
@@ -76,7 +81,7 @@ const useAuthStore = create<AuthState>((set) => ({
       console.error("Logout Network Error:", error);
     } finally {
       // Always update client state
-      set({ isAuthenticated: false, user: null, isAdmin: false, isLoading: false });
+      set({ isAuthenticated: false, user: null, isAdmin: false, isPaid: false, isLoading: false });
       localStorage.removeItem('nimblist_last_list');
       console.log("User logged out (client state cleared).");
       // Optional: Force navigation after logout if desired

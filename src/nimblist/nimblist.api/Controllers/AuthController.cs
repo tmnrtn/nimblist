@@ -1,30 +1,33 @@
-﻿using Microsoft.AspNetCore.Authorization; // Needed for [Authorize], [AllowAnonymous]
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Nimblist.api.DTO;
+using Nimblist.api.Services;
 using Nimblist.Data.Models;
-using System.Security.Claims; // Needed for ClaimTypes
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace Nimblist.api.Controllers
 {
-    [Route("api/[controller]")] // Base route: api/auth
+    [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
-        private readonly ILogger<AuthController> _logger; // Optional: for logging
+        private readonly ISubscriptionService _subscriptionService;
+        private readonly ILogger<AuthController> _logger;
 
-        // Inject UserManager and SignInManager via constructor
         public AuthController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
+            ISubscriptionService subscriptionService,
             ILogger<AuthController> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _subscriptionService = subscriptionService;
             _logger = logger;
         }
 
@@ -53,12 +56,16 @@ namespace Nimblist.api.Controllers
             }
 
             var roles = await _userManager.GetRolesAsync(user);
+            var subStatus = await _subscriptionService.GetSubscriptionStatusAsync(user.Id);
 
             var userInfo = new UserInfoDto
             {
                 UserId = user.Id,
                 Email = user.Email,
                 Roles = roles,
+                SubscriptionTier = subStatus?.Tier ?? "free",
+                IsInTrial = subStatus?.IsInTrial ?? false,
+                TrialEndDate = subStatus?.TrialEndDate,
             };
 
             return Ok(userInfo);

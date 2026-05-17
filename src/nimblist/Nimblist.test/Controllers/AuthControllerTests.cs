@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
+using Nimblist.api.Services;
 using Nimblist.Data.Models;
 using Xunit;
 
@@ -55,10 +56,15 @@ namespace Nimblist.test.Controllers
                 null  // IUserConfirmation<TUser> confirmation
             );
 
+            var mockSubscription = new Mock<ISubscriptionService>();
+            mockSubscription.Setup(s => s.GetSubscriptionStatusAsync(It.IsAny<string>()))
+                .ReturnsAsync(new SubscriptionStatusDto { Tier = "free" });
+
             // Instantiate the controller with mocks
             _controller = new AuthController(
                 _mockUserManager.Object,
                 _mockSignInManager.Object,
+                mockSubscription.Object,
                 _nullLogger
             );
         }

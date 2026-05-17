@@ -28,6 +28,7 @@ namespace Nimblist.Data
         public virtual DbSet<LlmSettings> LlmSettings { get; set; } = null!;
         public virtual DbSet<UserPushSubscription> PushSubscriptions { get; set; } = null!;
         public virtual DbSet<Tag> Tags { get; set; } = null!;
+        public virtual DbSet<UserSubscription> UserSubscriptions { get; set; } = null!;
 
         // Constructor needed for dependency injection.
         // It accepts DbContextOptions, allowing the configuration (like connection string)
@@ -332,6 +333,24 @@ namespace Nimblist.Data
                 .HasMany(r => r.Tags)
                 .WithMany(t => t.Recipes)
                 .UsingEntity(j => j.ToTable("RecipeTag"));
+
+            // UserSubscription — one active subscription per user
+            builder.Entity<ApplicationUser>()
+                .HasOne<UserSubscription>()
+                .WithOne(s => s.User)
+                .HasForeignKey<UserSubscription>(s => s.UserId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<UserSubscription>(entity =>
+            {
+                entity.HasKey(s => s.Id);
+                entity.Property(s => s.UserId).IsRequired();
+                entity.Property(s => s.PayPalSubscriptionId).HasMaxLength(100).IsRequired();
+                entity.Property(s => s.Status).HasMaxLength(30).IsRequired();
+                entity.HasIndex(s => s.UserId).IsUnique().HasDatabaseName("IX_UserSubscriptions_UserId");
+                entity.HasIndex(s => s.PayPalSubscriptionId).HasDatabaseName("IX_UserSubscriptions_PayPalSubscriptionId");
+            });
 
             // === PostgreSQL Specific Configuration (Optional Examples) ===
 

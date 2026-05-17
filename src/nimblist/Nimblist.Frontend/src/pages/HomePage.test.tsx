@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+﻿import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import type { AuthState } from '../store/authStore';
@@ -21,6 +21,7 @@ describe('HomePage Component', () => {
     mockStoreState = {
       isAuthenticated: false,
       isAdmin: false,
+  isPaid: false,
       user: null,
       isLoading: false,
       checkAuthStatus: vi.fn(),

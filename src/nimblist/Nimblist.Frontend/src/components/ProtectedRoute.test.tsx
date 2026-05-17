@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+﻿import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import type { AuthState } from "../store/authStore";
@@ -16,6 +16,7 @@ vi.mock("./LoginPrompt", () => ({
 const base: AuthState = {
   isAuthenticated: false,
   isAdmin: false,
+  isPaid: false,
   user: null,
   isLoading: false,
   checkAuthStatus: vi.fn(),
@@ -48,7 +49,7 @@ describe("ProtectedRoute", () => {
   });
 
   it("renders outlet when authenticated", () => {
-    mockStoreState = { ...base, isAuthenticated: true, user: { userId: "u1", email: "u@test.com", roles: [] } };
+    mockStoreState = { ...base, isAuthenticated: true, user: { userId: "u1", email: "u@test.com", roles: [], subscriptionTier: 'free', isInTrial: false, trialEndDate: null } };
     renderProtected();
     expect(screen.getByText("Protected content")).toBeInTheDocument();
     expect(screen.queryByText("Please log in")).not.toBeInTheDocument();

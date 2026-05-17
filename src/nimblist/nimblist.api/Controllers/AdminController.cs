@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.api.DTO;
+using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using System.Security.Claims;
@@ -17,11 +18,13 @@ namespace Nimblist.api.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly NimblistContext _context;
+        private readonly IPayPalService _payPal;
 
-        public AdminController(UserManager<ApplicationUser> userManager, NimblistContext context)
+        public AdminController(UserManager<ApplicationUser> userManager, NimblistContext context, IPayPalService payPal)
         {
             _userManager = userManager;
             _context = context;
+            _payPal = payPal;
         }
 
         // GET /api/admin/users
@@ -244,6 +247,23 @@ namespace Nimblist.api.Controllers
                 ImageSearchApiKey = MaskApiKey(settings.ImageSearchApiKey),
                 UpdatedAt = settings.UpdatedAt,
             });
+        }
+
+        // POST /api/admin/paypal/setup
+        // One-time operation: creates a PayPal Product + Plan and returns the Plan ID.
+        // Copy the returned planId into appsettings.json under PayPal:PlanId.
+        [HttpPost("paypal/setup")]
+        public async Task<IActionResult> SetupPayPalPlan()
+        {
+            try
+            {
+                var planId = await _payPal.CreateProductAndPlanAsync();
+                return Ok(new { planId, message = "Plan created. Add this planId to appsettings.json under PayPal:PlanId." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(502, new { error = $"Failed to create PayPal plan: {ex.Message}" });
+            }
         }
 
         private static string? MaskApiKey(string? key)

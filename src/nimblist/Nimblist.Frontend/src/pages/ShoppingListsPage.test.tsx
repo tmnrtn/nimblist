@@ -1,4 +1,4 @@
-// src/pages/ShoppingListsPage.test.tsx
+﻿// src/pages/ShoppingListsPage.test.tsx
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom"; // Needed because component uses <Link>
@@ -61,7 +61,8 @@ describe("ShoppingListsPage Component", () => {
     mockStoreState = {
       isAuthenticated: true,
       isAdmin: false,
-      user: { userId: "test-user-id", email: "test@example.com", roles: [] },
+  isPaid: false,
+      user: { userId: "test-user-id", email: "test@example.com", roles: [], subscriptionTier: 'free', isInTrial: false, trialEndDate: null },
       isLoading: false,
       checkAuthStatus: vi.fn().mockResolvedValue(undefined),
       logout: vi.fn().mockResolvedValue(undefined),

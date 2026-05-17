@@ -16,12 +16,15 @@ namespace Nimblist.api.Controllers
     [Authorize]
     public class RecipesController : ControllerBase
     {
+        private const int FreeRecipeLimit = 25;
+
         private readonly NimblistContext _context;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
         private readonly IClassificationService _classificationService;
         private readonly IHubContext<ShoppingListHub> _hubContext;
         private readonly ILogger<RecipesController> _logger;
+        private readonly ISubscriptionService _subscriptionService;
 
         public RecipesController(
             NimblistContext context,
@@ -29,7 +32,8 @@ namespace Nimblist.api.Controllers
             IConfiguration configuration,
             IClassificationService classificationService,
             IHubContext<ShoppingListHub> hubContext,
-            ILogger<RecipesController> logger)
+            ILogger<RecipesController> logger,
+            ISubscriptionService subscriptionService)
         {
             _context = context;
             _httpClientFactory = httpClientFactory;
@@ -37,6 +41,7 @@ namespace Nimblist.api.Controllers
             _classificationService = classificationService;
             _hubContext = hubContext;
             _logger = logger;
+            _subscriptionService = subscriptionService;
         }
 
         public record ImportRecipeRequest(string Url);
@@ -48,6 +53,9 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            if (!await _subscriptionService.HasActiveSubscriptionAsync(userId))
+                return StatusCode(403, new { reason = "subscription_required" });
 
             if (string.IsNullOrWhiteSpace(request.Url))
                 return BadRequest("URL is required.");
@@ -88,6 +96,9 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            if (!await _subscriptionService.HasActiveSubscriptionAsync(userId))
+                return StatusCode(403, new { reason = "subscription_required" });
 
             if (image == null || image.Length == 0)
                 return BadRequest("An image file is required.");
@@ -172,6 +183,13 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            if (!await _subscriptionService.HasActiveSubscriptionAsync(userId))
+            {
+                var count = await _context.Recipes.CountAsync(r => r.UserId == userId);
+                if (count >= FreeRecipeLimit)
+                    return StatusCode(403, new { reason = "recipe_limit_reached", limit = FreeRecipeLimit, current = count });
+            }
 
             if (string.IsNullOrWhiteSpace(request.Title))
                 return BadRequest("Title is required.");

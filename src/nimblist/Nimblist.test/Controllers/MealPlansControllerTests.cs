@@ -6,11 +6,12 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
+using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
-using System.Collections.Generic;
 using Xunit;
 
 namespace Nimblist.test.Controllers
@@ -33,9 +34,16 @@ namespace Nimblist.test.Controllers
             return opts;
         }
 
+        private static ISubscriptionService BuildPaidSubscription()
+        {
+            var mock = new Mock<ISubscriptionService>();
+            mock.Setup(s => s.HasActiveSubscriptionAsync(It.IsAny<string>())).ReturnsAsync(true);
+            return mock.Object;
+        }
+
         private static MealPlansController CreateController(NimblistContext context, string userId)
         {
-            var controller = new MealPlansController(context);
+            var controller = new MealPlansController(context, BuildPaidSubscription());
             controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext
@@ -49,7 +57,7 @@ namespace Nimblist.test.Controllers
 
         private static MealPlansController CreateControllerNoAuth(NimblistContext context)
         {
-            var controller = new MealPlansController(context);
+            var controller = new MealPlansController(context, BuildPaidSubscription());
             controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext
