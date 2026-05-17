@@ -287,6 +287,7 @@ namespace Nimblist.api
             builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
             builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
             builder.Services.AddScoped<IPayPalService, PayPalService>();
+            builder.Services.AddTransient<ISubscriptionEmailService, SubscriptionEmailService>();
 
             var healthChecks = builder.Services.AddHealthChecks()
                 .AddNpgSql(connectionString ?? "", name: "postgres", tags: ["ready"]);

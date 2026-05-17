@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -19,17 +20,23 @@ namespace Nimblist.api.Controllers
         private readonly IPayPalService _payPal;
         private readonly IConfiguration _configuration;
         private readonly ILogger<SubscriptionController> _logger;
+        private readonly ISubscriptionEmailService _subscriptionEmail;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public SubscriptionController(
             NimblistContext context,
             IPayPalService payPal,
             IConfiguration configuration,
-            ILogger<SubscriptionController> logger)
+            ILogger<SubscriptionController> logger,
+            ISubscriptionEmailService subscriptionEmail,
+            UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _payPal = payPal;
             _configuration = configuration;
             _logger = logger;
+            _subscriptionEmail = subscriptionEmail;
+            _userManager = userManager;
         }
 
         // GET /api/subscription
@@ -123,6 +130,10 @@ namespace Nimblist.api.Controllers
             await _context.SaveChangesAsync();
             _logger.LogInformation("Subscription {SubId} activated for user {UserId}", details.Id, userId);
 
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user?.Email is not null)
+                _ = _subscriptionEmail.SendSubscriptionActivatedAsync(user.Email, inTrial, trialEndDate);
+
             return Ok(new SubscriptionStatusDto
             {
                 Tier = "paid",
@@ -156,6 +167,11 @@ namespace Nimblist.api.Controllers
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Subscription {SubId} cancelled for user {UserId}", sub.PayPalSubscriptionId, userId);
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user?.Email is not null)
+                _ = _subscriptionEmail.SendSubscriptionCancelledAsync(user.Email);
+
             return Ok(new { message = "Subscription cancelled." });
         }
     }

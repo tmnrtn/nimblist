@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
+using Nimblist.api.Services;
 using Nimblist.Data.Models;
 
 namespace Nimblist.api.Areas.Identity.Pages.Account
@@ -34,6 +35,7 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
         private readonly ILogger<RegisterModel> _logger;
         private readonly IEmailSender _emailSender;
         private readonly IConfiguration _configuration;
+        private readonly ISubscriptionEmailService _subscriptionEmail;
 
         public RegisterModel(
             UserManager<ApplicationUser> userManager,
@@ -41,7 +43,8 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
             SignInManager<ApplicationUser> signInManager,
             ILogger<RegisterModel> logger,
             IEmailSender emailSender,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ISubscriptionEmailService subscriptionEmail)
         {
             _userManager = userManager;
             _userStore = userStore;
@@ -50,6 +53,7 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
             _logger = logger;
             _emailSender = emailSender;
             _configuration = configuration;
+            _subscriptionEmail = subscriptionEmail;
         }
 
         /// <summary>
@@ -149,6 +153,7 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
                     }
                     else
                     {
+                        _ = _subscriptionEmail.SendWelcomeAsync(Input.Email);
                         await _signInManager.SignInAsync(user, isPersistent: false);
                         return Redirect(GenerateSafeRedirectUrl(returnUrl));
                     }

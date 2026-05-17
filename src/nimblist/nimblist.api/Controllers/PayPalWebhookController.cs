@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.api.Services;
 using Nimblist.Data;
+using Nimblist.Data.Models;
 using System.Text.Json;
 
 namespace Nimblist.api.Controllers
@@ -15,17 +17,23 @@ namespace Nimblist.api.Controllers
         private readonly IPayPalService _payPal;
         private readonly IConfiguration _configuration;
         private readonly ILogger<PayPalWebhookController> _logger;
+        private readonly ISubscriptionEmailService _subscriptionEmail;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public PayPalWebhookController(
             NimblistContext context,
             IPayPalService payPal,
             IConfiguration configuration,
-            ILogger<PayPalWebhookController> logger)
+            ILogger<PayPalWebhookController> logger,
+            ISubscriptionEmailService subscriptionEmail,
+            UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _payPal = payPal;
             _configuration = configuration;
             _logger = logger;
+            _subscriptionEmail = subscriptionEmail;
+            _userManager = userManager;
         }
 
         // POST /api/paypal/webhook
@@ -84,6 +92,7 @@ namespace Nimblist.api.Controllers
                 return Ok();
             }
 
+            string? emailAction = null;
             switch (eventType)
             {
                 case "BILLING.SUBSCRIPTION.ACTIVATED":
@@ -95,10 +104,12 @@ namespace Nimblist.api.Controllers
 
                 case "BILLING.SUBSCRIPTION.CANCELLED":
                     sub.Status = "CANCELLED";
+                    emailAction = "cancelled";
                     break;
 
                 case "BILLING.SUBSCRIPTION.SUSPENDED":
                     sub.Status = "SUSPENDED";
+                    emailAction = "payment-failed";
                     break;
 
                 case "BILLING.SUBSCRIPTION.EXPIRED":
@@ -119,6 +130,19 @@ namespace Nimblist.api.Controllers
 
             sub.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+
+            if (emailAction is not null)
+            {
+                var subUser = await _userManager.FindByIdAsync(sub.UserId);
+                if (subUser?.Email is not null)
+                {
+                    if (emailAction == "cancelled")
+                        _ = _subscriptionEmail.SendSubscriptionCancelledAsync(subUser.Email);
+                    else if (emailAction == "payment-failed")
+                        _ = _subscriptionEmail.SendPaymentFailedAsync(subUser.Email);
+                }
+            }
+
             return Ok();
         }
     }

@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
+using Nimblist.api.Services;
 using Nimblist.Data.Models;
 
 namespace Nimblist.api.Areas.Identity.Pages.Account
@@ -30,7 +31,8 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
         private readonly IUserEmailStore<ApplicationUser> _emailStore;
         private readonly IEmailSender _emailSender;
         private readonly ILogger<ExternalLoginModel> _logger;
-        private readonly IConfiguration _configuration; // Inject IConfiguration
+        private readonly IConfiguration _configuration;
+        private readonly ISubscriptionEmailService _subscriptionEmail;
 
         public ExternalLoginModel(
             SignInManager<ApplicationUser> signInManager,
@@ -38,7 +40,8 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
             IUserStore<ApplicationUser> userStore,
             ILogger<ExternalLoginModel> logger,
             IEmailSender emailSender,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ISubscriptionEmailService subscriptionEmail)
         {
             _signInManager = signInManager;
             _userManager = userManager;
@@ -47,6 +50,7 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
             _logger = logger;
             _emailSender = emailSender;
             _configuration = configuration;
+            _subscriptionEmail = subscriptionEmail;
         }
 
         /// <summary>
@@ -188,10 +192,11 @@ namespace Nimblist.api.Areas.Identity.Pages.Account
                             return RedirectToPage("./RegisterConfirmation", new { Email = Input.Email });
                         }
 
+                        _ = _subscriptionEmail.SendWelcomeAsync(Input.Email);
                         await _signInManager.SignInAsync(user, isPersistent: true, info.LoginProvider);
-                        _logger.LogInformation("User logged in using {Name} provider.", info.LoginProvider); // Example log
+                        _logger.LogInformation("User logged in using {Name} provider.", info.LoginProvider);
                         var redirectUrl = GenerateSafeRedirectUrl(returnUrl);
-                        return Redirect(redirectUrl); // Use Redirect, NOT LocalRedirect
+                        return Redirect(redirectUrl);
                     }
                 }
                 foreach (var error in result.Errors)
