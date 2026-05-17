@@ -42,6 +42,7 @@ namespace Nimblist.api.Controllers
                     UserId = user.Id,
                     Email = user.Email,
                     Roles = roles,
+                    IsComplimentaryAccess = user.IsComplimentaryAccess,
                 });
             }
 
@@ -65,6 +66,21 @@ namespace Nimblist.api.Controllers
             var currentRoles = await _userManager.GetRolesAsync(user);
             await _userManager.RemoveFromRolesAsync(user, currentRoles);
             await _userManager.AddToRoleAsync(user, dto.Role);
+
+            return NoContent();
+        }
+
+        // PUT /api/admin/users/{id}/complimentary-access
+        [HttpPut("users/{id}/complimentary-access")]
+        public async Task<IActionResult> SetComplimentaryAccess(string id, [FromBody] SetComplimentaryAccessDto dto)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            user.IsComplimentaryAccess = dto.IsComplimentaryAccess;
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+                return StatusCode(500, result.Errors);
 
             return NoContent();
         }

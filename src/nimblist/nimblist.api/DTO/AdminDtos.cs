@@ -5,6 +5,12 @@ namespace Nimblist.api.DTO
         public string UserId { get; set; } = string.Empty;
         public string? Email { get; set; }
         public IList<string> Roles { get; set; } = new List<string>();
+        public bool IsComplimentaryAccess { get; set; }
+    }
+
+    public class SetComplimentaryAccessDto
+    {
+        public bool IsComplimentaryAccess { get; set; }
     }
 
     public class AdminFamilyMemberDto

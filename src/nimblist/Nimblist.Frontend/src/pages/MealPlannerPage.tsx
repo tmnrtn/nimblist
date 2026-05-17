@@ -72,16 +72,16 @@ const MealPlannerPage: React.FC = () => {
   // Load plans, recipes, lists on mount
   useEffect(() => {
     Promise.all([
-      authenticatedFetch('/api/mealplans').then(r => r.json()),
-      authenticatedFetch('/api/recipes').then(r => r.json()),
-      authenticatedFetch('/api/shoppinglists').then(r => r.json()),
+      authenticatedFetch('/api/mealplans').then(r => r.ok ? r.json() : []),
+      authenticatedFetch('/api/recipes').then(r => r.ok ? r.json() : []),
+      authenticatedFetch('/api/shoppinglists').then(r => r.ok ? r.json() : []),
     ]).then(([plansData, recipesData, listsData]) => {
       setPlans(plansData);
       setRecipes(recipesData);
       setLists(listsData);
       if (plansData.length > 0) setSelectedPlanId(plansData[0].id);
       const activeLists = (listsData as ShoppingList[]).filter((l: ShoppingList) => !l.isTemplate);
-    if (activeLists.length > 0) { setAddToListId(activeLists[0].id); setAddWeekListId(activeLists[0].id); }
+      if (activeLists.length > 0) { setAddToListId(activeLists[0].id); setAddWeekListId(activeLists[0].id); }
       if (recipesData.length > 0) setAddRecipeId(recipesData[0].id);
     }).catch(() => {})
       .finally(() => setIsLoading(false));

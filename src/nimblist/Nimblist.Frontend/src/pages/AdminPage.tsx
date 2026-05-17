@@ -18,6 +18,7 @@ interface AdminUser {
   userId: string;
   email: string;
   roles: string[];
+  isComplimentaryAccess: boolean;
 }
 
 interface AdminFamilyMember {
@@ -54,12 +55,14 @@ interface UsersTabProps {
   loading: boolean;
   error: string | null;
   roleChangeLoading: string | null;
+  complimentaryChangeLoading: string | null;
   onRefresh: () => void;
   onSetRole: (userId: string, role: string) => void;
+  onSetComplimentaryAccess: (userId: string, value: boolean) => void;
   onDelete: (userId: string, email: string) => void;
 }
 
-const UsersTab: React.FC<UsersTabProps> = ({ users, loading, error, roleChangeLoading, onRefresh, onSetRole, onDelete }) => (
+const UsersTab: React.FC<UsersTabProps> = ({ users, loading, error, roleChangeLoading, complimentaryChangeLoading, onRefresh, onSetRole, onSetComplimentaryAccess, onDelete }) => (
   <div>
     <div className="flex justify-between items-center mb-4">
       <h2 className="text-lg font-semibold text-gray-800">Application Users</h2>
@@ -74,6 +77,7 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, loading, error, roleChangeLo
             <tr>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Free Premium</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
@@ -81,18 +85,38 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, loading, error, roleChangeLo
             {users.map(user => {
               const currentRole = user.roles[0] ?? 'Standard';
               const isChanging = roleChangeLoading === user.userId;
+              const isComplimentaryChanging = complimentaryChangeLoading === user.userId;
+              const isAdmin = currentRole === 'Admin';
               return (
                 <tr key={user.userId}>
                   <td className="px-4 py-2 text-sm text-gray-900">{user.email}</td>
                   <td className="px-4 py-2">
                     <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
-                      currentRole === 'Admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
+                      isAdmin ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
                     }`}>
                       {currentRole}
                     </span>
                   </td>
+                  <td className="px-4 py-2">
+                    {isAdmin ? (
+                      <span className="text-xs text-gray-400 italic">included (Admin)</span>
+                    ) : (
+                      <button
+                        onClick={() => onSetComplimentaryAccess(user.userId, !user.isComplimentaryAccess)}
+                        disabled={isComplimentaryChanging}
+                        title={user.isComplimentaryAccess ? 'Revoke free premium access' : 'Grant free premium access'}
+                        className={`text-xs px-2 py-1 rounded disabled:opacity-50 transition-colors ${
+                          user.isComplimentaryAccess
+                            ? 'bg-green-600 text-white hover:bg-green-700'
+                            : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                        }`}
+                      >
+                        {isComplimentaryChanging ? '…' : user.isComplimentaryAccess ? 'Active' : 'Grant'}
+                      </button>
+                    )}
+                  </td>
                   <td className="px-4 py-2 flex gap-2">
-                    {currentRole !== 'Admin' && (
+                    {!isAdmin && (
                       <button
                         onClick={() => onSetRole(user.userId, 'Admin')}
                         disabled={isChanging}
@@ -101,7 +125,7 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, loading, error, roleChangeLo
                         Make Admin
                       </button>
                     )}
-                    {currentRole !== 'Standard' && (
+                    {isAdmin && (
                       <button
                         onClick={() => onSetRole(user.userId, 'Standard')}
                         disabled={isChanging}
@@ -437,6 +461,7 @@ const AdminPage: React.FC = () => {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null);
+  const [complimentaryChangeLoading, setComplimentaryChangeLoading] = useState<string | null>(null);
 
   const [families, setFamilies] = useState<AdminFamily[]>([]);
   const [familiesLoading, setFamiliesLoading] = useState(false);
@@ -521,6 +546,21 @@ const AdminPage: React.FC = () => {
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to delete record');
     }
+  }
+
+  async function handleSetComplimentaryAccess(userId: string, value: boolean) {
+    setComplimentaryChangeLoading(userId);
+    try {
+      const res = await authenticatedFetch(`/api/admin/users/${userId}/complimentary-access`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isComplimentaryAccess: value }),
+      });
+      if (!res.ok) throw new Error(`Failed to update access (${res.status})`);
+      setUsers(prev => prev.map(u => u.userId === userId ? { ...u, isComplimentaryAccess: value } : u));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to update access');
+    } finally { setComplimentaryChangeLoading(null); }
   }
 
   async function handleSetRole(userId: string, role: string) {
@@ -619,7 +659,10 @@ const AdminPage: React.FC = () => {
         <UsersTab
           users={users} loading={usersLoading} error={usersError}
           roleChangeLoading={roleChangeLoading}
-          onRefresh={loadUsers} onSetRole={handleSetRole} onDelete={handleDeleteUser}
+          complimentaryChangeLoading={complimentaryChangeLoading}
+          onRefresh={loadUsers} onSetRole={handleSetRole}
+          onSetComplimentaryAccess={handleSetComplimentaryAccess}
+          onDelete={handleDeleteUser}
         />
       )}
       {activeTab === 'families' && (
