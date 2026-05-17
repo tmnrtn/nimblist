@@ -72,10 +72,7 @@ namespace Nimblist.api.Services
 
         private async Task<Guid?> ResolveSubCategoryAsync(string? predictedSubCategory, Guid categoryId)
         {
-            if (string.IsNullOrEmpty(predictedSubCategory) ||
-                predictedSubCategory == "Unknown" ||
-                predictedSubCategory == "N/A" ||
-                predictedSubCategory == "No Sub-Model")
+            if (string.IsNullOrEmpty(predictedSubCategory))
                 return null;
 
             var subCategory = await _context.SubCategories

@@ -9,6 +9,12 @@ PRIMARY_MODEL_PATH = 'supermarket_classifier_logreg.joblib'
 PRIMARY_VECTORIZER_PATH = 'tfidf_vectorizer_logreg.joblib'
 SUB_MODELS_DIR = 'sub_category_models'
 
+# Return "Unknown" when the model's top probability is below this threshold.
+# Prevents confidently-wrong classifications for short/ambiguous inputs.
+# Override with PRIMARY_CONFIDENCE_THRESHOLD / SUB_CONFIDENCE_THRESHOLD env vars.
+PRIMARY_CONFIDENCE_THRESHOLD = float(os.environ.get('PRIMARY_CONFIDENCE_THRESHOLD', '0.35'))
+SUB_CONFIDENCE_THRESHOLD = float(os.environ.get('SUB_CONFIDENCE_THRESHOLD', '0.35'))
+
 # --- Load Models and Vectorizers ---
 print("Loading primary model and vectorizer...")
 try:
@@ -85,14 +91,17 @@ def _predict_sub_category(primary_cat, input_vector):
     sanitized = sanitize_filename(primary_cat)
     if sanitized not in sub_models or sanitized not in sub_vectorizers:
         print(f"Warning: No sub-model found for '{primary_cat}' (Sanitized: '{sanitized}').")
-        return "No Sub-Model"
+        return None
     try:
         sub_features = sub_vectorizers[sanitized].transform(input_vector)
-        result = sub_models[sanitized].predict(sub_features)
-        return result[0] if len(result) > 0 else "Unknown"
+        proba = sub_models[sanitized].predict_proba(sub_features)[0]
+        max_confidence = float(np.max(proba))
+        if max_confidence < SUB_CONFIDENCE_THRESHOLD:
+            return None
+        return sub_models[sanitized].classes_[int(np.argmax(proba))]
     except Exception as e:
         print(f"Error during sub-category prediction for '{primary_cat}': {e}")
-        return "Prediction Error"
+        return None
 
 
 @app.route('/predict', methods=['POST'])
@@ -115,14 +124,18 @@ def predict():
 
     try:
         primary_features = primary_vectorizer.transform(input_vector)
-        predicted_arr = primary_model.predict(primary_features)
-        predicted_primary_cat = predicted_arr[0] if len(predicted_arr) > 0 else "Unknown"
+        proba = primary_model.predict_proba(primary_features)[0]
+        max_confidence = float(np.max(proba))
+        if max_confidence < PRIMARY_CONFIDENCE_THRESHOLD:
+            predicted_primary_cat = None
+        else:
+            predicted_primary_cat = primary_model.classes_[int(np.argmax(proba))]
     except Exception as e:
         print(f"Error during primary prediction: {e}")
         return jsonify({"error": "Failed to predict primary category"}), 500
 
-    predicted_sub_cat = "N/A"
-    if predicted_primary_cat != "Unknown":
+    predicted_sub_cat = None
+    if predicted_primary_cat is not None:
         predicted_sub_cat = _predict_sub_category(predicted_primary_cat, input_vector)
 
     return jsonify({
