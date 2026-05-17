@@ -588,11 +588,12 @@ namespace Nimblist.test.Controllers
                     Quantity = "1", 
                     IsChecked = true, 
                     ShoppingListId = nonExistentListId // Non-existent list ID
-                };                // Act & Assert
-                var updateAction = async () => await controller.PutItem(existingItemId, updateDto);
-                var exception = await Assert.ThrowsAsync<InvalidOperationException>(updateAction);
-                Assert.Contains("The required data for completing this operation was not found", exception.Message);
-                
+                };                // Act
+                var result = await controller.PutItem(existingItemId, updateDto);
+
+                // Assert — non-existent target list is not accessible, so expect Forbid
+                Assert.IsType<ForbidResult>(result);
+
                 // Verify SignalR was not called
                 _mockClientProxy.Verify(
                     x => x.SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>()),

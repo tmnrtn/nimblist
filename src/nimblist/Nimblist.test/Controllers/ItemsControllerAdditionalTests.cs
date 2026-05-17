@@ -252,10 +252,9 @@ namespace Nimblist.test.Controllers
                     Quantity = "2 loaves",
                     IsChecked = true,
                     ShoppingListId = nonExistentListId // Non-existent list ID
-                };                // Act & Assert
-                var updateAction = async () => await controller.PutItem(existingItemId, updateDto);
-                var exception = await Assert.ThrowsAsync<InvalidOperationException>(updateAction);
-                Assert.Contains("The required data for completing this operation was not found", exception.Message);
+                };                // Act — non-existent target list is not accessible, so expect Forbid
+                var result = await controller.PutItem(existingItemId, updateDto);
+                Assert.IsType<ForbidResult>(result);
             }
         }
 

@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
+using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using Xunit;
@@ -60,7 +62,7 @@ namespace Nimblist.test.Controllers
 
         private ListSharesController CreateControllerWithContext(NimblistContext context, string currentUserId)
         {
-            var controller = new ListSharesController(context);
+            var controller = new ListSharesController(context, new Mock<IPushNotificationService>().Object);
             var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
             {
                 new Claim(ClaimTypes.NameIdentifier, currentUserId)
@@ -357,7 +359,7 @@ namespace Nimblist.test.Controllers
             
             using (var context = new NimblistContext(_dbOptions))
             {
-                var controller = new ListSharesController(context);
+                var controller = new ListSharesController(context, new Mock<IPushNotificationService>().Object);
                 var userWithoutNameIdClaim = new ClaimsPrincipal(new ClaimsIdentity(new Claim[] { }, "mockAuth_NoNameId"));
                 controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = userWithoutNameIdClaim } };
                 
@@ -449,7 +451,7 @@ namespace Nimblist.test.Controllers
             
             using (var context = new NimblistContext(_dbOptions))
             {
-                var controller = new ListSharesController(context);
+                var controller = new ListSharesController(context, new Mock<IPushNotificationService>().Object);
                 var userWithoutNameIdClaim = new ClaimsPrincipal(new ClaimsIdentity(new Claim[] { }, "mockAuth_NoNameId"));
                 controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = userWithoutNameIdClaim } };
                 
@@ -590,7 +592,7 @@ namespace Nimblist.test.Controllers
             
             using (var context = new NimblistContext(_dbOptions))
             {
-                var controller = new ListSharesController(context);
+                var controller = new ListSharesController(context, new Mock<IPushNotificationService>().Object);
                 var userWithoutNameIdClaim = new ClaimsPrincipal(new ClaimsIdentity(new Claim[] { }, "mockAuth_NoNameId"));
                 controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = userWithoutNameIdClaim } };
                 
@@ -677,7 +679,7 @@ namespace Nimblist.test.Controllers
             
             using (var context = new NimblistContext(_dbOptions))
             {
-                var controller = new ListSharesController(context);
+                var controller = new ListSharesController(context, new Mock<IPushNotificationService>().Object);
                 var userWithoutNameIdClaim = new ClaimsPrincipal(new ClaimsIdentity(new Claim[] { }, "mockAuth_NoNameId"));
                 controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = userWithoutNameIdClaim } };
                 

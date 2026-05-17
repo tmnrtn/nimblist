@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using Nimblist.api.Controllers;
 using Nimblist.api.DTO;
+using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using Xunit;
@@ -51,7 +53,7 @@ namespace Nimblist.test.Controllers
 
         private RecipeSharesController CreateController(NimblistContext context, string userId)
         {
-            var controller = new RecipeSharesController(context);
+            var controller = new RecipeSharesController(context, new Mock<IPushNotificationService>().Object);
             var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, userId)
@@ -65,7 +67,7 @@ namespace Nimblist.test.Controllers
 
         private RecipeSharesController CreateControllerNoAuth(NimblistContext context)
         {
-            var controller = new RecipeSharesController(context);
+            var controller = new RecipeSharesController(context, new Mock<IPushNotificationService>().Object);
             controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext

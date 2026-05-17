@@ -33,6 +33,36 @@ namespace Nimblist.api.Controllers
             _pushNotificationService = pushNotificationService;
         }
 
+        private async Task<HashSet<Guid>> GetAccessibleListIdsAsync(string userId)
+        {
+            var ownedIds = await _context.ShoppingLists
+                .Where(l => l.UserId == userId)
+                .Select(l => l.Id)
+                .ToListAsync();
+
+            var userShareIds = await _context.ListShares
+                .Where(s => s.UserId == userId)
+                .Select(s => s.ListId)
+                .ToListAsync();
+
+            var familyIds = await _context.FamilyMembers
+                .Where(m => m.UserId == userId)
+                .Select(m => m.FamilyId)
+                .ToListAsync();
+
+            var familyShareIds = familyIds.Count > 0
+                ? await _context.ListShares
+                    .Where(s => s.FamilyId.HasValue && familyIds.Contains(s.FamilyId.Value))
+                    .Select(s => s.ListId)
+                    .ToListAsync()
+                : new List<Guid>();
+
+            var result = new HashSet<Guid>(ownedIds);
+            result.UnionWith(userShareIds);
+            result.UnionWith(familyShareIds);
+            return result;
+        }
+
         // Helper method to convert Item to ItemWithCategoryDto
         private ItemWithCategoryDto ConvertToItemDto(Item item)
         {
@@ -59,12 +89,14 @@ namespace Nimblist.api.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
 
+            var accessibleListIds = await GetAccessibleListIdsAsync(userId);
+
             var items = await _context.Items
-                                        .Include(i => i.List) // Include the parent list
-                                        .Include(i => i.Category) // Include Category information
-                                        .Include(i => i.SubCategory) // Include SubCategory information
-                                        .Where(i => i.List != null && i.List.UserId == userId) // Defensive: check List is not null
-                                        .OrderByDescending(i => i.AddedAt) // Order by AddedAt
+                                        .Include(i => i.List)
+                                        .Include(i => i.Category)
+                                        .Include(i => i.SubCategory)
+                                        .Where(i => accessibleListIds.Contains(i.ShoppingListId))
+                                        .OrderByDescending(i => i.AddedAt)
                                         .ToListAsync();
 
             var itemDtos = items.Select(item => ConvertToItemDto(item)).ToList();
@@ -78,74 +110,62 @@ namespace Nimblist.api.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
 
+            var accessibleListIds = await GetAccessibleListIdsAsync(userId);
+
             var item = await _context.Items
-                .Include(i => i.List) // Include the parent list
-                .Include(i => i.Category) // Include Category information
-                .Include(i => i.SubCategory) // Include SubCategory information
-                .FirstOrDefaultAsync(i => i.Id == id && i.List != null && i.List.UserId == userId); // Defensive: check List is not null
+                .Include(i => i.List)
+                .Include(i => i.Category)
+                .Include(i => i.SubCategory)
+                .FirstOrDefaultAsync(i => i.Id == id && accessibleListIds.Contains(i.ShoppingListId));
 
-            if (item == null)
-            {
-                return NotFound();
-            }
+            if (item == null) return NotFound();
 
-            var itemDto = ConvertToItemDto(item);
-            return Ok(itemDto);
+            return Ok(ConvertToItemDto(item));
         }
 
         // PUT: api/Items/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutItem(Guid id, ItemUpdateDto itemDto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
 
-            var existingItem = await _context.Items
-                .Include(i => i.List) // Include the parent list
-                .Include(i => i.Category) // Include Category information
-                .Include(i => i.SubCategory) // Include SubCategory information
-                .FirstOrDefaultAsync(i => i.Id == id && i.List != null && i.List.UserId == userId); // Defensive: check List is not null
+            var accessibleListIds = await GetAccessibleListIdsAsync(userId);
 
-            if (existingItem == null)
-            {
-                return NotFound();
-            }
+            var existingItem = await _context.Items
+                .Include(i => i.List)
+                .Include(i => i.Category)
+                .Include(i => i.SubCategory)
+                .FirstOrDefaultAsync(i => i.Id == id && accessibleListIds.Contains(i.ShoppingListId));
+
+            if (existingItem == null) return NotFound();
+
+            // Target list must also be accessible (guards against moving item to another user's list)
+            if (!accessibleListIds.Contains(itemDto.ShoppingListId))
+                return Forbid();
+
             existingItem.Name = itemDto.Name;
             existingItem.Quantity = itemDto.Quantity;
             existingItem.IsChecked = itemDto.IsChecked;
             existingItem.ShoppingListId = itemDto.ShoppingListId;
-            // Set category and subcategory if provided
             existingItem.CategoryId = itemDto.CategoryId;
             existingItem.SubCategoryId = itemDto.SubCategoryId;
 
             try
             {
-                // Check if the shopping list exists
-                var shoppingListExists = await _context.ShoppingLists.AnyAsync(sl => sl.Id == itemDto.ShoppingListId && sl.UserId == userId);
-                if (!shoppingListExists)
-                {
-                    throw new InvalidOperationException("The required data for completing this operation was not found. The shopping list does not exist.");
-                }
-                
                 await _context.SaveChangesAsync();
 
-                // Reload navigation properties to ensure names are up-to-date
                 await _context.Entry(existingItem).Reference(i => i.Category).LoadAsync();
                 await _context.Entry(existingItem).Reference(i => i.SubCategory).LoadAsync();
 
-                // --- Send SignalR Update ---
                 string groupName = $"list_{existingItem.ShoppingListId}";
-                // Message name "ReceiveItemUpdated" must match client listener
-                // Convert to DTO with category information
                 var itemWithCategory = ConvertToItemDto(existingItem);
                 await _hubContext.Clients.Group(groupName).SendAsync("ReceiveItemUpdated", itemWithCategory);
-                Console.WriteLine($"--> SignalR: Sent ReceiveItemUpdated to {groupName} for item {existingItem.Id}");
-                // --------------------------
-            }
-            catch (DbUpdateConcurrencyException) { return Conflict("Concurrency conflict."); } // Handle concurrency
 
-            return NoContent(); // Success
+            }
+            catch (DbUpdateConcurrencyException) { return Conflict("Concurrency conflict."); }
+
+            return NoContent();
         }
 
         // POST: api/Items
@@ -155,6 +175,10 @@ namespace Nimblist.api.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
+
+            var accessibleListIds = await GetAccessibleListIdsAsync(userId);
+            if (!accessibleListIds.Contains(itemDto.ShoppingListId))
+                return Forbid();
 
             // Check for an existing unchecked item with the same name on this list
             var duplicate = await _context.Items
@@ -229,24 +253,18 @@ namespace Nimblist.api.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID claim not found.");
 
+            var accessibleListIds = await GetAccessibleListIdsAsync(userId);
+
             var item = await _context.Items
-                .Include(i => i.List) // Optionally include the parent list
-                .FirstOrDefaultAsync(i => i.Id == id && i.List != null && i.List.UserId == userId); // Defensive: check List is not null
-            if (item == null)
-            {
-                return NotFound();
-            }
+                .FirstOrDefaultAsync(i => i.Id == id && accessibleListIds.Contains(i.ShoppingListId));
+
+            if (item == null) return NotFound();
 
             _context.Items.Remove(item);
             await _context.SaveChangesAsync();
 
-            // --- Send SignalR Update ---
             string groupName = $"list_{item.ShoppingListId}";
-            // Message name "ReceiveItemDeleted" must match client listener
-            // Send just the ID of the item that was deleted
             await _hubContext.Clients.Group(groupName).SendAsync("ReceiveItemDeleted", item.Id);
-            Console.WriteLine($"--> SignalR: Sent ReceiveItemDeleted to {groupName} for item {item.Id}");
-            // --------------------------
 
             return NoContent();
         }

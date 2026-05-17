@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.api.DTO;
+using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using System.Security.Claims;
@@ -14,10 +15,12 @@ namespace Nimblist.api.Controllers
     public class RecipeSharesController : ControllerBase
     {
         private readonly NimblistContext _context;
+        private readonly IPushNotificationService _pushNotificationService;
 
-        public RecipeSharesController(NimblistContext context)
+        public RecipeSharesController(NimblistContext context, IPushNotificationService pushNotificationService)
         {
             _context = context;
+            _pushNotificationService = pushNotificationService;
         }
 
         private static RecipeShareDetailDto ToDto(RecipeShare rs) =>
@@ -53,6 +56,24 @@ namespace Nimblist.api.Controllers
 
             if (share.UserId != null) await _context.Entry(share).Reference(s => s.User).LoadAsync();
             if (share.FamilyId != null) await _context.Entry(share).Reference(s => s.Family).LoadAsync();
+
+            if (share.UserId != null)
+            {
+                var targetId = share.UserId;
+                _ = Task.Run(() => _pushNotificationService.NotifyRecipeSharedAsync(targetId, recipe, currentUserId));
+            }
+            else if (share.FamilyId != null)
+            {
+                var memberIds = await _context.FamilyMembers
+                    .Where(m => m.FamilyId == share.FamilyId && m.UserId != currentUserId)
+                    .Select(m => m.UserId)
+                    .ToListAsync();
+                foreach (var memberId in memberIds)
+                {
+                    var id = memberId;
+                    _ = Task.Run(() => _pushNotificationService.NotifyRecipeSharedAsync(id, recipe, currentUserId));
+                }
+            }
 
             return CreatedAtAction(nameof(GetSharesForRecipe), new { recipeId = share.RecipeId }, ToDto(share));
         }
