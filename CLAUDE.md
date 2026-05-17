@@ -223,3 +223,32 @@ dotnet dev-certs https --trust
 - **Image search:** Brave Search API only accepts `safesearch=off` or `safesearch=strict` — `safesearch=moderate` returns 422. `ImageSearchController` uses `safesearch=strict`.
 - **SonarCloud:** Project is `tmnrtn/nimblist` on SonarCloud. An MCP server is configured on `lxc-mcp.lan:8086/mcp` (add via `claude mcp add --transport http sonarcloud http://lxc-mcp.lan:8086/mcp`).
 - **Homelab repo:** Infrastructure and MCP server documentation lives at `C:\Users\mail\source\repos\homelab` (GitHub: `tmnrtn/homelab`, private). MCP server connection details and tokens are documented in `docs/mcp-servers.md`.
+
+---
+
+## Production Hosting Plan
+
+The intended production hosting target is **DigitalOcean** using a **Docker Swarm** deployment, following a phased approach:
+
+### Stage 1 — Single Droplet (starting point)
+- One DO Droplet (2 vCPU / 4GB, ~$24/mo) running Swarm in single-manager mode
+- All services deployed as a Swarm stack, including Postgres and Redis on named volumes
+- Postgres pinned to the manager node via a placement constraint to avoid data loss if workers are added later
+- Existing Docker Compose files adapted to a stack file; existing webhook auto-deploy updated to use `docker service update --image ...` instead of `docker compose pull`
+- Secrets (VAPID keys, OAuth credentials, LLM API keys) stored as Docker secrets, not env files
+
+### Stage 2 — Multi-node + managed services
+- Add a second Droplet and join it to the Swarm (`docker swarm join`)
+- Migrate Postgres to DO Managed Database and Redis to DO Managed Redis before adding the second node — this removes the stateful-volume problem
+- Add a DO Load Balancer ($12/mo) in front; enable sticky sessions or rely on the existing Redis SignalR backplane (already in place)
+- Scale replicas: `nimblist-api` × 2, `Nimblist.recipescraper` × 3 (the bottleneck service), `Nimblist.classification` × 2
+
+### Stage 3 — Further scaling (if needed)
+- Add more Droplets as workers; Swarm handles placement automatically
+- If operational complexity grows beyond what Swarm can handle cleanly, migrate to DO Managed Kubernetes (DOKS)
+
+### Key production config changes required
+- `CorsSettings:AllowedOrigins` must be updated to the production domain
+- VAPID keys should be rotated for production (`VapidSettings:PublicKey` / `VapidSettings:PrivateKey`)
+- `Cookie.SecurePolicy = Always` and `SameSite = Strict` are already set — do not remove them
+- A DO Container Registry (~$5/mo) should hold production images; CI pushes on merge to main

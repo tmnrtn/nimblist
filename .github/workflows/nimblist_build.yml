@@ -25,8 +25,14 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'CLAUDE.md'
+      - '**.md'
   pull_request:
     types: [opened, synchronize, reopened]
+    paths-ignore:
+      - 'CLAUDE.md'
+      - '**.md'
 
 jobs:
   build_test_analyze:
