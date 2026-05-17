@@ -25,9 +25,14 @@ namespace Nimblist.api.Services
             if (user.IsComplimentaryAccess) return true;
             if (await _userManager.IsInRoleAsync(user, "Admin")) return true;
 
-            return await _context.UserSubscriptions.AnyAsync(s =>
-                s.UserId == userId &&
-                (s.Status == "ACTIVE" || s.Status == "APPROVED"));
+            var sub = await _context.UserSubscriptions
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+
+            if (sub == null) return false;
+
+            if (sub.Status == "ACTIVE" || sub.Status == "APPROVED") return true;
+
+            return sub.IsInTrial && sub.TrialEndDate.HasValue && sub.TrialEndDate.Value > DateTime.UtcNow;
         }
 
         public async Task<SubscriptionStatusDto?> GetSubscriptionStatusAsync(string userId)
@@ -48,11 +53,13 @@ namespace Nimblist.api.Services
                 return new SubscriptionStatusDto { Tier = "free" };
 
             var isActive = sub.Status == "ACTIVE" || sub.Status == "APPROVED";
+            var trialActive = sub.IsInTrial && sub.TrialEndDate.HasValue && sub.TrialEndDate.Value > DateTime.UtcNow;
+
             return new SubscriptionStatusDto
             {
-                Tier = isActive ? "paid" : "free",
+                Tier = (isActive || trialActive) ? "paid" : "free",
                 Status = sub.Status,
-                IsInTrial = sub.IsInTrial,
+                IsInTrial = trialActive,
                 TrialEndDate = sub.TrialEndDate,
                 NextBillingDate = sub.NextBillingDate,
                 PayPalSubscriptionId = sub.PayPalSubscriptionId,

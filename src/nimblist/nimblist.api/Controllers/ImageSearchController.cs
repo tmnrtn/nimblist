@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.Data;
 using System.Net.Http.Json;
@@ -23,6 +24,7 @@ namespace Nimblist.api.Controllers
 
         // GET /api/imagesearch?q=chocolate+cake
         [HttpGet]
+        [EnableRateLimiting("image-search")]
         public async Task<IActionResult> Search([FromQuery] string q)
         {
             if (string.IsNullOrWhiteSpace(q))

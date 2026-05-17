@@ -1,0 +1,147 @@
+name: nimblist
+
+services:
+
+  nimblist-api:
+    image: lankykowalski/nimblist-api:latest
+    container_name: nimblist_api_prod
+    restart: unless-stopped
+    labels:
+      - "wud.watch.digest=true"
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      # Database
+      - ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}
+      - ConnectionStrings__Redis=${ConnectionStrings__Redis}
+      # CORS — semicolon-separated list of allowed frontend origins
+      - CorsSettings__AllowedOrigins=${CORS_ALLOWED_ORIGINS}
+      # Frontend URL (used for OAuth redirect and email links)
+      - FrontendAppSettings__BaseUrl=${FRONTEND_BASE_URL}
+      # OAuth providers (add others if configured)
+      - Authentication__Google__ClientId=${GOOGLE_CLIENT_ID}
+      - Authentication__Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
+      - Authentication__Facebook__AppId=${FACEBOOK_APP_ID:-}
+      - Authentication__Facebook__AppSecret=${FACEBOOK_APP_SECRET:-}
+      - Authentication__Microsoft__ClientId=${MICROSOFT_CLIENT_ID:-}
+      - Authentication__Microsoft__ClientSecret=${MICROSOFT_CLIENT_SECRET:-}
+      # Admin
+      - AdminSettings__AdminEmail=${ADMIN_EMAIL}
+      # Internal service URLs
+      - ClassificationService__PredictUrl=http://nimblist-classification:5000/predict
+      - RecipeScraperService__ScrapeUrl=http://nimblist-recipescraper:5001/scrape
+      - RecipeScraperService__ScrapeImageUrl=http://nimblist-recipescraper:5001/scrape-image
+      - RecipeScraperService__ParseUrl=http://nimblist-recipescraper:5001/parse-ingredients
+      # Web Push (VAPID)
+      - VapidSettings__Subject=${VAPID_SUBJECT}
+      - VapidSettings__PublicKey=${VAPID_PUBLIC_KEY}
+      - VapidSettings__PrivateKey=${VAPID_PRIVATE_KEY}
+      # PayPal
+      - PayPal__Mode=${PAYPAL_MODE:-live}
+      - PayPal__ClientId=${PAYPAL_CLIENT_ID}
+      - PayPal__ClientSecret=${PAYPAL_CLIENT_SECRET}
+      - PayPal__PlanId=${PAYPAL_PLAN_ID}
+      - PayPal__WebhookId=${PAYPAL_WEBHOOK_ID}
+      # Email (Resend)
+      - Resend__ApiKey=${RESEND_API_KEY}
+      - Resend__FromAddress=${RESEND_FROM_ADDRESS}
+      # Rate limits (optional overrides — defaults defined in appsettings.json)
+      - RateLimits__AuthIp__PermitLimit=${RATE_AUTH_IP_LIMIT:-10}
+      - RateLimits__AuthIp__WindowMinutes=${RATE_AUTH_IP_WINDOW:-5}
+      - RateLimits__RecipeImport__PermitLimit=${RATE_RECIPE_IMPORT_LIMIT:-10}
+      - RateLimits__RecipeImport__WindowMinutes=${RATE_RECIPE_IMPORT_WINDOW:-60}
+      - RateLimits__ImageImport__PermitLimit=${RATE_IMAGE_IMPORT_LIMIT:-5}
+      - RateLimits__ImageImport__WindowMinutes=${RATE_IMAGE_IMPORT_WINDOW:-60}
+      - RateLimits__ImageSearch__PermitLimit=${RATE_IMAGE_SEARCH_LIMIT:-30}
+      - RateLimits__ImageSearch__WindowMinutes=${RATE_IMAGE_SEARCH_WINDOW:-60}
+      - RateLimits__SubscriptionActivate__PermitLimit=${RATE_SUB_ACTIVATE_LIMIT:-5}
+      - RateLimits__SubscriptionActivate__WindowMinutes=${RATE_SUB_ACTIVATE_WINDOW:-60}
+    volumes:
+      - ./dataprotection_keys:/keys
+    depends_on:
+      db:
+        condition: service_healthy
+      redis_cache:
+        condition: service_started
+      nimblist-classification:
+        condition: service_started
+      nimblist-recipescraper:
+        condition: service_started
+
+  nimblist-classification:
+    image: lankykowalski/nimblist-classification:latest
+    container_name: nimblist_classification_prod
+    restart: unless-stopped
+    labels:
+      - "wud.watch.digest=true"
+
+  nimblist-recipescraper:
+    image: lankykowalski/nimblist-recipescraper:latest
+    container_name: nimblist_recipescraper_prod
+    restart: unless-stopped
+    labels:
+      - "wud.watch.digest=true"
+    environment:
+      - LLM_PROVIDER=${RECIPESCRAPER_LLM_PROVIDER:-}
+      - LLM_MODEL=${RECIPESCRAPER_LLM_MODEL:-}
+      - LLM_VISION_MODEL=${RECIPESCRAPER_LLM_VISION_MODEL:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
+
+  nimblist-frontend:
+    image: lankykowalski/nimblist-frontend:latest
+    container_name: nimblist_frontend_prod
+    restart: unless-stopped
+    labels:
+      - "wud.watch.digest=true"
+    ports:
+      - "80:80"
+
+  db:
+    image: postgres:15
+    container_name: nimblist_db_prod
+    restart: unless-stopped
+    labels:
+      - "wud.trigger.exclude=docker.latestupdate"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis_cache:
+    image: redis:alpine
+    container_name: nimblist_redis_prod
+    restart: unless-stopped
+    labels:
+      - "wud.watch.digest=true"
+
+  webhook:
+    build: ./webhook
+    container_name: nimblist_webhook
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-nimblist}
+    volumes:
+      - ./webhook/hooks.json.tmpl:/etc/webhook/hooks.json.tmpl:ro
+      - ./webhook/deploy.sh:/scripts/deploy.sh:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/compose:ro
+    command:
+      - "-hooks=/etc/webhook/hooks.json.tmpl"
+      - "-template"
+      - "-hotreload"
+      - "-verbose"

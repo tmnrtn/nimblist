@@ -6,8 +6,11 @@ using Nimblist.api.Hubs;
 using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
+using Resend;
 using StackExchange.Redis;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 
 namespace Nimblist.api
@@ -70,7 +73,13 @@ namespace Nimblist.api
                 options.UseNpgsql(connectionString));
 
 
-            builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false)
+            builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+            {
+                options.SignIn.RequireConfirmedAccount = false;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                options.Lockout.AllowedForNewUsers = true;
+            })
                 .AddEntityFrameworkStores<NimblistContext>()
                 .AddDefaultTokenProviders()
                 .AddDefaultUI();
@@ -179,7 +188,17 @@ namespace Nimblist.api
 
             builder.Services.AddRazorPages();
 
-            builder.Services.AddTransient<IEmailSender, Nimblist.api.Services.NoOpEmailSender>();
+            var resendApiKey = builder.Configuration["Resend:ApiKey"];
+            if (!string.IsNullOrEmpty(resendApiKey))
+            {
+                builder.Services.AddResend(options => options.ApiToken = resendApiKey);
+                builder.Services.AddTransient<IEmailSender, Nimblist.api.Services.ResendEmailSender>();
+            }
+            else
+            {
+                Console.WriteLine("Warning: Resend:ApiKey not configured. Emails will not be sent.");
+                builder.Services.AddTransient<IEmailSender, Nimblist.api.Services.NoOpEmailSender>();
+            }
 
             var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
             if (!string.IsNullOrEmpty(redisConnectionString))
@@ -218,9 +237,10 @@ namespace Nimblist.api
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error configuring Redis. SignalR/DataProtection will be ephemeral. Error: {ex.Message}");
-                    // Fallback configurations if Redis fails
-                    builder.Services.AddDataProtection().SetApplicationName("NimblistApp");
+                    Console.WriteLine($"Error configuring Redis. SignalR will run without backplane; Data Protection will use file system. Error: {ex.Message}");
+                    builder.Services.AddDataProtection()
+                        .PersistKeysToFileSystem(new DirectoryInfo("/keys"))
+                        .SetApplicationName("NimblistApp");
                     builder.Services.AddSignalR()
                                     .AddJsonProtocol(options => // Configure System.Text.Json specifically for SignalR
                                     {
@@ -234,9 +254,10 @@ namespace Nimblist.api
             }
             else
             {
-                Console.WriteLine("Warning: Redis connection string not configured. SignalR/DataProtection will be ephemeral.");
-                // Fallback configurations without Redis
-                builder.Services.AddDataProtection().SetApplicationName("NimblistApp");
+                Console.WriteLine("Warning: Redis connection string not configured. SignalR will run without backplane; Data Protection will use file system.");
+                builder.Services.AddDataProtection()
+                    .PersistKeysToFileSystem(new DirectoryInfo("/keys"))
+                    .SetApplicationName("NimblistApp");
                 builder.Services.AddSignalR()
                                 .AddJsonProtocol(options => // Configure System.Text.Json specifically for SignalR
                                 {
@@ -248,25 +269,6 @@ namespace Nimblist.api
                                 }); // Add SignalR without Redis backplane
             }
 
-            var keyPath = "/keys"; // The path defined in the docker-compose volume mount
-            try
-            {
-                Console.WriteLine($"Configuring Data Protection to use file system path: {keyPath}");
-                builder.Services.AddDataProtection()
-                    .PersistKeysToFileSystem(new DirectoryInfo(keyPath))
-                    // Optional: Set a unique application name
-                    .SetApplicationName("NimblistApp");
-                // Optional: Configure key protection if needed (e.g., ProtectKeysWith* - may require specific setup in Linux containers)
-                Console.WriteLine("Data Protection configured to use File System.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error configuring Data Protection with File System path {keyPath}. Keys will be ephemeral. Error: {ex.Message}");
-                // Fallback to default ephemeral keys if file system setup fails
-                builder.Services.AddDataProtection()
-                       .SetApplicationName("NimblistApp");
-            }
-
             builder.Services.AddHttpClient();
             builder.Services.AddHttpClient("BraveSearch").ConfigurePrimaryHttpMessageHandler(() =>
                 new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All });
@@ -276,6 +278,83 @@ namespace Nimblist.api
             builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
             builder.Services.AddScoped<IPayPalService, PayPalService>();
 
+            var rl = builder.Configuration.GetSection("RateLimits");
+            var authIpLimit   = rl.GetValue("AuthIp:PermitLimit", 10);
+            var authIpWindow  = rl.GetValue("AuthIp:WindowMinutes", 5);
+            var recipeLimit   = rl.GetValue("RecipeImport:PermitLimit", 10);
+            var recipeWindow  = rl.GetValue("RecipeImport:WindowMinutes", 60);
+            var imgLimit      = rl.GetValue("ImageImport:PermitLimit", 5);
+            var imgWindow     = rl.GetValue("ImageImport:WindowMinutes", 60);
+            var searchLimit   = rl.GetValue("ImageSearch:PermitLimit", 30);
+            var searchWindow  = rl.GetValue("ImageSearch:WindowMinutes", 60);
+            var subLimit      = rl.GetValue("SubscriptionActivate:PermitLimit", 5);
+            var subWindow     = rl.GetValue("SubscriptionActivate:WindowMinutes", 60);
+
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+                // Per-IP: login and register pages (unauthenticated)
+                options.AddPolicy("auth-ip", ctx =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            Window = TimeSpan.FromMinutes(authIpWindow),
+                            PermitLimit = authIpLimit,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0,
+                        }));
+
+                // Per-user: recipe URL import (calls external scraper + LLM)
+                options.AddPolicy("recipe-import", ctx =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: ctx.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anon",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            Window = TimeSpan.FromMinutes(recipeWindow),
+                            PermitLimit = recipeLimit,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0,
+                        }));
+
+                // Per-user: image import (calls vision LLM — most expensive)
+                options.AddPolicy("image-import", ctx =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: ctx.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anon",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            Window = TimeSpan.FromMinutes(imgWindow),
+                            PermitLimit = imgLimit,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0,
+                        }));
+
+                // Per-user: image search (Brave API — 2,000 calls/month free tier)
+                options.AddPolicy("image-search", ctx =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: ctx.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anon",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            Window = TimeSpan.FromMinutes(searchWindow),
+                            PermitLimit = searchLimit,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0,
+                        }));
+
+                // Per-user: subscription activation
+                options.AddPolicy("subscription-activate", ctx =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: ctx.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anon",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            Window = TimeSpan.FromMinutes(subWindow),
+                            PermitLimit = subLimit,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0,
+                        }));
+            });
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -284,8 +363,33 @@ namespace Nimblist.api
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+            else
+            {
+                app.UseExceptionHandler(errApp =>
+                {
+                    errApp.Run(async ctx =>
+                    {
+                        ctx.Response.StatusCode = 500;
+                        ctx.Response.ContentType = "application/json";
+                        await ctx.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred." });
+                    });
+                });
+            }
 
             app.UseHttpsRedirection();
+
+            app.Use(async (ctx, next) =>
+            {
+                ctx.Response.Headers["X-Frame-Options"] = "DENY";
+                ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                ctx.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                ctx.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+                if (ctx.Request.IsHttps)
+                {
+                    ctx.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+                }
+                await next();
+            });
 
             app.UseStaticFiles();
             app.UseRouting();
@@ -294,7 +398,7 @@ namespace Nimblist.api
 
             app.UseAuthentication();
             app.UseAuthorization();
-
+            app.UseRateLimiter();
 
             using (var scope = app.Services.CreateScope())
             {

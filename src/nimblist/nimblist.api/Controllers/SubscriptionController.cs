@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.api.DTO;
 using Nimblist.api.Services;
@@ -67,6 +68,7 @@ namespace Nimblist.api.Controllers
 
         // POST /api/subscription/activate — called after PayPal approval
         [HttpPost("activate")]
+        [EnableRateLimiting("subscription-activate")]
         public async Task<IActionResult> Activate([FromBody] ActivateSubscriptionRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

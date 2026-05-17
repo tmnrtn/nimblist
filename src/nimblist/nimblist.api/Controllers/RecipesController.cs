@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Nimblist.api.DTO;
@@ -7,6 +8,8 @@ using Nimblist.api.Hubs;
 using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
+using System.Net;
+using System.Net.Sockets;
 using System.Security.Claims;
 
 namespace Nimblist.api.Controllers
@@ -49,6 +52,7 @@ namespace Nimblist.api.Controllers
 
         // POST /api/recipes/import
         [HttpPost("import")]
+        [EnableRateLimiting("recipe-import")]
         public async Task<ActionResult<RecipeDetailDto>> ImportRecipe([FromBody] ImportRecipeRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -59,6 +63,9 @@ namespace Nimblist.api.Controllers
 
             if (string.IsNullOrWhiteSpace(request.Url))
                 return BadRequest("URL is required.");
+
+            if (!await IsSafeRecipeUrlAsync(request.Url))
+                return BadRequest("The provided URL is not allowed.");
 
             var scraperUrl = _configuration["RecipeScraperService:ScrapeUrl"];
             if (string.IsNullOrEmpty(scraperUrl))
@@ -92,6 +99,7 @@ namespace Nimblist.api.Controllers
 
         // POST /api/recipes/import-image  (multipart/form-data: image file)
         [HttpPost("import-image")]
+        [EnableRateLimiting("image-import")]
         public async Task<ActionResult<RecipeDetailDto>> ImportRecipeFromImage([FromForm] IFormFile image)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -597,6 +605,50 @@ namespace Nimblist.api.Controllers
             }
 
             return NoContent();
+        }
+
+        private static async Task<bool> IsSafeRecipeUrlAsync(string url)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                return false;
+            if (uri.Scheme != "http" && uri.Scheme != "https")
+                return false;
+
+            try
+            {
+                var addresses = await Dns.GetHostAddressesAsync(uri.Host);
+                if (addresses.Length == 0) return false;
+                return addresses.All(a => !IsPrivateOrReservedAddress(a));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool IsPrivateOrReservedAddress(IPAddress address)
+        {
+            if (IPAddress.IsLoopback(address)) return true;
+
+            if (address.AddressFamily == AddressFamily.InterNetwork)
+            {
+                var b = address.GetAddressBytes();
+                return b[0] == 10
+                    || b[0] == 127
+                    || b[0] == 0
+                    || (b[0] == 172 && b[1] >= 16 && b[1] <= 31)
+                    || (b[0] == 192 && b[1] == 168)
+                    || (b[0] == 169 && b[1] == 254); // link-local / cloud metadata
+            }
+
+            if (address.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                var b = address.GetAddressBytes();
+                return (b[0] >= 0xfc && b[0] <= 0xfd) // unique local (fc00::/7)
+                    || (b[0] == 0xfe && (b[1] & 0xc0) == 0x80); // link-local (fe80::/10)
+            }
+
+            return true; // reject any other address family
         }
     }
 }
