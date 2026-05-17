@@ -10,6 +10,9 @@ vi.mock("../components/HttpHelper");
 vi.mock("../components/SharePanel", () => ({
   default: () => <div data-testid="share-panel" />,
 }));
+vi.mock("../store/authStore", () => ({
+  default: () => ({ isPaid: true }),
+}));
 
 const mockFetch = authenticatedFetch as MockedFunction<typeof authenticatedFetch>;
 

@@ -7,6 +7,9 @@ import RecipesPage from "./RecipesPage";
 import type { RecipeSummary, ShoppingList } from "../types";
 
 vi.mock("../components/HttpHelper");
+vi.mock("../store/authStore", () => ({
+  default: () => ({ isPaid: true }),
+}));
 
 const mockFetch = authenticatedFetch as MockedFunction<typeof authenticatedFetch>;
 
