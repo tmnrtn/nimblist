@@ -116,10 +116,12 @@ jobs:
 
       # 1. Install the .NET Sonar Scanner tool
       - name: Install SonarScanner for .NET
+        if: github.event_name == 'push'
         run: dotnet tool install --global dotnet-sonarscanner
 
       # 2. Begin SonarScanner analysis (BEFORE build/test)
       - name: Begin SonarQube Scan
+        if: github.event_name == 'push'
         working-directory: ${{ env.DOTNET_DIR }}
         run: |
           dotnet sonarscanner begin /k:"${{ env.SONAR_PROJECT_KEY }}" /o:"${{ env.SONAR_ORGANIZATION }}" /d:sonar.login="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="${{ env.SONAR_HOST_URL }}" /d:sonar.test.inclusions="**/*.test.js,**/*.test.jsx,**/*.test.ts,**/*.test.tsx,**/*Tests.cs,**/*_test.py,**/test_*.py" /d:sonar.exclusions="**/obj/**,**/bin/**,${{ env.FRONTEND_DIR }}/node_modules/**,**/*.Generated.cs,**/nimblist.data/Migrations/**,**/nimblist.api/Areas/**,**/nimblist.api/Program.cs" /d:sonar.javascript.lcov.reportPaths="${{ github.workspace }}/${{ env.FRONTEND_COVERAGE_PATH }}" /d:sonar.cs.opencover.reportsPaths="${{ github.workspace }}/${{ env.DOTNET_COVERAGE_PATH }}" /d:sonar.python.coverage.reportPaths="${{ github.workspace }}/${{ env.PYTHON_COVERAGE_PATH }}" /d:sonar.python.xunit.reportPath="${{ github.workspace }}/src/nimblist/Nimblist.classification/test-results.xml"
@@ -137,6 +139,7 @@ jobs:
 
       # 5. End SonarScanner analysis (AFTER build/test)
       - name: End SonarQube Scan
+        if: github.event_name == 'push'
         working-directory: ${{ env.DOTNET_DIR }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
