@@ -6,8 +6,7 @@ namespace Nimblist.Data.Models
     // Inherit from IdentityUser to leverage ASP.NET Core Identity features
     public class ApplicationUser : IdentityUser
     {
-        // You can add custom profile properties here if needed
-        // e.g., public string? FirstName { get; set; }
+        public bool IsComplimentaryAccess { get; set; }
 
         // Navigation property: A user can have multiple shopping lists
         public virtual ICollection<ShoppingList> ShoppingLists { get; set; } = new List<ShoppingList>();
