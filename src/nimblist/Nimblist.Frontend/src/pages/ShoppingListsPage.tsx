@@ -29,6 +29,11 @@ const ShoppingListsPage: React.FC = () => {
   const [fromTemplateLoading, setFromTemplateLoading] = useState<boolean>(false);
   const [fromTemplateError, setFromTemplateError] = useState<string | null>(null);
 
+  // Auto-open the create form for brand new users
+  useEffect(() => {
+    if (!isLoading && lists.length === 0) setShowNew(true);
+  }, [isLoading, lists.length]);
+
   useEffect(() => {
     if (!isAuthenticated) {
       setError("Please log in to view your shopping lists.");
@@ -388,7 +393,21 @@ const ShoppingListsPage: React.FC = () => {
         )}
 
         {activeLists.length === 0 ? (
-          <p className="text-gray-500 text-sm py-4">No active lists. Create one above.</p>
+          <div className="text-center py-12 px-4">
+            <div className="text-5xl mb-4">🛒</div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">Create your first shopping list</h3>
+            <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
+              Add items, check them off together with your household, and stay in sync in real time.
+            </p>
+            {!showNew && (
+              <button
+                onClick={() => setShowNew(true)}
+                className="px-6 py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Create your first list
+              </button>
+            )}
+          </div>
         ) : (
           <ul className="bg-white shadow overflow-hidden sm:rounded-md divide-y divide-gray-200">
             {activeLists.map(renderList)}

@@ -30,19 +30,53 @@ public class SubscriptionEmailService : ISubscriptionEmailService
     public Task SendWelcomeAsync(string email)
     {
         var html = $"""
-            <div style="font-family:sans-serif;max-width:600px;margin:auto">
-              <h2>Welcome to Nimblist!</h2>
-              <p>We're glad you joined. Start building your shopping lists, saving recipes, and planning meals — all in one place.</p>
-              <p style="margin:24px 0">
-                <a href="{_frontendBaseUrl}" style="background:#22c55e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">
-                  Get started
-                </a>
-              </p>
-              <p style="color:#6b7280;font-size:0.875rem">If you didn't create a Nimblist account, you can ignore this email.</p>
+            <div style="font-family:sans-serif;max-width:600px;margin:auto;color:#111827">
+              <div style="background:linear-gradient(135deg,#2563eb,#4f46e5);padding:32px 24px;border-radius:8px 8px 0 0;text-align:center">
+                <h1 style="color:#fff;margin:0;font-size:1.75rem">Welcome to Nimblist!</h1>
+                <p style="color:#c7d2fe;margin:8px 0 0">Your shopping lists and recipes, perfectly in sync.</p>
+              </div>
+              <div style="background:#fff;padding:32px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
+                <p style="margin:0 0 24px">Great to have you on board. Here are three things to try first:</p>
+
+                <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+                  <tr>
+                    <td style="width:40px;vertical-align:top;padding:0 12px 20px 0;font-size:1.5rem">🛒</td>
+                    <td style="vertical-align:top;padding-bottom:20px">
+                      <strong>Create your first shopping list</strong><br>
+                      <span style="color:#6b7280;font-size:0.9rem">Head to My Lists and add your first list. You can type items directly and they'll be categorised automatically.</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="width:40px;vertical-align:top;padding:0 12px 20px 0;font-size:1.5rem">👨‍👩‍👧</td>
+                    <td style="vertical-align:top;padding-bottom:20px">
+                      <strong>Share with your household</strong><br>
+                      <span style="color:#6b7280;font-size:0.9rem">Go to Families, create a family, and invite the people you shop for. Your lists update for everyone in real time.</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="width:40px;vertical-align:top;padding:0 12px 0 0;font-size:1.5rem">📖</td>
+                    <td style="vertical-align:top">
+                      <strong>Import a recipe</strong><br>
+                      <span style="color:#6b7280;font-size:0.9rem">On the Recipes page, paste any recipe URL and Nimblist will import it automatically. Add all the ingredients to your shopping list in one tap. Available on the 7-day free trial.</span>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0 0 24px;text-align:center">
+                  <a href="{_frontendBaseUrl}/lists" style="background:#4f46e5;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">
+                    Go to My Lists
+                  </a>
+                </p>
+
+                <p style="color:#9ca3af;font-size:0.8rem;margin:0;text-align:center">
+                  Questions? Reply to this email or contact <a href="mailto:support@nimblist.co.uk" style="color:#4f46e5">support@nimblist.co.uk</a>.<br>
+                  If you didn't create a Nimblist account, you can safely ignore this email.
+                </p>
+              </div>
             </div>
             """;
 
-        return SendSafe(email, "Welcome to Nimblist!", html);
+        return SendSafe(email, "Welcome to Nimblist — here's how to get started", html);
     }
 
     public Task SendSubscriptionActivatedAsync(string email, bool isInTrial, DateTime? trialEndDate)

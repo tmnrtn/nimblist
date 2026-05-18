@@ -460,9 +460,11 @@ const ItemList: React.FC<ItemListProps> = ({
         </div>
       )}
       {(!initialItems || initialItems.length === 0) && !error && (
-        <p className="px-4 py-4 text-sm text-gray-500 sm:px-6 italic">
-          This list is empty.
-        </p>
+        <div className="py-10 text-center">
+          <p className="text-2xl mb-2">📝</p>
+          <p className="text-sm font-medium text-gray-500">Your list is empty</p>
+          <p className="text-xs text-gray-400 mt-1">Add the first item using the form above.</p>
+        </div>
       )}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">

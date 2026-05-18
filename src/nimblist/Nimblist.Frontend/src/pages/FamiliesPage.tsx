@@ -157,7 +157,13 @@ const FamiliesPage: React.FC = () => {
       {createError && <p className="text-sm text-red-600">{createError}</p>}
 
       {families.length === 0 && (
-        <p className="text-gray-500">No families yet. Create one above to start sharing lists and recipes.</p>
+        <div className="text-center py-10 px-4">
+          <div className="text-5xl mb-3">👨‍👩‍👧</div>
+          <h3 className="text-lg font-semibold text-gray-700 mb-1">Share with your household</h3>
+          <p className="text-sm text-gray-500 max-w-xs mx-auto">
+            Create a Family and invite the people you shop for. They'll be able to view and edit shared lists and recipes in real time.
+          </p>
+        </div>
       )}
 
       {/* Family cards */}
