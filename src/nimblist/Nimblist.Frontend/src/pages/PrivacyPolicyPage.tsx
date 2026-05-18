@@ -70,10 +70,11 @@ export default function PrivacyPolicyPage() {
 
         <section>
           <h2 className="text-lg font-semibold text-gray-800 mb-2">Cookies</h2>
-          <p>
-            We use a single first-party authentication cookie (<code>.AspNetCore.Identity.Application</code>) that expires after
-            30 days of inactivity. No third-party tracking cookies are set.
-          </p>
+          <p>We use the following cookies:</p>
+          <ul className="list-disc list-inside space-y-1 mt-2">
+            <li><strong>.AspNetCore.Identity.Application</strong> — first-party authentication cookie, expires after 30 days of inactivity. Essential for the service to function.</li>
+            <li><strong>Google Analytics (_ga, _ga_*)</strong> — set only if you accept analytics cookies via the consent banner. Used to understand how the app is used in aggregate. You can decline at any time and these cookies will not be set.</li>
+          </ul>
         </section>
 
         <section>
