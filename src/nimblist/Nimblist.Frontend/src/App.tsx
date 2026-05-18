@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import './App.css'
 
 import useAuthStore from './store/authStore'; // Import the auth store
+import { authenticatedFetch } from './components/HttpHelper';
 
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -24,13 +25,27 @@ import InstallPrompt from './components/InstallPrompt';
 import NotificationBanner from './components/NotificationBanner';
 
 function App() {
-    // Get state and actions from the store
-    const { checkAuthStatus, isLoading } = useAuthStore();
+    const { checkAuthStatus, isLoading, isAuthenticated } = useAuthStore();
 
-    // Run the auth check once when the component mounts
     useEffect(() => {
+      const params = new URLSearchParams(window.location.search);
+      const inviteCode = params.get('invite');
+      if (inviteCode) localStorage.setItem('nimblist_invite_code', inviteCode);
       checkAuthStatus();
     }, [checkAuthStatus]);
+
+    // Claim any stored invite code once the user is authenticated
+    useEffect(() => {
+      if (!isAuthenticated || isLoading) return;
+      const code = localStorage.getItem('nimblist_invite_code');
+      if (!code) return;
+      localStorage.removeItem('nimblist_invite_code');
+      authenticatedFetch('/api/auth/claim-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      }).catch(() => {});
+    }, [isAuthenticated, isLoading]);
   
     // Show loading indicator until the initial check is complete
     if (isLoading) {

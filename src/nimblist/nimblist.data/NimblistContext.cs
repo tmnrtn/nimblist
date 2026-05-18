@@ -352,6 +352,12 @@ namespace Nimblist.Data
                 entity.HasIndex(s => s.PayPalSubscriptionId).HasDatabaseName("IX_UserSubscriptions_PayPalSubscriptionId");
             });
 
+            builder.Entity<ApplicationUser>()
+                .HasIndex(u => u.InviteCode)
+                .IsUnique()
+                .HasFilter("\"InviteCode\" IS NOT NULL")
+                .HasDatabaseName("IX_AspNetUsers_InviteCode");
+
             // === PostgreSQL Specific Configuration (Optional Examples) ===
 
             // Npgsql provider generally maps .NET types well to PostgreSQL types (e.g., Guid to uuid, DateTimeOffset to timestamptz)

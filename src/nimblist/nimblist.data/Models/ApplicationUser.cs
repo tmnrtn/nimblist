@@ -8,6 +8,9 @@ namespace Nimblist.Data.Models
     {
         public bool IsComplimentaryAccess { get; set; }
 
+        public string? InviteCode { get; set; }
+        public string? InvitedByUserId { get; set; }
+
         // Navigation property: A user can have multiple shopping lists
         public virtual ICollection<ShoppingList> ShoppingLists { get; set; } = new List<ShoppingList>();
 

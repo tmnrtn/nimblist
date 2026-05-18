@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Nimblist.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nimblist.data.Migrations
 {
     [DbContext(typeof(NimblistContext))]
-    partial class NimblistContextModelSnapshot : ModelSnapshot
+    [Migration("20260518090329_AddInviteFields")]
+    partial class AddInviteFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -216,11 +219,6 @@ namespace Nimblist.data.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("InviteCode")
-                        .IsUnique()
-                        .HasDatabaseName("IX_AspNetUsers_InviteCode")
-                        .HasFilter("\"InviteCode\" IS NOT NULL");
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");

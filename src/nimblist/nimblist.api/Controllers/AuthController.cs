@@ -8,6 +8,7 @@ using Nimblist.api.Services;
 using Nimblist.Data;
 using Nimblist.Data.Models;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace Nimblist.api.Controllers
@@ -22,6 +23,7 @@ namespace Nimblist.api.Controllers
         private readonly ILogger<AuthController> _logger;
         private readonly NimblistContext _context;
         private readonly IPayPalService _payPal;
+        private readonly IConfiguration _configuration;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
@@ -29,7 +31,8 @@ namespace Nimblist.api.Controllers
             ISubscriptionService subscriptionService,
             ILogger<AuthController> logger,
             NimblistContext context,
-            IPayPalService payPal)
+            IPayPalService payPal,
+            IConfiguration configuration)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -37,6 +40,7 @@ namespace Nimblist.api.Controllers
             _logger = logger;
             _context = context;
             _payPal = payPal;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -135,6 +139,60 @@ namespace Nimblist.api.Controllers
 
             _logger.LogInformation("User {UserId} deleted their account.", userId);
             return Ok(new { message = "Account deleted." });
+        }
+
+        // GET /api/auth/invite — returns the current user's invite link
+        [HttpGet("invite")]
+        [Authorize]
+        public async Task<IActionResult> GetInvite()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return Unauthorized();
+
+            if (string.IsNullOrEmpty(user.InviteCode))
+            {
+                user.InviteCode = GenerateInviteCode();
+                await _userManager.UpdateAsync(user);
+            }
+
+            var frontendBase = _configuration["FrontendAppSettings:BaseUrl"]?.TrimEnd('/') ?? "";
+            var inviteUrl = $"{frontendBase}/?invite={user.InviteCode}";
+            return Ok(new { inviteCode = user.InviteCode, inviteUrl });
+        }
+
+        // POST /api/auth/claim-invite — links the current user to a referrer
+        [HttpPost("claim-invite")]
+        [Authorize]
+        public async Task<IActionResult> ClaimInvite([FromBody] ClaimInviteRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return Unauthorized();
+
+            if (!string.IsNullOrEmpty(user.InvitedByUserId))
+                return Ok(); // already claimed — no-op
+
+            var referrer = await _context.Users.FirstOrDefaultAsync(u => u.InviteCode == request.Code);
+            if (referrer == null) return NotFound(new { error = "Invalid invite code." });
+            if (referrer.Id == userId) return BadRequest(new { error = "Cannot use your own invite code." });
+
+            user.InvitedByUserId = referrer.Id;
+            await _userManager.UpdateAsync(user);
+            _logger.LogInformation("User {UserId} claimed invite from referrer {ReferrerId}.", userId, referrer.Id);
+            return Ok();
+        }
+
+        private static string GenerateInviteCode()
+        {
+            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            var bytes = new byte[8];
+            RandomNumberGenerator.Fill(bytes);
+            return new string(bytes.Select(b => chars[b % chars.Length]).ToArray());
         }
 
         // GET /api/auth/export — GDPR right to data portability

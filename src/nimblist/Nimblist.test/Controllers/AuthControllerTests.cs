@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -68,6 +69,7 @@ namespace Nimblist.test.Controllers
             var dbContext = new NimblistContext(dbOptions);
 
             var mockPayPal = new Mock<IPayPalService>();
+            var mockConfig = new Mock<IConfiguration>();
 
             // Instantiate the controller with mocks
             _controller = new AuthController(
@@ -76,7 +78,8 @@ namespace Nimblist.test.Controllers
                 mockSubscription.Object,
                 _nullLogger,
                 dbContext,
-                mockPayPal.Object
+                mockPayPal.Object,
+                mockConfig.Object
             );
         }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import useAuthStore from '../store/authStore';
@@ -144,6 +144,9 @@ export default function BillingPage() {
         )}
       </div>
 
+      {/* Invite friends */}
+      <InvitePanel />
+
       {/* Upgrade CTA */}
       {(!isPaid || !isActive) && config?.clientId && config?.planId && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
@@ -217,6 +220,55 @@ export default function BillingPage() {
       <div className="mt-6 text-center">
         <Link to="/" className="text-sm text-indigo-600 hover:underline">← Back to home</Link>
       </div>
+    </div>
+  );
+}
+
+function InvitePanel() {
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    authenticatedFetch('/api/auth/invite')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.inviteUrl) setInviteUrl(data.inviteUrl); })
+      .catch(() => {});
+    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
+  }, []);
+
+  function handleCopy() {
+    if (!inviteUrl) return;
+    navigator.clipboard.writeText(inviteUrl).then(() => {
+      setCopied(true);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+      <h2 className="text-lg font-semibold text-gray-800 mb-1">Invite friends &amp; family</h2>
+      <p className="text-sm text-gray-500 mb-4">
+        Share your invite link — anyone who signs up via your link will be connected to you.
+      </p>
+      {inviteUrl ? (
+        <div className="flex items-center gap-2">
+          <input
+            readOnly
+            value={inviteUrl}
+            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded bg-gray-50 text-gray-700 truncate"
+          />
+          <button
+            onClick={handleCopy}
+            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 transition-colors whitespace-nowrap"
+          >
+            {copied ? 'Copied!' : 'Copy link'}
+          </button>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-400">Loading invite link...</p>
+      )}
     </div>
   );
 }
