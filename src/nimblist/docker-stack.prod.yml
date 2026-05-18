@@ -1,5 +1,3 @@
-name: nimblist
-
 # ---------------------------------------------------------------------------
 # Image tags are resolved at CI time via:
 #   envsubst '${TAG} ${DO_REGISTRY}' < docker-stack.prod.yml > docker-stack.yml
