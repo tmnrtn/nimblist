@@ -1,4 +1,4 @@
-name: Build, Test and Analyze (React & .NET)
+name: Build, Test, Publish and Deploy
 
 # Define variables available to all jobs in the workflow
 env:
@@ -13,13 +13,17 @@ env:
   SCRAPER_DIR: ./src/nimblist/Nimblist.recipescraper # Directory for Python recipe scraper service
   VITE_API_BASE_URL: https://localhost:64213
   # --- SonarQube Configuration (Non-Secret) ---
-  SONAR_PROJECT_KEY: "tmnrtn_nimblist"     # <-- ADD THIS (Replace with actual value)
-  SONAR_ORGANIZATION: "tmnrtn" # <-- ADD THIS (Replace with actual value)
-  SONAR_HOST_URL: "https://sonarcloud.io"   
-  API_IMAGE_NAME: lankykowalski/nimblist-api # Replace with your Docker Hub username/repo
-  FRONTEND_IMAGE_NAME: lankykowalski/nimblist-frontend # Replace
-  CLASSIFICATION_IMAGE_NAME: lankykowalski/nimblist-classification # Python classification service
-  RECIPESCRAPER_IMAGE_NAME: lankykowalski/nimblist-recipescraper # Python recipe scraper service
+  SONAR_PROJECT_KEY: "tmnrtn_nimblist"
+  SONAR_ORGANIZATION: "tmnrtn"
+  SONAR_HOST_URL: "https://sonarcloud.io"
+  # --- DO Container Registry ---
+  DO_REGISTRY: registry.digitalocean.com/nimblist
+  API_IMAGE_NAME: registry.digitalocean.com/nimblist/api
+  FRONTEND_IMAGE_NAME: registry.digitalocean.com/nimblist/frontend
+  CLASSIFICATION_IMAGE_NAME: registry.digitalocean.com/nimblist/classification
+  RECIPESCRAPER_IMAGE_NAME: registry.digitalocean.com/nimblist/recipescraper
+  PROD_HOST: 206.189.233.248
+  STACK_FILE: src/nimblist/docker-stack.prod.yml
 
 on:
   push:
@@ -161,14 +165,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # --- Login to Docker Hub ---
-      - name: Log in to Docker Hub
+      - name: Log in to DO Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: registry.digitalocean.com
+          username: ${{ secrets.DO_API_TOKEN }}
+          password: ${{ secrets.DO_API_TOKEN }}
 
-      # --- Build and Push Images (using Docker Hub names) ---
       - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
@@ -193,7 +196,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # --- Build and Push Classification Service Image ---
       - name: Build and push Classification Service image
         uses: docker/build-push-action@v5
         with:
@@ -206,7 +208,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # --- Build and Push Recipe Scraper Image ---
       - name: Build and push Recipe Scraper image
         uses: docker/build-push-action@v5
         with:
@@ -219,8 +220,51 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trigger deploy on target environment
+  deploy_staging:
+    name: Deploy to Staging
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Trigger staging webhook
         run: |
           curl -f -s -X POST \
             -H "X-Webhook-Token: ${{ secrets.WEBHOOK_SECRET }}" \
             "${{ secrets.DEPLOY_WEBHOOK_URL }}/hooks/deploy"
+
+  deploy_production:
+    name: Deploy to Production
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: production   # requires manual approval in GitHub Environments
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ env.PROD_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Resolve image tags in stack file
+        run: |
+          export TAG=${{ github.sha }}
+          export DO_REGISTRY=${{ env.DO_REGISTRY }}
+          envsubst < ${{ env.STACK_FILE }} > /tmp/docker-stack.resolved.yml
+
+      - name: Copy resolved stack file to production
+        run: |
+          ssh -i ~/.ssh/id_ed25519 root@${{ env.PROD_HOST }} "mkdir -p /opt/nimblist"
+          scp -i ~/.ssh/id_ed25519 /tmp/docker-stack.resolved.yml root@${{ env.PROD_HOST }}:/opt/nimblist/docker-stack.yml
+
+      - name: Deploy stack
+        run: |
+          ssh -i ~/.ssh/id_ed25519 root@${{ env.PROD_HOST }} "
+            echo '${{ secrets.DO_API_TOKEN }}' | docker login registry.digitalocean.com --username '${{ secrets.DO_API_TOKEN }}' --password-stdin 2>/dev/null
+            docker stack deploy -c /opt/nimblist/docker-stack.yml nimblist --with-registry-auth
+            docker service ls
+          "
