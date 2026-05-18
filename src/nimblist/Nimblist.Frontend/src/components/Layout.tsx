@@ -155,8 +155,13 @@ const Layout: React.FC = () => {
         <Outlet />
       </main>
 
-      <footer className="bg-gray-200 text-gray-600 text-center text-sm py-4 mt-8">
+      <footer className="bg-gray-200 text-gray-600 text-center text-sm py-4 mt-8 space-y-1">
         <p>&copy; {new Date().getFullYear()} Nimblist</p>
+        <div className="text-xs text-gray-400 space-x-3">
+          <Link to="/privacy" className="hover:underline">Privacy</Link>
+          <Link to="/terms" className="hover:underline">Terms</Link>
+          <a href="mailto:support@nimblist.co.uk" className="hover:underline">support@nimblist.co.uk</a>
+        </div>
       </footer>
     </div>
   );
