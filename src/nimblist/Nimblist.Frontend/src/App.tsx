@@ -1,9 +1,10 @@
-import { useEffect } from 'react'; // Add useEffect
+import { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import './App.css'
 
-import useAuthStore from './store/authStore'; // Import the auth store
+import useAuthStore from './store/authStore';
 import { authenticatedFetch } from './components/HttpHelper';
+import { useCookieConsent } from './hooks/useCookieConsent';
 
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -23,11 +24,30 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import InstallPrompt from './components/InstallPrompt';
 import NotificationBanner from './components/NotificationBanner';
+import CookieBanner from './components/CookieBanner';
 
 function App() {
     const { checkAuthStatus, isLoading, isAuthenticated } = useAuthStore();
     const location = useLocation();
+    const { consent, accept, decline } = useCookieConsent();
 
+    // Load GA only after explicit consent
+    useEffect(() => {
+      if (consent !== 'accepted') return;
+      const id = import.meta.env.VITE_GA_MEASUREMENT_ID;
+      if (!id || typeof window.gtag === 'function') return;
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${id}`;
+      document.head.appendChild(script);
+      window.dataLayer = window.dataLayer || [];
+      const gtag = (...args: unknown[]) => { window.dataLayer!.push(args); };
+      window.gtag = gtag;
+      gtag('js', new Date());
+      gtag('config', id, { send_page_view: false });
+    }, [consent]);
+
+    // Track page views (only fires when gtag is initialised, i.e. consent given)
     useEffect(() => {
       if (typeof window.gtag !== 'function') return;
       window.gtag('event', 'page_view', {
@@ -70,6 +90,7 @@ function App() {
     <>
     <InstallPrompt />
     <NotificationBanner />
+    {consent === null && <CookieBanner onAccept={accept} onDecline={decline} />}
     <Routes> {/* Container for all routes */}
       {/* Define the parent route that uses the Layout */}
       <Route path="/" element={<Layout />}>
