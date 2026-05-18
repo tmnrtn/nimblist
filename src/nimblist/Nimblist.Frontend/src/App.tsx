@@ -29,6 +29,7 @@ const AdminPage          = lazy(() => import('./pages/AdminPage'));
 const PreviousItemNamesPage = lazy(() => import('./pages/PreviousItemNamesPage'));
 const PrivacyPolicyPage  = lazy(() => import('./pages/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
+const ShareTargetPage    = lazy(() => import('./pages/ShareTargetPage'));
 
 function PageSpinner() {
   return (
@@ -125,6 +126,7 @@ function App() {
             <Route path="families" element={<FamiliesPage />} />
             <Route path="meal-planner" element={<MealPlannerPage />} />
             <Route path="billing" element={<BillingPage />} />
+            <Route path="share-target" element={<ShareTargetPage />} />
         </Route>
 
         <Route element={<AdminRoute />}>

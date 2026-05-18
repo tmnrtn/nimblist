@@ -1,5 +1,5 @@
-import React, { useEffect, useState, FormEvent, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useRef, useState, FormEvent } from 'react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { authenticatedFetch } from '../components/HttpHelper';
 import { RecipeSummary, ShoppingList, Tag } from '../types/index';
@@ -63,6 +63,8 @@ function UpgradePrompt({ message }: { message: string }) {
 const RecipesPage: React.FC = () => {
   usePageTitle('Recipes');
   const { isPaid } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]);
@@ -260,16 +262,15 @@ const RecipesPage: React.FC = () => {
 
   // ── Import handlers ─────────────────────────────────────────────────────────
 
-  const handleImport = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!importUrl.trim()) return;
+  const importRecipeFromUrl = async (url: string) => {
     setIsImporting(true);
     setImportError(null);
+    setImportedRecipeId(null);
     try {
       const response = await authenticatedFetch('/api/recipes/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: importUrl.trim() }),
+        body: JSON.stringify({ url: url.trim() }),
       });
       if (response.ok) {
         const newRecipe = await response.json();
@@ -292,6 +293,25 @@ const RecipesPage: React.FC = () => {
       setIsImporting(false);
     }
   };
+
+  const handleImport = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!importUrl.trim()) return;
+    await importRecipeFromUrl(importUrl);
+  };
+
+  // Auto-import when arriving via the Web Share Target (/share-target?import=...)
+  const sharedImportDone = useRef(false);
+  useEffect(() => {
+    const sharedUrl = searchParams.get('import');
+    if (!sharedUrl || sharedImportDone.current) return;
+    sharedImportDone.current = true;
+    setMode('import');
+    setImportUrl(sharedUrl);
+    navigate('/recipes', { replace: true });
+    importRecipeFromUrl(sharedUrl);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
