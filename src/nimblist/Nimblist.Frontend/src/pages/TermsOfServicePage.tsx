@@ -87,7 +87,7 @@ export default function TermsOfServicePage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-800 mb-2">Contact</h2>
           <p>
-            Questions? Email <a href="mailto:tmnrtn@gmail.com" className="text-indigo-600 hover:underline">tmnrtn@gmail.com</a>.
+            Questions? Email <a href="mailto:support@nimblist.co.uk" className="text-indigo-600 hover:underline">support@nimblist.co.uk</a>.
           </p>
         </section>
       </div>

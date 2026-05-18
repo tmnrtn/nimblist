@@ -11,7 +11,7 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-lg font-semibold text-gray-800 mb-2">Who we are</h2>
           <p>
             Nimblist is a collaborative shopping list and recipe management application operated by Tom Norton
-            (tmnrtn@gmail.com). References to "we", "us", or "our" in this policy refer to the operator.
+            (support@nimblist.co.uk). References to "we", "us", or "our" in this policy refer to the operator.
           </p>
         </section>
 
@@ -65,7 +65,7 @@ export default function PrivacyPolicyPage() {
             <li><strong>Correction</strong> — update your email via the Identity pages.</li>
             <li><strong>Portability</strong> — your export is in standard JSON format.</li>
           </ul>
-          <p className="mt-2">To exercise any other rights, email <a href="mailto:tmnrtn@gmail.com" className="text-indigo-600 hover:underline">tmnrtn@gmail.com</a>.</p>
+          <p className="mt-2">To exercise any other rights, email <a href="mailto:support@nimblist.co.uk" className="text-indigo-600 hover:underline">support@nimblist.co.uk</a>.</p>
         </section>
 
         <section>
@@ -87,7 +87,7 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-800 mb-2">Contact</h2>
           <p>
-            Questions? Email <a href="mailto:tmnrtn@gmail.com" className="text-indigo-600 hover:underline">tmnrtn@gmail.com</a>.
+            Questions? Email <a href="mailto:support@nimblist.co.uk" className="text-indigo-600 hover:underline">support@nimblist.co.uk</a>.
           </p>
         </section>
       </div>
