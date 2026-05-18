@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /hubs/
+Disallow: /Identity/
+
+Sitemap: https://nimblist.co.uk/sitemap.xml

@@ -7,12 +7,14 @@ import ItemList from "../components/ItemList";
 import useShoppingListHub from "../hooks/useShoppingListHub";
 import { authenticatedFetch } from "../components/HttpHelper";
 import ItemNameAutocomplete, { type ItemNameAutocompleteHandle } from "../components/ItemNameAutocomplete";
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const ListPageDetail: React.FC = () => {
   const { listId } = useParams<{ listId: string }>();
   const { isAuthenticated } = useAuthStore();
 
   const [list, setList] = useState<ShoppingList | null>(null);
+  usePageTitle(list?.name ?? undefined);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 

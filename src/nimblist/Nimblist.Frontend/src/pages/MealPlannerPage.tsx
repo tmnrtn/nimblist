@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Link } from 'react-router-dom';
 import { authenticatedFetch } from '../components/HttpHelper';
 import { MealPlanSummary, MealPlanEntry, RecipeSummary, ShoppingList } from '../types/index';
@@ -36,6 +37,7 @@ function formatWeekLabel(monday: Date): string {
 }
 
 const MealPlannerPage: React.FC = () => {
+  usePageTitle('Meal Planner');
   const { isPaid } = useAuthStore();
   const [plans, setPlans] = useState<MealPlanSummary[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState('');

@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function HomePage() {
   const { isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
   const backendUrl = import.meta.env.VITE_API_BASE_URL ?? '';
+  usePageTitle();
 
   useEffect(() => {
     if (!isAuthenticated) return;

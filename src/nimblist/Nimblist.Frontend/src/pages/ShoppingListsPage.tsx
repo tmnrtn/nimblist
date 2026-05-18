@@ -4,9 +4,11 @@ import { Link } from "react-router-dom";
 import useAuthStore from "../store/authStore";
 import { ShoppingList } from "../types/index";
 import { authenticatedFetch } from "../components/HttpHelper";
+import { usePageTitle } from '../hooks/usePageTitle';
 import SharePanel from "../components/SharePanel";
 
 const ShoppingListsPage: React.FC = () => {
+  usePageTitle('Lists');
   const { isAuthenticated, user } = useAuthStore();
   const [expandedShareId, setExpandedShareId] = useState<string | null>(null);
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Link } from 'react-router-dom';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import useAuthStore from '../store/authStore';
@@ -28,6 +29,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default function BillingPage() {
+  usePageTitle('Account & Billing');
   const { checkAuthStatus } = useAuthStore();
   const [sub, setSub] = useState<SubscriptionStatus | null>(null);
   const [config, setConfig] = useState<PayPalConfig | null>(null);

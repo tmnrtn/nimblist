@@ -1,9 +1,11 @@
 import React, { useEffect, useState, FormEvent } from 'react';
 import { authenticatedFetch } from '../components/HttpHelper';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Family } from '../types/index';
 import useAuthStore from '../store/authStore';
 
 const FamiliesPage: React.FC = () => {
+  usePageTitle('Families');
   const { user } = useAuthStore();
   const [families, setFamilies] = useState<Family[]>([]);
   const [isLoading, setIsLoading] = useState(true);

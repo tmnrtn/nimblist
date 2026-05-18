@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { useParams, Link } from 'react-router-dom';
 import { authenticatedFetch } from '../components/HttpHelper';
 import { RecipeDetail, ShoppingList, Tag } from '../types/index';
@@ -42,6 +43,7 @@ function TagChip({ tag }: { tag: Tag }) {
 const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
   const [recipe, setRecipe] = useState<RecipeDetail | null>(null);
+  usePageTitle(recipe?.title ?? undefined);
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

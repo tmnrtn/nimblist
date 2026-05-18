@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { authenticatedFetch } from '../components/HttpHelper';
 
 const PROVIDERS = ['openrouter', 'openai', 'anthropic', 'gemini', 'ollama'] as const;
@@ -475,6 +476,7 @@ function withMemberRemoved(families: AdminFamily[], familyId: string, memberId: 
 // ── Main component ────────────────────────────────────────────────────────────
 
 const AdminPage: React.FC = () => {
+  usePageTitle('Admin');
   const [activeTab, setActiveTab] = useState<Tab>('users');
 
   const [users, setUsers] = useState<AdminUser[]>([]);

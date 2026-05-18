@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
+import { usePageTitle } from '../hooks/usePageTitle';
 import { authenticatedFetch } from "../components/HttpHelper";
 
 const PreviousItemNamesPage: React.FC = () => {
+  usePageTitle('Item History');
   const [names, setNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

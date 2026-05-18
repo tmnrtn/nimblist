@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function TermsOfServicePage() {
+  usePageTitle('Terms of Service');
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Terms of Service</h1>

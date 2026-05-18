@@ -1,5 +1,6 @@
 import React, { useEffect, useState, FormEvent, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { authenticatedFetch } from '../components/HttpHelper';
 import { RecipeSummary, ShoppingList, Tag } from '../types/index';
 import useAuthStore from '../store/authStore';
@@ -60,6 +61,7 @@ function UpgradePrompt({ message }: { message: string }) {
 }
 
 const RecipesPage: React.FC = () => {
+  usePageTitle('Recipes');
   const { isPaid } = useAuthStore();
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [lists, setLists] = useState<ShoppingList[]>([]);
@@ -93,6 +95,7 @@ const RecipesPage: React.FC = () => {
   const [importUrl, setImportUrl] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [importedRecipeId, setImportedRecipeId] = useState<string | null>(null);
 
   // Import from image state
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -100,6 +103,7 @@ const RecipesPage: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isImportingImage, setIsImportingImage] = useState(false);
   const [imageImportError, setImageImportError] = useState<string | null>(null);
+  const [importedImageRecipeId, setImportedImageRecipeId] = useState<string | null>(null);
 
   // Manual create form state
   const [title, setTitle] = useState('');
@@ -277,6 +281,7 @@ const RecipesPage: React.FC = () => {
           ...prev,
         ]);
         setImportUrl('');
+        setImportedRecipeId(newRecipe.id);
       } else {
         const body = await response.json().catch(() => null);
         setImportError(body?.error ?? `Import failed (${response.status})`);
@@ -325,6 +330,7 @@ const RecipesPage: React.FC = () => {
         setImageFile(null);
         setImagePreview(null);
         if (imageInputRef.current) imageInputRef.current.value = '';
+        setImportedImageRecipeId(newRecipe.id);
       } else {
         const body = await response.json().catch(() => null);
         setImageImportError(body?.error ?? `Import failed (${response.status})`);
@@ -475,15 +481,21 @@ const RecipesPage: React.FC = () => {
         <UpgradePrompt message="Recipe import from URL is a Premium feature." />
       )}
       {mode === 'import' && isPaid && (
-        <form onSubmit={handleImport} className="p-4 bg-gray-100 rounded-md border border-gray-200 space-y-3">
+        <form onSubmit={e => { setImportedRecipeId(null); handleImport(e); }} className="p-4 bg-gray-100 rounded-md border border-gray-200 space-y-3">
           {importError && (
             <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{importError}</p>
+          )}
+          {importedRecipeId && (
+            <p className="text-sm text-green-700 bg-green-50 p-2 rounded border border-green-300">
+              Recipe imported!{' '}
+              <Link to={`/recipes/${importedRecipeId}`} className="font-medium underline">View recipe</Link>
+            </p>
           )}
           <div className="flex gap-2">
             <input
               type="url"
               value={importUrl}
-              onChange={e => setImportUrl(e.target.value)}
+              onChange={e => { setImportUrl(e.target.value); setImportedRecipeId(null); }}
               placeholder="https://www.example.com/recipe/..."
               required
               disabled={isImporting}
@@ -498,9 +510,19 @@ const RecipesPage: React.FC = () => {
               {isImporting ? 'Importing…' : 'Import'}
             </button>
           </div>
-          <p className="text-xs text-gray-500">
-            Supports 500+ recipe sites. Results may vary for unsupported sites.
-          </p>
+          {isImporting ? (
+            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+              <svg className="animate-spin h-3 w-3 text-gray-400" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              Fetching and parsing the recipe — this can take up to 30 seconds.
+            </p>
+          ) : (
+            <p className="text-xs text-gray-500">
+              Supports 500+ recipe sites. Results may vary for unsupported sites.
+            </p>
+          )}
         </form>
       )}
 
@@ -509,9 +531,15 @@ const RecipesPage: React.FC = () => {
         <UpgradePrompt message="Recipe import from image is a Premium feature." />
       )}
       {mode === 'image' && isPaid && (
-        <form onSubmit={handleImportFromImage} className="p-4 bg-gray-100 rounded-md border border-gray-200 space-y-3">
+        <form onSubmit={e => { setImportedImageRecipeId(null); handleImportFromImage(e); }} className="p-4 bg-gray-100 rounded-md border border-gray-200 space-y-3">
           {imageImportError && (
             <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{imageImportError}</p>
+          )}
+          {importedImageRecipeId && (
+            <p className="text-sm text-green-700 bg-green-50 p-2 rounded border border-green-300">
+              Recipe imported!{' '}
+              <Link to={`/recipes/${importedImageRecipeId}`} className="font-medium underline">View recipe</Link>
+            </p>
           )}
           <div className="flex flex-col items-center gap-3">
             {imagePreview ? (
@@ -553,9 +581,19 @@ const RecipesPage: React.FC = () => {
               </button>
             </div>
           </div>
-          <p className="text-xs text-gray-500">
-            Take a photo of a recipe card, book page, or printed recipe. Requires a vision-capable LLM to be configured.
-          </p>
+          {isImportingImage ? (
+            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+              <svg className="animate-spin h-3 w-3 text-gray-400" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              Analysing the image — this can take up to 30 seconds.
+            </p>
+          ) : (
+            <p className="text-xs text-gray-500">
+              Take a photo of a recipe card, book page, or printed recipe.
+            </p>
+          )}
         </form>
       )}
 
