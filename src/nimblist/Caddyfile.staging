@@ -1,0 +1,27 @@
+# Caddyfile.staging — plain HTTP, TLS terminated externally by NPM
+# NPM sends X-Forwarded-Proto: https; we pass it through so ASP.NET Core
+# generates correct https:// OAuth callbacks and cookie Secure flags.
+
+:80 {
+    handle /api/* {
+        reverse_proxy nimblist-api:8080 {
+            header_up X-Forwarded-Proto {>X-Forwarded-Proto}
+        }
+    }
+
+    handle /hubs/* {
+        reverse_proxy nimblist-api:8080 {
+            header_up X-Forwarded-Proto {>X-Forwarded-Proto}
+        }
+    }
+
+    handle /Identity/* {
+        reverse_proxy nimblist-api:8080 {
+            header_up X-Forwarded-Proto {>X-Forwarded-Proto}
+        }
+    }
+
+    handle {
+        reverse_proxy nimblist-frontend:80
+    }
+}

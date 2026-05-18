@@ -1,0 +1,155 @@
+# ---------------------------------------------------------------------------
+# Staging compose file — mirrors production structure as closely as possible.
+# TLS is handled externally by NPM; Caddy does internal path-based routing.
+# Images are pulled from DO registry; webhook handles zero-downtime redeploys.
+#
+# On the staging server, ensure /var/docker/nimblist/.env is populated
+# (see .env.staging.example for required variables) then run:
+#   docker compose -p nimblist -f docker-compose.staging.yml up -d
+# ---------------------------------------------------------------------------
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Caddy — internal HTTP router (NPM terminates TLS externally)
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile.staging:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # ASP.NET Core API
+  # ---------------------------------------------------------------------------
+  nimblist-api:
+    image: registry.digitalocean.com/nimblist/api:latest
+    user: root   # needed so the app can write to the dataprotection_keys volume
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      - ConnectionStrings__Redis=redis_cache:6379
+      - CorsSettings__AllowedOrigins=${CORS_ALLOWED_ORIGINS}
+      - FrontendAppSettings__BaseUrl=https://${DOMAIN}
+      - Authentication__Google__ClientId=${GOOGLE_CLIENT_ID}
+      - Authentication__Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
+      - Authentication__Facebook__AppId=${FACEBOOK_APP_ID:-}
+      - Authentication__Facebook__AppSecret=${FACEBOOK_APP_SECRET:-}
+      - Authentication__Microsoft__ClientId=${MICROSOFT_CLIENT_ID:-}
+      - Authentication__Microsoft__ClientSecret=${MICROSOFT_CLIENT_SECRET:-}
+      - AdminSettings__AdminEmail=${ADMIN_EMAIL}
+      - ClassificationService__PredictUrl=http://nimblist-classification:5000/predict
+      - RecipeScraperService__ScrapeUrl=http://nimblist-recipescraper:5001/scrape
+      - RecipeScraperService__ScrapeImageUrl=http://nimblist-recipescraper:5001/scrape-image
+      - RecipeScraperService__ParseUrl=http://nimblist-recipescraper:5001/parse-ingredients
+      - VapidSettings__Subject=${VAPID_SUBJECT}
+      - VapidSettings__PublicKey=${VAPID_PUBLIC_KEY}
+      - VapidSettings__PrivateKey=${VAPID_PRIVATE_KEY}
+      - Resend__ApiKey=${RESEND_API_KEY:-}
+      - Resend__FromAddress=${RESEND_FROM_ADDRESS:-}
+      - PayPal__Mode=${PAYPAL_MODE:-sandbox}
+      - PayPal__ClientId=${PAYPAL_CLIENT_ID:-}
+      - PayPal__ClientSecret=${PAYPAL_CLIENT_SECRET:-}
+      - PayPal__PlanId=${PAYPAL_PLAN_ID:-}
+      - PayPal__WebhookId=${PAYPAL_WEBHOOK_ID:-}
+    volumes:
+      - dataprotection_keys:/keys
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis_cache
+      - nimblist-classification
+      - nimblist-recipescraper
+
+  # ---------------------------------------------------------------------------
+  # React SPA (nginx serving pre-built static files)
+  # ---------------------------------------------------------------------------
+  nimblist-frontend:
+    image: registry.digitalocean.com/nimblist/frontend:latest
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Python classification service
+  # ---------------------------------------------------------------------------
+  nimblist-classification:
+    image: registry.digitalocean.com/nimblist/classification:latest
+    environment:
+      - FLASK_HOST=0.0.0.0
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Python recipe scraper service
+  # ---------------------------------------------------------------------------
+  nimblist-recipescraper:
+    image: registry.digitalocean.com/nimblist/recipescraper:latest
+    environment:
+      - FLASK_HOST=0.0.0.0
+      - LLM_PROVIDER=${RECIPESCRAPER_LLM_PROVIDER:-}
+      - LLM_MODEL=${RECIPESCRAPER_LLM_MODEL:-}
+      - LLM_VISION_MODEL=${RECIPESCRAPER_LLM_VISION_MODEL:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL (bind-mounted data dir for continuity with existing staging DB)
+  # Note: staging still runs postgres:15 — upgrade separately with pg_upgrade
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis (SignalR backplane)
+  # ---------------------------------------------------------------------------
+  redis_cache:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Webhook — listens for CI deploy triggers
+  # ---------------------------------------------------------------------------
+  webhook:
+    build: ./webhook
+    container_name: nimblist_webhook
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
+      - DO_API_TOKEN=${DO_API_TOKEN}
+    volumes:
+      - ./webhook/hooks.json.tmpl:/etc/webhook/hooks.json.tmpl:ro
+      - ./webhook/deploy.sh:/scripts/deploy.sh:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/compose:ro
+    command:
+      - "-hooks=/etc/webhook/hooks.json.tmpl"
+      - "-template"
+      - "-hotreload"
+      - "-verbose"
+
+volumes:
+  redis_data:
+  dataprotection_keys:
+  caddy_data:
+  caddy_config:
