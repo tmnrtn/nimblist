@@ -19,6 +19,7 @@ interface AdminUser {
   email: string;
   roles: string[];
   isComplimentaryAccess: boolean;
+  isDisabled: boolean;
 }
 
 interface AdminFamilyMember {
@@ -56,13 +57,15 @@ interface UsersTabProps {
   error: string | null;
   roleChangeLoading: string | null;
   complimentaryChangeLoading: string | null;
+  statusChangeLoading: string | null;
   onRefresh: () => void;
   onSetRole: (userId: string, role: string) => void;
   onSetComplimentaryAccess: (userId: string, value: boolean) => void;
+  onToggleDisabled: (userId: string, disabled: boolean) => void;
   onDelete: (userId: string, email: string) => void;
 }
 
-const UsersTab: React.FC<UsersTabProps> = ({ users, loading, error, roleChangeLoading, complimentaryChangeLoading, onRefresh, onSetRole, onSetComplimentaryAccess, onDelete }) => (
+const UsersTab: React.FC<UsersTabProps> = ({ users, loading, error, roleChangeLoading, complimentaryChangeLoading, statusChangeLoading, onRefresh, onSetRole, onSetComplimentaryAccess, onToggleDisabled, onDelete }) => (
   <div>
     <div className="flex justify-between items-center mb-4">
       <h2 className="text-lg font-semibold text-gray-800">Application Users</h2>
@@ -86,10 +89,16 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, loading, error, roleChangeLo
               const currentRole = user.roles[0] ?? 'Standard';
               const isChanging = roleChangeLoading === user.userId;
               const isComplimentaryChanging = complimentaryChangeLoading === user.userId;
+              const isStatusChanging = statusChangeLoading === user.userId;
               const isAdmin = currentRole === 'Admin';
               return (
-                <tr key={user.userId}>
-                  <td className="px-4 py-2 text-sm text-gray-900">{user.email}</td>
+                <tr key={user.userId} className={user.isDisabled ? 'bg-gray-50 opacity-60' : ''}>
+                  <td className="px-4 py-2 text-sm text-gray-900">
+                    {user.email}
+                    {user.isDisabled && (
+                      <span className="ml-2 text-xs font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded">Disabled</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2">
                     <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
                       isAdmin ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
@@ -115,7 +124,7 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, loading, error, roleChangeLo
                       </button>
                     )}
                   </td>
-                  <td className="px-4 py-2 flex gap-2">
+                  <td className="px-4 py-2 flex gap-2 flex-wrap">
                     {!isAdmin && (
                       <button
                         onClick={() => onSetRole(user.userId, 'Admin')}
@@ -134,6 +143,17 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, loading, error, roleChangeLo
                         Make Standard
                       </button>
                     )}
+                    <button
+                      onClick={() => onToggleDisabled(user.userId, !user.isDisabled)}
+                      disabled={isStatusChanging}
+                      className={`text-xs px-2 py-1 rounded disabled:opacity-50 transition-colors ${
+                        user.isDisabled
+                          ? 'bg-green-600 text-white hover:bg-green-700'
+                          : 'bg-orange-500 text-white hover:bg-orange-600'
+                      }`}
+                    >
+                      {isStatusChanging ? '…' : user.isDisabled ? 'Enable' : 'Disable'}
+                    </button>
                     <button
                       onClick={() => onDelete(user.userId, user.email ?? '')}
                       className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
@@ -462,6 +482,7 @@ const AdminPage: React.FC = () => {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null);
   const [complimentaryChangeLoading, setComplimentaryChangeLoading] = useState<string | null>(null);
+  const [statusChangeLoading, setStatusChangeLoading] = useState<string | null>(null);
 
   const [families, setFamilies] = useState<AdminFamily[]>([]);
   const [familiesLoading, setFamiliesLoading] = useState(false);
@@ -578,6 +599,21 @@ const AdminPage: React.FC = () => {
     } finally { setRoleChangeLoading(null); }
   }
 
+  async function handleToggleDisabled(userId: string, disabled: boolean) {
+    setStatusChangeLoading(userId);
+    try {
+      const res = await authenticatedFetch(`/api/admin/users/${userId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ disabled }),
+      });
+      if (!res.ok) throw new Error(`Failed to update user status (${res.status})`);
+      setUsers(prev => prev.map(u => u.userId === userId ? { ...u, isDisabled: disabled } : u));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to update user status');
+    } finally { setStatusChangeLoading(null); }
+  }
+
   async function handleDeleteUser(userId: string, email: string) {
     if (!window.confirm(`Delete user "${email}"? This cannot be undone.`)) return;
     try {
@@ -660,8 +696,10 @@ const AdminPage: React.FC = () => {
           users={users} loading={usersLoading} error={usersError}
           roleChangeLoading={roleChangeLoading}
           complimentaryChangeLoading={complimentaryChangeLoading}
+          statusChangeLoading={statusChangeLoading}
           onRefresh={loadUsers} onSetRole={handleSetRole}
           onSetComplimentaryAccess={handleSetComplimentaryAccess}
+          onToggleDisabled={handleToggleDisabled}
           onDelete={handleDeleteUser}
         />
       )}

@@ -43,6 +43,7 @@ namespace Nimblist.api.Controllers
                     Email = user.Email,
                     Roles = roles,
                     IsComplimentaryAccess = user.IsComplimentaryAccess,
+                    IsDisabled = user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow,
                 });
             }
 
@@ -81,6 +82,31 @@ namespace Nimblist.api.Controllers
             var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
                 return StatusCode(500, result.Errors);
+
+            return NoContent();
+        }
+
+        // PUT /api/admin/users/{id}/status — disable or re-enable a user
+        [HttpPut("users/{id}/status")]
+        public async Task<IActionResult> SetUserStatus(string id, [FromBody] SetUserStatusDto dto)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (id == currentUserId)
+                return BadRequest("You cannot disable your own account.");
+
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            if (dto.Disabled)
+            {
+                await _userManager.SetLockoutEnabledAsync(user, true);
+                await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+                await _userManager.UpdateSecurityStampAsync(user);
+            }
+            else
+            {
+                await _userManager.SetLockoutEndDateAsync(user, null);
+            }
 
             return NoContent();
         }

@@ -6,6 +6,12 @@ namespace Nimblist.api.DTO
         public string? Email { get; set; }
         public IList<string> Roles { get; set; } = new List<string>();
         public bool IsComplimentaryAccess { get; set; }
+        public bool IsDisabled { get; set; }
+    }
+
+    public class SetUserStatusDto
+    {
+        public bool Disabled { get; set; }
     }
 
     public class SetComplimentaryAccessDto
