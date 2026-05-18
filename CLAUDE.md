@@ -259,7 +259,7 @@ Improvements over the original notebooks:
 python scripts/retrain.py
 
 # Fetch feedback first, then retrain with it
-python scripts/fetch_feedback.py --api-url https://nimblist.tmnrtn.com --cookie <session-cookie-value>
+python scripts/fetch_feedback.py --api-url https://nimblist.co.uk --cookie <session-cookie-value>
 python scripts/retrain.py --feedback feedback.jsonl
 
 # After retraining, commit the updated .joblib files and push to deploy
@@ -274,29 +274,57 @@ git push
 
 ---
 
-## Production Hosting Plan
+## Production & Staging
 
-The intended production hosting target is **DigitalOcean** using a **Docker Swarm** deployment, following a phased approach:
+### Environments
 
-### Stage 1 — Single Droplet (starting point)
-- One DO Droplet (2 vCPU / 4GB, ~$24/mo) running Swarm in single-manager mode
-- All services deployed as a Swarm stack, including Postgres and Redis on named volumes
-- Postgres pinned to the manager node via a placement constraint to avoid data loss if workers are added later
-- Existing Docker Compose files adapted to a stack file; existing webhook auto-deploy updated to use `docker service update --image ...` instead of `docker compose pull`
-- Secrets (VAPID keys, OAuth credentials, LLM API keys) stored as Docker secrets, not env files
+| | Production | Staging |
+|---|---|---|
+| URL | https://nimblist.co.uk | https://nimblist.tmnrtn.com |
+| Host | DO Droplet 206.189.233.248 | Homelab server `tmnrtn-nimblist.lan` |
+| Orchestration | Docker Swarm | Docker Compose |
+| TLS | Caddy (Let's Encrypt) | NPM on another server → Caddy (HTTP) |
+| Config files | `/opt/nimblist/.env` | `/var/docker/nimblist/.env` |
 
-### Stage 2 — Multi-node + managed services
-- Add a second Droplet and join it to the Swarm (`docker swarm join`)
-- Migrate Postgres to DO Managed Database and Redis to DO Managed Redis before adding the second node — this removes the stateful-volume problem
-- Add a DO Load Balancer ($12/mo) in front; enable sticky sessions or rely on the existing Redis SignalR backplane (already in place)
-- Scale replicas: `nimblist-api` × 2, `Nimblist.recipescraper` × 3 (the bottleneck service), `Nimblist.classification` × 2
+Both environments pull images from `registry.digitalocean.com/nimblist/*:latest`.
 
-### Stage 3 — Further scaling (if needed)
-- Add more Droplets as workers; Swarm handles placement automatically
-- If operational complexity grows beyond what Swarm can handle cleanly, migrate to DO Managed Kubernetes (DOKS)
+### Stack files
 
-### Key production config changes required
-- `CorsSettings:AllowedOrigins` must be updated to the production domain
-- VAPID keys should be rotated for production (`VapidSettings:PublicKey` / `VapidSettings:PrivateKey`)
-- `Cookie.SecurePolicy = Always` and `SameSite = Strict` are already set — do not remove them
-- A DO Container Registry (~$5/mo) should hold production images; CI pushes on merge to main
+- **`src/nimblist/docker-stack.prod.yml`** — production Swarm stack
+- **`src/nimblist/docker-compose.staging.yml`** — staging Compose stack
+- **`src/nimblist/Caddyfile.prod`** — production Caddy config (TLS + routing); deployed as a Docker Swarm config
+- **`src/nimblist/Caddyfile.staging`** — staging Caddy config (plain HTTP, TLS from NPM upstream); hardcodes `X-Forwarded-Proto: https`
+
+### Caddy routing (both environments)
+
+All paths are matched in order; first match wins:
+
+| Path pattern | Upstream |
+|---|---|
+| `/api/*` | `nimblist-api:8080` |
+| `/hubs/*` | `nimblist-api:8080` (WebSocket — Caddy upgrades automatically) |
+| `/Identity/*` | `nimblist-api:8080` (Razor Pages) |
+| `/signin-*` | `nimblist-api:8080` (OAuth provider callbacks, e.g. `/signin-google`) |
+| everything else | `nimblist-frontend:80` (React SPA) |
+
+`VITE_API_BASE_URL` is intentionally empty in `.env.production` so the frontend uses relative paths — this means the same image works in both environments without rebuilding.
+
+### Updating the production Caddyfile
+
+Docker Swarm configs are **immutable**. When `Caddyfile.prod` changes, bump the config name in `docker-stack.prod.yml` (`caddyfile_v2` → `caddyfile_v3` etc.) and update the `caddy` service `configs.source` to match. Swarm will create a new config and restart Caddy on next deploy.
+
+### CI/CD pipeline
+
+`main` push → build & test → publish images to DO registry → deploy staging (webhook, automatic) → deploy production (SSH + `docker stack deploy`, requires manual approval in the GitHub "production" environment).
+
+The production deploy job: resolves image tags via `envsubst '${TAG} ${DO_REGISTRY}'`, SCPs the resolved stack file and `Caddyfile.prod` to the server, then SSHs in to source `/opt/nimblist/.env` and run `docker stack deploy`.
+
+### Reverse-proxy trust
+
+`Program.cs` calls `UseForwardedHeaders` with `KnownNetworks` and `KnownProxies` cleared so ASP.NET Core trusts `X-Forwarded-Proto` and `X-Forwarded-For` from Caddy (which runs in a separate Docker container on the overlay network). This is safe because the API port is never publicly exposed — only Caddy has external ports.
+
+### Scaling roadmap (Stage 2, when needed)
+- Add a second DO Droplet and join it to the Swarm (`docker swarm join`)
+- Migrate Postgres to DO Managed Database and Redis to DO Managed Redis first — this removes the stateful-volume problem before adding workers
+- Add a DO Load Balancer in front; the Redis SignalR backplane is already in place for multi-replica API
+- Scale replicas: `nimblist-api` × 2, `nimblist-recipescraper` × 3 (the bottleneck service), `nimblist-classification` × 2
