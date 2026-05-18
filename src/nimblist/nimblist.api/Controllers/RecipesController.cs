@@ -249,6 +249,20 @@ namespace Nimblist.api.Controllers
             };
         }
 
+        private async Task<HashSet<Guid>> GetAccessibleListIdsAsync(string userId)
+        {
+            var ownedIds = await _context.ShoppingLists.Where(l => l.UserId == userId).Select(l => l.Id).ToListAsync();
+            var userShareIds = await _context.ListShares.Where(s => s.UserId == userId).Select(s => s.ListId).ToListAsync();
+            var familyIds = await _context.FamilyMembers.Where(m => m.UserId == userId).Select(m => m.FamilyId).ToListAsync();
+            var familyShareIds = familyIds.Count > 0
+                ? await _context.ListShares.Where(s => s.FamilyId.HasValue && familyIds.Contains(s.FamilyId.Value)).Select(s => s.ListId).ToListAsync()
+                : new List<Guid>();
+            var result = new HashSet<Guid>(ownedIds);
+            result.UnionWith(userShareIds);
+            result.UnionWith(familyShareIds);
+            return result;
+        }
+
         private async Task<HashSet<Guid>> GetAccessibleRecipeIdsAsync(string userId)
         {
             var ownIds = await _context.Recipes.Where(r => r.UserId == userId).Select(r => r.Id).ToListAsync();
@@ -399,10 +413,8 @@ namespace Nimblist.api.Controllers
 
             if (recipe == null) return NotFound();
 
-            var listExists = await _context.ShoppingLists
-                .AnyAsync(sl => sl.Id == listId && sl.UserId == userId);
-
-            if (!listExists) return NotFound("Shopping list not found.");
+            var accessibleListIds = await GetAccessibleListIdsAsync(userId);
+            if (!accessibleListIds.Contains(listId)) return NotFound("Shopping list not found.");
 
             // Load existing items once for deduplication; updated in-loop for intra-recipe dupes
             var existingItems = await _context.Items
