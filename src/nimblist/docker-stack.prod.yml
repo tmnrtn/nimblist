@@ -9,7 +9,7 @@
 # ---------------------------------------------------------------------------
 
 configs:
-  caddyfile:
+  caddyfile_v2:
     file: ./Caddyfile.prod
 
 services:
@@ -27,7 +27,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     configs:
-      - source: caddyfile
+      - source: caddyfile_v2
         target: /etc/caddy/Caddyfile
     environment:
       - DOMAIN=${DOMAIN}

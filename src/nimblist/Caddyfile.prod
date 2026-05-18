@@ -25,6 +25,11 @@ www.{$DOMAIN} {
         reverse_proxy nimblist-api:8080
     }
 
+    # OAuth provider callbacks (e.g. /signin-google, /signin-microsoft)
+    handle /signin-* {
+        reverse_proxy nimblist-api:8080
+    }
+
     # Everything else goes to the React SPA
     handle {
         reverse_proxy nimblist-frontend:80

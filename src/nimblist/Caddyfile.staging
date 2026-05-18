@@ -21,6 +21,12 @@
         }
     }
 
+    handle /signin-* {
+        reverse_proxy nimblist-api:8080 {
+            header_up X-Forwarded-Proto {>X-Forwarded-Proto}
+        }
+    }
+
     handle {
         reverse_proxy nimblist-frontend:80
     }
