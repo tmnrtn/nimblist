@@ -1,5 +1,5 @@
 import { useEffect } from 'react'; // Add useEffect
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import './App.css'
 
 import useAuthStore from './store/authStore'; // Import the auth store
@@ -26,6 +26,15 @@ import NotificationBanner from './components/NotificationBanner';
 
 function App() {
     const { checkAuthStatus, isLoading, isAuthenticated } = useAuthStore();
+    const location = useLocation();
+
+    useEffect(() => {
+      if (typeof window.gtag !== 'function') return;
+      window.gtag('event', 'page_view', {
+        page_path: location.pathname + location.search,
+        page_title: document.title,
+      });
+    }, [location.pathname, location.search]);
 
     useEffect(() => {
       const params = new URLSearchParams(window.location.search);

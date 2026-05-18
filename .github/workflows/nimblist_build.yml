@@ -193,6 +193,8 @@ jobs:
           tags: |
             ${{ env.FRONTEND_IMAGE_NAME }}:latest
             ${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            VITE_GA_MEASUREMENT_ID=${{ secrets.VITE_GA_MEASUREMENT_ID }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

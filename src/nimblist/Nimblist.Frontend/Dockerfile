@@ -22,7 +22,9 @@ RUN npm ci
 # Destination path is relative to WORKDIR /app
 COPY ["src/nimblist/Nimblist.Frontend/", "./"]
 
-# Build the React application
+# Build the React application (VITE_GA_MEASUREMENT_ID is baked in at build time)
+ARG VITE_GA_MEASUREMENT_ID
+ENV VITE_GA_MEASUREMENT_ID=${VITE_GA_MEASUREMENT_ID}
 RUN NODE_ENV=production npm run build
 # If using yarn:
 # RUN yarn build

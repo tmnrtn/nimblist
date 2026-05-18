@@ -11,6 +11,21 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Nimblist" />
     <title>Nimblist</title>
+    <script>
+      (function() {
+        var id = '%VITE_GA_MEASUREMENT_ID%';
+        if (!id || id === '%VITE_GA_MEASUREMENT_ID%') return;
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=' + id;
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){ window.dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', id, { send_page_view: false });
+        window.gtag = gtag;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
