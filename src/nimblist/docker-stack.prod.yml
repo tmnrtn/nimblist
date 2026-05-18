@@ -1,0 +1,207 @@
+name: nimblist
+
+# ---------------------------------------------------------------------------
+# Image tags are resolved at CI time via:
+#   envsubst '${TAG} ${DO_REGISTRY}' < docker-stack.prod.yml > docker-stack.yml
+#
+# Credential variables (${POSTGRES_PASSWORD}, ${GOOGLE_CLIENT_SECRET}, etc.)
+# are resolved at deploy time by Docker Swarm reading from the shell environment.
+# On the production server, source /opt/nimblist/.env before running
+#   docker stack deploy -c docker-stack.yml nimblist --with-registry-auth
+# ---------------------------------------------------------------------------
+
+configs:
+  caddyfile:
+    file: ./Caddyfile.prod
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Caddy — TLS termination and reverse proxy (ports 80 + 443 only)
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    environment:
+      - DOMAIN=${DOMAIN}
+    networks:
+      - nimblist
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+
+  # ---------------------------------------------------------------------------
+  # ASP.NET Core API
+  # ---------------------------------------------------------------------------
+  nimblist-api:
+    image: ${DO_REGISTRY}/api:${TAG}
+    user: root   # needed so the app can write to the dataprotection_keys named volume
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      # Database
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      - ConnectionStrings__Redis=redis_cache:6379
+      # CORS — semicolon-separated list of allowed origins
+      - CorsSettings__AllowedOrigins=${CORS_ALLOWED_ORIGINS}
+      # Frontend URL (OAuth redirects, email links)
+      - FrontendAppSettings__BaseUrl=https://${DOMAIN}
+      # OAuth providers
+      - Authentication__Google__ClientId=${GOOGLE_CLIENT_ID}
+      - Authentication__Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
+      - Authentication__Facebook__AppId=${FACEBOOK_APP_ID:-}
+      - Authentication__Facebook__AppSecret=${FACEBOOK_APP_SECRET:-}
+      - Authentication__Microsoft__ClientId=${MICROSOFT_CLIENT_ID:-}
+      - Authentication__Microsoft__ClientSecret=${MICROSOFT_CLIENT_SECRET:-}
+      # Admin
+      - AdminSettings__AdminEmail=${ADMIN_EMAIL}
+      # Internal service URLs (resolved via overlay network service names)
+      - ClassificationService__PredictUrl=http://nimblist-classification:5000/predict
+      - RecipeScraperService__ScrapeUrl=http://nimblist-recipescraper:5001/scrape
+      - RecipeScraperService__ScrapeImageUrl=http://nimblist-recipescraper:5001/scrape-image
+      - RecipeScraperService__ParseUrl=http://nimblist-recipescraper:5001/parse-ingredients
+      # Web Push (VAPID)
+      - VapidSettings__Subject=${VAPID_SUBJECT}
+      - VapidSettings__PublicKey=${VAPID_PUBLIC_KEY}
+      - VapidSettings__PrivateKey=${VAPID_PRIVATE_KEY}
+      # PayPal
+      - PayPal__Mode=${PAYPAL_MODE:-live}
+      - PayPal__ClientId=${PAYPAL_CLIENT_ID:-}
+      - PayPal__ClientSecret=${PAYPAL_CLIENT_SECRET:-}
+      - PayPal__PlanId=${PAYPAL_PLAN_ID:-}
+      - PayPal__WebhookId=${PAYPAL_WEBHOOK_ID:-}
+      # Email (Resend)
+      - Resend__ApiKey=${RESEND_API_KEY}
+      - Resend__FromAddress=${RESEND_FROM_ADDRESS}
+      # Rate limits
+      - RateLimits__AuthIp__PermitLimit=${RATE_AUTH_IP_LIMIT:-10}
+      - RateLimits__AuthIp__WindowMinutes=${RATE_AUTH_IP_WINDOW:-5}
+      - RateLimits__RecipeImport__PermitLimit=${RATE_RECIPE_IMPORT_LIMIT:-10}
+      - RateLimits__RecipeImport__WindowMinutes=${RATE_RECIPE_IMPORT_WINDOW:-60}
+      - RateLimits__ImageImport__PermitLimit=${RATE_IMAGE_IMPORT_LIMIT:-5}
+      - RateLimits__ImageImport__WindowMinutes=${RATE_IMAGE_IMPORT_WINDOW:-60}
+      - RateLimits__ImageSearch__PermitLimit=${RATE_IMAGE_SEARCH_LIMIT:-30}
+      - RateLimits__ImageSearch__WindowMinutes=${RATE_IMAGE_SEARCH_WINDOW:-60}
+      - RateLimits__SubscriptionActivate__PermitLimit=${RATE_SUB_ACTIVATE_LIMIT:-5}
+      - RateLimits__SubscriptionActivate__WindowMinutes=${RATE_SUB_ACTIVATE_WINDOW:-60}
+    volumes:
+      - dataprotection_keys:/keys
+    networks:
+      - nimblist
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]   # keeps dataprotection_keys on the manager
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+
+  # ---------------------------------------------------------------------------
+  # React SPA (nginx serving pre-built static files)
+  # ---------------------------------------------------------------------------
+  nimblist-frontend:
+    image: ${DO_REGISTRY}/frontend:${TAG}
+    networks:
+      - nimblist
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  # ---------------------------------------------------------------------------
+  # Python classification service
+  # ---------------------------------------------------------------------------
+  nimblist-classification:
+    image: ${DO_REGISTRY}/classification:${TAG}
+    environment:
+      - FLASK_HOST=0.0.0.0
+    networks:
+      - nimblist
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  # ---------------------------------------------------------------------------
+  # Python recipe scraper service
+  # ---------------------------------------------------------------------------
+  nimblist-recipescraper:
+    image: ${DO_REGISTRY}/recipescraper:${TAG}
+    environment:
+      - FLASK_HOST=0.0.0.0
+      - LLM_PROVIDER=${RECIPESCRAPER_LLM_PROVIDER:-}
+      - LLM_MODEL=${RECIPESCRAPER_LLM_MODEL:-}
+      - LLM_VISION_MODEL=${RECIPESCRAPER_LLM_VISION_MODEL:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
+    networks:
+      - nimblist
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - nimblist
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]   # volume must stay on the manager node
+      restart_policy:
+        condition: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Redis (SignalR backplane)
+  # ---------------------------------------------------------------------------
+  redis_cache:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - nimblist
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+volumes:
+  postgres_data:
+  redis_data:
+  dataprotection_keys:
+  caddy_data:
+  caddy_config:
+
+networks:
+  nimblist:
+    driver: overlay

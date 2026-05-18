@@ -1,0 +1,36 @@
+# Caddyfile.prod — production reverse proxy
+# DOMAIN env var is set in the caddy service in docker-stack.prod.yml
+# TLS certificates are obtained automatically via Let's Encrypt.
+#
+# To update this file: bump the config version in docker-stack.prod.yml
+# (configs.caddyfile -> caddyfile_v2, etc.) and redeploy.
+
+{$DOMAIN} {
+    # API — preserve full path including /api/ prefix
+    handle /api/* {
+        reverse_proxy nimblist-api:8080
+    }
+
+    # SignalR — Caddy handles WebSocket upgrades automatically
+    handle /hubs/* {
+        reverse_proxy nimblist-api:8080
+    }
+
+    # Identity UI pages served by the API (Razor Pages)
+    handle /Identity/* {
+        reverse_proxy nimblist-api:8080
+    }
+
+    # Everything else goes to the React SPA
+    handle {
+        reverse_proxy nimblist-frontend:80
+    }
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}

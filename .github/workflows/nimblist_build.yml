@@ -251,20 +251,27 @@ jobs:
           ssh-keyscan -H ${{ env.PROD_HOST }} >> ~/.ssh/known_hosts
 
       - name: Resolve image tags in stack file
+        # Only substitute TAG and DO_REGISTRY here — credential variables
+        # (${POSTGRES_PASSWORD} etc.) are substituted on the server from /opt/nimblist/.env
         run: |
           export TAG=${{ github.sha }}
           export DO_REGISTRY=${{ env.DO_REGISTRY }}
-          envsubst < ${{ env.STACK_FILE }} > /tmp/docker-stack.resolved.yml
+          envsubst '${TAG} ${DO_REGISTRY}' < ${{ env.STACK_FILE }} > /tmp/docker-stack.resolved.yml
 
-      - name: Copy resolved stack file to production
+      - name: Copy stack file and Caddyfile to production
         run: |
           ssh -i ~/.ssh/id_ed25519 root@${{ env.PROD_HOST }} "mkdir -p /opt/nimblist"
           scp -i ~/.ssh/id_ed25519 /tmp/docker-stack.resolved.yml root@${{ env.PROD_HOST }}:/opt/nimblist/docker-stack.yml
+          scp -i ~/.ssh/id_ed25519 src/nimblist/Caddyfile.prod root@${{ env.PROD_HOST }}:/opt/nimblist/Caddyfile.prod
 
       - name: Deploy stack
         run: |
-          ssh -i ~/.ssh/id_ed25519 root@${{ env.PROD_HOST }} "
-            echo '${{ secrets.DO_API_TOKEN }}' | docker login registry.digitalocean.com --username '${{ secrets.DO_API_TOKEN }}' --password-stdin 2>/dev/null
-            docker stack deploy -c /opt/nimblist/docker-stack.yml nimblist --with-registry-auth
+          ssh -i ~/.ssh/id_ed25519 root@${{ env.PROD_HOST }} bash << 'ENDSSH'
+            set -e
+            echo '${{ secrets.DO_API_TOKEN }}' | docker login registry.digitalocean.com \
+              --username '${{ secrets.DO_API_TOKEN }}' --password-stdin 2>/dev/null
+            cd /opt/nimblist
+            set -a && source /opt/nimblist/.env && set +a
+            docker stack deploy -c docker-stack.yml nimblist --with-registry-auth
             docker service ls
-          "
+          ENDSSH
