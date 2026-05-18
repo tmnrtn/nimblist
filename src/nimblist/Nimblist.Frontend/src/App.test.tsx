@@ -75,7 +75,7 @@ describe("App Component", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Home Page")).toBeInTheDocument(); // Assuming HomePage renders "HomePage"
+      expect(screen.getByText(/get started free/i)).toBeInTheDocument();
     });
   });
 
@@ -208,7 +208,7 @@ describe("App Component", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Sorry, the page you were looking for could not be found.")).toBeInTheDocument(); // Assuming NotFoundPage renders "NotFoundPage"
+      expect(screen.getByText("The page you're looking for doesn't exist or may have been moved.")).toBeInTheDocument();
     });
   });
 

@@ -68,7 +68,7 @@ describe('ItemList Component', () => {
 
   it('displays a message when the list is empty', () => {
     renderComponent([]);
-    expect(screen.getByText('This list is empty.')).toBeInTheDocument();
+    expect(screen.getByText('Your list is empty')).toBeInTheDocument();
   });
 
   it('calls onDeleteItem with the item id and name when delete is confirmed', () => {

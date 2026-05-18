@@ -31,10 +31,11 @@ const ShoppingListsPage: React.FC = () => {
   const [fromTemplateLoading, setFromTemplateLoading] = useState<boolean>(false);
   const [fromTemplateError, setFromTemplateError] = useState<string | null>(null);
 
-  // Auto-open the create form for brand new users
+  // Auto-open the create form after the first successful fetch when there are no lists
+  const [hasFetched, setHasFetched] = useState(false);
   useEffect(() => {
-    if (!isLoading && lists.length === 0) setShowNew(true);
-  }, [isLoading, lists.length]);
+    if (hasFetched && lists.length === 0) setShowNew(true);
+  }, [hasFetched, lists.length]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -62,6 +63,7 @@ const ShoppingListsPage: React.FC = () => {
         setError("Unable to connect to the server. Please check your network connection.");
       } finally {
         setIsLoading(false);
+        setHasFetched(true);
       }
     };
 

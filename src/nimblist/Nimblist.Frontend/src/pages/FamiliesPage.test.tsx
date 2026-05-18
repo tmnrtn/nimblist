@@ -54,7 +54,7 @@ describe("FamiliesPage", () => {
   it("shows 'no families' message when list is empty", async () => {
     mockFetch.mockReturnValue(jsonResponse([]));
     renderPage();
-    await waitFor(() => expect(screen.getByText(/no families yet/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/share with your household/i)).toBeInTheDocument());
   });
 
   it("shows error when fetch fails", async () => {
@@ -104,7 +104,7 @@ describe("FamiliesPage", () => {
       .mockReturnValueOnce(jsonResponse(newFamily));
 
     renderPage();
-    await waitFor(() => screen.getByText(/no families yet/i));
+    await waitFor(() => screen.getByText(/share with your household/i));
 
     fireEvent.change(screen.getByPlaceholderText(/new family name/i), {
       target: { value: "Jones Family" },
@@ -120,7 +120,7 @@ describe("FamiliesPage", () => {
       .mockReturnValueOnce(jsonResponse({}, false, 500));
 
     renderPage();
-    await waitFor(() => screen.getByText(/no families yet/i));
+    await waitFor(() => screen.getByText(/share with your household/i));
 
     fireEvent.change(screen.getByPlaceholderText(/new family name/i), {
       target: { value: "Bad Family" },

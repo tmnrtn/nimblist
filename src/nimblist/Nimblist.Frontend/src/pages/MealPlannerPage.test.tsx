@@ -114,14 +114,14 @@ describe("MealPlannerPage", () => {
     await waitFor(() => expect(screen.getByText("Week 2")).toBeInTheDocument());
   });
 
-  it("clicking + Add opens inline entry form for that day", async () => {
+  it("clicking + Add opens modal entry form for that day", async () => {
     mockInitialLoad();
     mockFetch.mockReturnValueOnce(jsonResponse([]));
     renderPage();
     await waitFor(() => screen.getByText("Week 1"));
     const addButtons = screen.getAllByRole("button", { name: /\+ add/i });
     fireEvent.click(addButtons[0]);
-    expect(screen.getByRole("button", { name: /^add$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^add meal$/i })).toBeInTheDocument();
   });
 
   it("submitting add entry form appends entry", async () => {
@@ -135,7 +135,7 @@ describe("MealPlannerPage", () => {
     await waitFor(() => screen.getByText("Week 1"));
     const addButtons = screen.getAllByRole("button", { name: /\+ add/i });
     fireEvent.click(addButtons[0]);
-    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^add meal$/i }));
 
     await waitFor(() => expect(screen.getByText("Pasta")).toBeInTheDocument());
   });

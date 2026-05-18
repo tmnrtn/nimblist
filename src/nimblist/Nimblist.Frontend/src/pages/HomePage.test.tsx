@@ -29,19 +29,19 @@ describe('HomePage Component', () => {
     };
   });
 
-  it('renders the heading for unauthenticated users', () => {
+  it('renders the hero heading for unauthenticated users', () => {
     renderComponent();
-    expect(screen.getByRole('heading', { level: 2, name: /home page/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /shopping lists and recipes/i })).toBeInTheDocument();
   });
 
-  it('renders the welcome message for unauthenticated users', () => {
+  it('renders a sign-up CTA for unauthenticated users', () => {
     renderComponent();
-    expect(screen.getByText(/welcome to nimblist!/i)).toBeInTheDocument();
+    expect(screen.getByText(/get started free/i)).toBeInTheDocument();
   });
 
   it('renders nothing for authenticated users (redirect pending)', () => {
     mockStoreState = { ...mockStoreState, isAuthenticated: true };
     renderComponent();
-    expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
   });
 });
