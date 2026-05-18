@@ -51,11 +51,12 @@ const MealPlannerPage: React.FC = () => {
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
   const [showNewPlanForm, setShowNewPlanForm] = useState(false);
 
-  // Add entry inline state
+  // Add entry modal state
   const [addingToDay, setAddingToDay] = useState<string | null>(null);
   const [addRecipeId, setAddRecipeId] = useState('');
   const [addMealType, setAddMealType] = useState('Dinner');
   const [isAddingEntry, setIsAddingEntry] = useState(false);
+  const [recipeSearchModal, setRecipeSearchModal] = useState('');
 
   // Add-to-list inline state (per entry)
   const [entryToAddToList, setEntryToAddToList] = useState<string | null>(null);
@@ -77,12 +78,13 @@ const MealPlannerPage: React.FC = () => {
       authenticatedFetch('/api/shoppinglists').then(r => r.ok ? r.json() : []),
     ]).then(([plansData, recipesData, listsData]) => {
       setPlans(plansData);
-      setRecipes(recipesData);
+      const sortedRecipes = [...recipesData].sort((a: RecipeSummary, b: RecipeSummary) => a.title.localeCompare(b.title));
+      setRecipes(sortedRecipes);
       setLists(listsData);
       if (plansData.length > 0) setSelectedPlanId(plansData[0].id);
       const activeLists = (listsData as ShoppingList[]).filter((l: ShoppingList) => !l.isTemplate);
       if (activeLists.length > 0) { setAddToListId(activeLists[0].id); setAddWeekListId(activeLists[0].id); }
-      if (recipesData.length > 0) setAddRecipeId(recipesData[0].id);
+      if (sortedRecipes.length > 0) setAddRecipeId(sortedRecipes[0].id);
     }).catch(() => {})
       .finally(() => setIsLoading(false));
   }, []);
@@ -371,7 +373,6 @@ const MealPlannerPage: React.FC = () => {
               const dateStr = toISODate(day);
               const isToday = dateStr === toISODate(new Date());
               const dayEntries = entries.filter(e => e.plannedDate === dateStr);
-              const isAddingHere = addingToDay === dateStr;
 
               return (
                 <div
@@ -442,50 +443,14 @@ const MealPlannerPage: React.FC = () => {
                     </div>
                   ))}
 
-                  {/* Add entry form */}
-                  {isAddingHere ? (
-                    <div className="mt-1 space-y-1">
-                      <select
-                        value={addRecipeId}
-                        onChange={e => setAddRecipeId(e.target.value)}
-                        className="w-full text-xs px-1.5 py-1 border border-gray-300 rounded focus:outline-none focus:ring-indigo-500"
-                        disabled={isAddingEntry}
-                      >
-                        {recipes.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
-                      </select>
-                      <select
-                        value={addMealType}
-                        onChange={e => setAddMealType(e.target.value)}
-                        className="w-full text-xs px-1.5 py-1 border border-gray-300 rounded focus:outline-none focus:ring-indigo-500"
-                        disabled={isAddingEntry}
-                      >
-                        {MEAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleAddEntry(dateStr)}
-                          disabled={isAddingEntry || !addRecipeId}
-                          className="flex-1 text-xs py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
-                        >
-                          {isAddingEntry ? '…' : 'Add'}
-                        </button>
-                        <button
-                          onClick={() => setAddingToDay(null)}
-                          className="text-xs px-1.5 py-0.5 border border-gray-300 rounded hover:bg-gray-50"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    recipes.length > 0 && (
-                      <button
-                        onClick={() => { setAddingToDay(dateStr); setEntryToAddToList(null); }}
-                        className="mt-auto text-center text-indigo-500 hover:text-indigo-700 border border-dashed border-indigo-300 rounded py-0.5 transition-colors"
-                      >
-                        + Add
-                      </button>
-                    )
+                  {/* Add entry button */}
+                  {recipes.length > 0 && (
+                    <button
+                      onClick={() => { setAddingToDay(dateStr); setEntryToAddToList(null); setRecipeSearchModal(''); }}
+                      className="mt-auto text-center text-indigo-500 hover:text-indigo-700 border border-dashed border-indigo-300 rounded py-0.5 transition-colors"
+                    >
+                      + Add
+                    </button>
                   )}
                 </div>
               );
@@ -499,6 +464,103 @@ const MealPlannerPage: React.FC = () => {
           )}
         </>
       )}
+
+      {/* Add entry modal */}
+      {addingToDay && (() => {
+        const addingDay = days.find(d => toISODate(d) === addingToDay);
+        const q = recipeSearchModal.trim().toLowerCase();
+        const modalRecipes = q ? recipes.filter(r => r.title.toLowerCase().includes(q)) : recipes;
+        const selectedInView = modalRecipes.some(r => r.id === addRecipeId);
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setAddingToDay(null)} />
+            <div className="relative bg-white rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-md max-h-[80vh] flex flex-col">
+              <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800">
+                    Add meal — {addingDay ? formatDay(addingDay) : addingToDay}
+                  </h3>
+                  <button
+                    onClick={() => setAddingToDay(null)}
+                    className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                    aria-label="Close"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <input
+                  type="search"
+                  value={recipeSearchModal}
+                  onChange={e => {
+                    setRecipeSearchModal(e.target.value);
+                    const nq = e.target.value.trim().toLowerCase();
+                    const filtered = nq ? recipes.filter(r => r.title.toLowerCase().includes(nq)) : recipes;
+                    if (filtered.length > 0 && !filtered.some(r => r.id === addRecipeId)) {
+                      setAddRecipeId(filtered[0].id);
+                    }
+                  }}
+                  placeholder="Search recipes…"
+                  autoFocus
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="overflow-y-auto flex-1">
+                {modalRecipes.length === 0 ? (
+                  <p className="text-sm text-gray-400 px-4 py-4 text-center">No recipes match your search.</p>
+                ) : (
+                  modalRecipes.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => setAddRecipeId(r.id)}
+                      className={`w-full text-left px-4 py-3 text-sm border-b border-gray-50 hover:bg-gray-50 transition-colors ${
+                        addRecipeId === r.id && selectedInView
+                          ? 'bg-indigo-50 text-indigo-700 font-medium'
+                          : 'text-gray-700'
+                      }`}
+                    >
+                      {r.title}
+                    </button>
+                  ))
+                )}
+              </div>
+
+              <div className="px-4 py-3 border-t border-gray-100 space-y-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {MEAL_TYPES.map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setAddMealType(t)}
+                      className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                        addMealType === t
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAddingToDay(null)}
+                    className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleAddEntry(addingToDay)}
+                    disabled={isAddingEntry || !addRecipeId || !selectedInView}
+                    className="flex-1 px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors font-medium"
+                  >
+                    {isAddingEntry ? 'Adding…' : 'Add meal'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

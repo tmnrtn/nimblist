@@ -300,7 +300,8 @@ const ListPageDetail: React.FC = () => {
       try {
         const r = await authenticatedFetch('/api/recipes');
         const data = r.ok ? await r.json() : [];
-        const list: RecipeSummary[] = Array.isArray(data) ? data : [];
+        const list: RecipeSummary[] = (Array.isArray(data) ? data : [])
+          .sort((a: RecipeSummary, b: RecipeSummary) => a.title.localeCompare(b.title));
         setRecipes(list);
         if (list.length > 0) setSelectedRecipeId(list[0].id);
       } catch { /* ignore */ }

@@ -69,6 +69,7 @@ const RecipesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'date' | 'alpha'>('date');
   const [mode, setMode] = useState<'import' | 'image' | 'manual'>('import');
 
   // Share all panel state
@@ -429,7 +430,11 @@ const RecipesPage: React.FC = () => {
   const q = searchQuery.trim().toLowerCase();
   const visibleRecipes = recipes
     .filter(r => filterTagIds.size === 0 || r.tags.some(t => filterTagIds.has(t.id)))
-    .filter(r => !q || r.title.toLowerCase().includes(q) || (r.yields ?? '').toLowerCase().includes(q));
+    .filter(r => !q || r.title.toLowerCase().includes(q) || (r.yields ?? '').toLowerCase().includes(q))
+    .sort(sortOrder === 'alpha'
+      ? (a, b) => a.title.localeCompare(b.title)
+      : (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 
   return (
     <div className="space-y-6">
@@ -866,15 +871,33 @@ const RecipesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Search */}
+      {/* Search + sort */}
       {!isLoading && !error && recipes.length > 0 && (
-        <input
-          type="search"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search recipes…"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-        />
+        <div className="flex gap-2">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search recipes…"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          />
+          <div className="flex rounded-md border border-gray-300 overflow-hidden text-sm shadow-sm">
+            <button
+              onClick={() => setSortOrder('date')}
+              className={`px-3 py-2 transition-colors ${sortOrder === 'date' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              title="Sort by newest first"
+            >
+              Newest
+            </button>
+            <button
+              onClick={() => setSortOrder('alpha')}
+              className={`px-3 py-2 border-l border-gray-300 transition-colors ${sortOrder === 'alpha' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              title="Sort alphabetically"
+            >
+              A–Z
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Recipe list */}
