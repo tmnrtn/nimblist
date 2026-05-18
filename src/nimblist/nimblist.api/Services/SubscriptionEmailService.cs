@@ -8,6 +8,7 @@ public interface ISubscriptionEmailService
     Task SendSubscriptionActivatedAsync(string email, bool isInTrial, DateTime? trialEndDate);
     Task SendPaymentFailedAsync(string email);
     Task SendSubscriptionCancelledAsync(string email);
+    Task SendInviteAsync(string recipientEmail, string senderEmail, string inviteUrl);
 }
 
 public class SubscriptionEmailService : ISubscriptionEmailService
@@ -101,6 +102,25 @@ public class SubscriptionEmailService : ISubscriptionEmailService
             """;
 
         return SendSafe(email, "Your Nimblist subscription has been cancelled", html);
+    }
+
+    public Task SendInviteAsync(string recipientEmail, string senderEmail, string inviteUrl)
+    {
+        var html = $"""
+            <div style="font-family:sans-serif;max-width:600px;margin:auto">
+              <h2>You've been invited to Nimblist</h2>
+              <p><strong>{senderEmail}</strong> has invited you to try Nimblist — a collaborative shopping list and meal planning app.</p>
+              <p>Keep your household in sync: shared shopping lists, saved recipes, and a meal planner, all updating in real time.</p>
+              <p style="margin:24px 0">
+                <a href="{inviteUrl}" style="background:#22c55e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">
+                  Accept invite
+                </a>
+              </p>
+              <p style="color:#6b7280;font-size:0.875rem">If you weren't expecting this, you can safely ignore it.</p>
+            </div>
+            """;
+
+        return SendSafe(recipientEmail, $"{senderEmail} has invited you to Nimblist", html);
     }
 
     private async Task SendSafe(string email, string subject, string html)

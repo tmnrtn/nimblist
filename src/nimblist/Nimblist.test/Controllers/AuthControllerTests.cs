@@ -70,6 +70,7 @@ namespace Nimblist.test.Controllers
 
             var mockPayPal = new Mock<IPayPalService>();
             var mockConfig = new Mock<IConfiguration>();
+            var mockEmail = new Mock<ISubscriptionEmailService>();
 
             // Instantiate the controller with mocks
             _controller = new AuthController(
@@ -79,7 +80,8 @@ namespace Nimblist.test.Controllers
                 _nullLogger,
                 dbContext,
                 mockPayPal.Object,
-                mockConfig.Object
+                mockConfig.Object,
+                mockEmail.Object
             );
         }
 

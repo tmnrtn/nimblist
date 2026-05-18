@@ -24,6 +24,7 @@ namespace Nimblist.api.Controllers
         private readonly NimblistContext _context;
         private readonly IPayPalService _payPal;
         private readonly IConfiguration _configuration;
+        private readonly ISubscriptionEmailService _emailService;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
@@ -32,7 +33,8 @@ namespace Nimblist.api.Controllers
             ILogger<AuthController> logger,
             NimblistContext context,
             IPayPalService payPal,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ISubscriptionEmailService emailService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -41,6 +43,7 @@ namespace Nimblist.api.Controllers
             _context = context;
             _payPal = payPal;
             _configuration = configuration;
+            _emailService = emailService;
         }
 
         /// <summary>
@@ -184,6 +187,37 @@ namespace Nimblist.api.Controllers
             user.InvitedByUserId = referrer.Id;
             await _userManager.UpdateAsync(user);
             _logger.LogInformation("User {UserId} claimed invite from referrer {ReferrerId}.", userId, referrer.Id);
+            return Ok();
+        }
+
+        // POST /api/auth/invite/send — email an invite link to a recipient
+        [HttpPost("invite/send")]
+        [Authorize]
+        public async Task<IActionResult> SendInvite([FromBody] SendInviteRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
+                return BadRequest(new { error = "A valid email address is required." });
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return Unauthorized();
+
+            if (string.Equals(user.Email, request.Email.Trim(), StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { error = "You cannot invite yourself." });
+
+            if (string.IsNullOrEmpty(user.InviteCode))
+            {
+                user.InviteCode = GenerateInviteCode();
+                await _userManager.UpdateAsync(user);
+            }
+
+            var frontendBase = _configuration["FrontendAppSettings:BaseUrl"]?.TrimEnd('/') ?? "";
+            var inviteUrl = $"{frontendBase}/?invite={user.InviteCode}";
+
+            _ = _emailService.SendInviteAsync(request.Email.Trim(), user.Email!, inviteUrl);
+
             return Ok();
         }
 
