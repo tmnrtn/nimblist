@@ -65,13 +65,49 @@ else:
     print(f"Warning: Sub-models directory '{SUB_MODELS_DIR}' not found.")
 
 
-# --- Text Cleaning Function (MUST match training) ---
-def clean_text(text):
-    if not isinstance(text, str):
-         text = str(text) # Ensure input is string
-    text = text.lower() # Lowercase
-    text = re.sub(r'[^\w\s]', '', text) # Remove punctuation
-    text = re.sub(r'\s+', ' ', text).strip() # Remove extra whitespace
+# --- Text cleaning (MUST stay identical to retrain.py) ---
+
+def _lemmatize_word(word: str) -> str:
+    """Rule-based lemmatization for common grocery plural forms. No external dependencies."""
+    if len(word) <= 2:
+        return word
+    # ies → y: berries→berry, pastries→pastry, strawberries→strawberry
+    if len(word) > 4 and word.endswith('ies'):
+        return word[:-3] + 'y'
+    # ves → f: loaves→loaf, halves→half
+    if len(word) > 4 and word.endswith('ves'):
+        return word[:-3] + 'f'
+    # oes → o: tomatoes→tomato, potatoes→potato, mangoes→mango
+    if len(word) > 5 and word.endswith('oes'):
+        return word[:-2]
+    # Standard plural s: eggs→egg, biscuits→biscuit, carrots→carrot
+    # Skip: ss endings (grass), us endings (asparagus), is endings (basis)
+    if (word.endswith('s')
+            and not word.endswith('ss')
+            and not word.endswith('us')
+            and not word.endswith('is')
+            and len(word) > 3):
+        return word[:-1]
+    return word
+
+
+def clean_text(text: str) -> str:
+    """
+    Normalise a product name or user-typed item for classification.
+    Applied identically at training time (retrain.py) and inference time (here).
+    """
+    text = str(text).lower()
+    # Strip size/quantity patterns before removing punctuation so word
+    # boundaries still work against digit+unit tokens.
+    text = re.sub(r'\b\d+(\.\d+)?\s*(g|kg|ml|l|lb|oz|cl|mg|litre|litres|liter|liters|pint|pints)\b',
+                  ' ', text, flags=re.IGNORECASE)
+    text = re.sub(r'\b\d+\s*x\s*\d+(\.\d+)?\s*(g|kg|ml|l|lb|oz|cl|mg)?\b', ' ', text)  # 4 x 500g
+    text = re.sub(r'\bx\d+\b', ' ', text)                          # x6
+    text = re.sub(r'\b\d+\s*pack\b', ' ', text, flags=re.IGNORECASE)         # 6 pack
+    text = re.sub(r'\bpack\s+of\s+\d+\b', ' ', text, flags=re.IGNORECASE)    # pack of 12
+    text = re.sub(r'[^\w\s]', '', text)           # remove punctuation
+    text = re.sub(r'\s+', ' ', text).strip()      # normalise whitespace
+    text = ' '.join(_lemmatize_word(w) for w in text.split())
     return text
 
 # --- Filename Sanitization (MUST match saving script) ---

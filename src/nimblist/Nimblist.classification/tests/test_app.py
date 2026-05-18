@@ -207,17 +207,79 @@ class TestApp(unittest.TestCase):
         self.assertIn('error', response.json)
 
     # ------------------------------------------------------------------
-    # Utilities
+    # clean_text — basic
     # ------------------------------------------------------------------
-    def test_clean_text(self):
+    def test_clean_text_basic(self):
         self.assertEqual(app_module.clean_text('  Milk!  '), 'milk')
         self.assertEqual(app_module.clean_text('A b c!@#'), 'a b c')
         self.assertEqual(app_module.clean_text(' 123 '), '123')
 
+    # ------------------------------------------------------------------
+    # clean_text — quantity/size stripping
+    # ------------------------------------------------------------------
+    def test_clean_text_strips_metric_units(self):
+        self.assertEqual(app_module.clean_text('whole milk 2l'), 'whole milk')
+        self.assertEqual(app_module.clean_text('chicken 500g'), 'chicken')
+        self.assertEqual(app_module.clean_text('butter 250g'), 'butter')
+        self.assertEqual(app_module.clean_text('olive oil 750ml'), 'olive oil')
+        self.assertEqual(app_module.clean_text('flour 1.5kg'), 'flour')
+
+    def test_clean_text_strips_pack_patterns(self):
+        self.assertEqual(app_module.clean_text('free range eggs 6 pack'), 'free range egg')
+        self.assertEqual(app_module.clean_text('pack of 12 bread rolls'), 'bread roll')
+
+    def test_clean_text_strips_multiplier_patterns(self):
+        self.assertEqual(app_module.clean_text('yogurt x4'), 'yogurt')
+
+    # ------------------------------------------------------------------
+    # clean_text — lemmatization
+    # ------------------------------------------------------------------
+    def test_clean_text_lemmatizes_standard_plurals(self):
+        self.assertEqual(app_module.clean_text('eggs'), 'egg')
+        self.assertEqual(app_module.clean_text('bananas'), 'banana')
+        self.assertEqual(app_module.clean_text('carrots'), 'carrot')
+        self.assertEqual(app_module.clean_text('biscuits'), 'biscuit')
+
+    def test_clean_text_lemmatizes_ies(self):
+        self.assertEqual(app_module.clean_text('berries'), 'berry')
+        self.assertEqual(app_module.clean_text('strawberries'), 'strawberry')
+        self.assertEqual(app_module.clean_text('pastries'), 'pastry')
+
+    def test_clean_text_lemmatizes_oes(self):
+        self.assertEqual(app_module.clean_text('tomatoes'), 'tomato')
+        self.assertEqual(app_module.clean_text('potatoes'), 'potato')
+
+    def test_clean_text_lemmatizes_ves(self):
+        self.assertEqual(app_module.clean_text('loaves'), 'loaf')
+        self.assertEqual(app_module.clean_text('halves'), 'half')
+
+    def test_clean_text_does_not_lemmatize_non_plurals(self):
+        # Words ending in ss, us, is — must not have 's' stripped
+        self.assertEqual(app_module.clean_text('asparagus'), 'asparagus')
+        self.assertEqual(app_module.clean_text('hummus'), 'hummus')  # ends in us — skipped
+        self.assertEqual(app_module.clean_text('cheese'), 'cheese')  # ends in e, not s
+
+    # ------------------------------------------------------------------
+    # _lemmatize_word directly
+    # ------------------------------------------------------------------
+    def test_lemmatize_word(self):
+        lw = app_module._lemmatize_word
+        self.assertEqual(lw('eggs'), 'egg')
+        self.assertEqual(lw('berries'), 'berry')
+        self.assertEqual(lw('loaves'), 'loaf')
+        self.assertEqual(lw('tomatoes'), 'tomato')
+        self.assertEqual(lw('cheese'), 'cheese')   # ends in 'e', not 's'
+        self.assertEqual(lw('grass'), 'grass')     # ends in 'ss' — skip
+        self.assertEqual(lw('asparagus'), 'asparagus')  # ends in 'us' — skip
+        self.assertEqual(lw('milk'), 'milk')       # no plural ending
+
+    # ------------------------------------------------------------------
+    # sanitize_filename
+    # ------------------------------------------------------------------
     def test_sanitize_filename(self):
         self.assertEqual(app_module.sanitize_filename('Dairy & Eggs'), 'Dairy_Eggs')
         self.assertEqual(app_module.sanitize_filename('  Home! '), 'Home')
-        self.assertEqual(app_module.sanitize_filename('A/B\C'), 'A_B_C')
+        self.assertEqual(app_module.sanitize_filename(r'A/B\C'), 'A_B_C')
 
 
 if __name__ == '__main__':
