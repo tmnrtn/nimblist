@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import './App.css'
 
@@ -9,22 +9,37 @@ import { useCookieConsent } from './hooks/useCookieConsent';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import InstallPrompt from './components/InstallPrompt';
+import NotificationBanner from './components/NotificationBanner';
+import CookieBanner from './components/CookieBanner';
+
+// Hot path — stay in main bundle
 import HomePage from './pages/HomePage';
 import ShoppingListsPage from './pages/ShoppingListsPage';
 import ListPageDetail from './pages/ListPageDetail';
 import NotFoundPage from './pages/NotFoundPage';
-import PreviousItemNamesPage from './pages/PreviousItemNamesPage';
-import RecipesPage from './pages/RecipesPage';
-import RecipeDetailPage from './pages/RecipeDetailPage';
-import FamiliesPage from './pages/FamiliesPage';
-import MealPlannerPage from './pages/MealPlannerPage';
-import AdminPage from './pages/AdminPage';
-import BillingPage from './pages/BillingPage';
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
-import TermsOfServicePage from './pages/TermsOfServicePage';
-import InstallPrompt from './components/InstallPrompt';
-import NotificationBanner from './components/NotificationBanner';
-import CookieBanner from './components/CookieBanner';
+
+// Lazy-loaded routes — split into separate chunks
+const RecipesPage        = lazy(() => import('./pages/RecipesPage'));
+const RecipeDetailPage   = lazy(() => import('./pages/RecipeDetailPage'));
+const FamiliesPage       = lazy(() => import('./pages/FamiliesPage'));
+const MealPlannerPage    = lazy(() => import('./pages/MealPlannerPage'));
+const BillingPage        = lazy(() => import('./pages/BillingPage'));
+const AdminPage          = lazy(() => import('./pages/AdminPage'));
+const PreviousItemNamesPage = lazy(() => import('./pages/PreviousItemNamesPage'));
+const PrivacyPolicyPage  = lazy(() => import('./pages/PrivacyPolicyPage'));
+const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
+
+function PageSpinner() {
+  return (
+    <div className="flex justify-center items-center py-24">
+      <svg className="animate-spin h-6 w-6 text-indigo-600" viewBox="0 0 24 24" fill="none">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+      </svg>
+    </div>
+  );
+}
 
 function App() {
     const { checkAuthStatus, isLoading, isAuthenticated } = useAuthStore();
@@ -91,6 +106,7 @@ function App() {
     <InstallPrompt />
     <NotificationBanner />
     {consent === null && <CookieBanner onAccept={accept} onDecline={decline} />}
+    <Suspense fallback={<PageSpinner />}>
     <Routes> {/* Container for all routes */}
       {/* Define the parent route that uses the Layout */}
       <Route path="/" element={<Layout />}>
@@ -124,9 +140,8 @@ function App() {
 
       </Route> {/* End of routes using the Layout */}
 
-      {/* You could potentially add routes here that *don't* use the Layout if needed */}
-
     </Routes>
+    </Suspense>
     </>
   )
 }
