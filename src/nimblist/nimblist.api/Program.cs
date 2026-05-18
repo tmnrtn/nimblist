@@ -375,11 +375,16 @@ namespace Nimblist.api
             var app = builder.Build();
 
             // Honour X-Forwarded-For / X-Forwarded-Proto from the reverse proxy so that
-            // rate-limit partitioning and HSTS use the real client IP and scheme.
-            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            // rate-limit partitioning, HSTS, and OAuth callback URLs use the real client IP and scheme.
+            // KnownNetworks/KnownProxies are cleared so the Docker overlay network IP of the Caddy
+            // container is trusted — the API port is not exposed publicly so this is safe.
+            var forwardedOptions = new ForwardedHeadersOptions
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-            });
+            };
+            forwardedOptions.KnownNetworks.Clear();
+            forwardedOptions.KnownProxies.Clear();
+            app.UseForwardedHeaders(forwardedOptions);
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
