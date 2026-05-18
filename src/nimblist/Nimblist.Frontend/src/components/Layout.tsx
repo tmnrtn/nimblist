@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
+import GlobalSearch from './GlobalSearch';
 
 const Layout: React.FC = () => {
   const { isAuthenticated, user, isAdmin, logout } = useAuthStore();
@@ -42,6 +43,7 @@ const Layout: React.FC = () => {
                     {isAdmin && (
                       <li><Link to="/admin" className="text-sm font-medium text-yellow-300 hover:text-yellow-100 transition-colors">Admin</Link></li>
                     )}
+                    <li><GlobalSearch /></li>
                   </>
                 )}
                 <li>
@@ -94,17 +96,20 @@ const Layout: React.FC = () => {
               </ul>
             </nav>
 
-            {/* Mobile hamburger */}
-            <button
-              className="md:hidden p-2 rounded hover:bg-white/10 transition-colors"
-              onClick={() => setMenuOpen(v => !v)}
-              aria-label="Toggle menu"
-              aria-expanded={menuOpen}
-            >
-              <span className="block w-5 h-0.5 bg-white mb-1" />
-              <span className="block w-5 h-0.5 bg-white mb-1" />
-              <span className="block w-5 h-0.5 bg-white" />
-            </button>
+            {/* Mobile search + hamburger */}
+            <div className="md:hidden flex items-center gap-1">
+              {isAuthenticated && <GlobalSearch />}
+              <button
+                className="p-2 rounded hover:bg-white/10 transition-colors"
+                onClick={() => setMenuOpen(v => !v)}
+                aria-label="Toggle menu"
+                aria-expanded={menuOpen}
+              >
+                <span className="block w-5 h-0.5 bg-white mb-1" />
+                <span className="block w-5 h-0.5 bg-white mb-1" />
+                <span className="block w-5 h-0.5 bg-white" />
+              </button>
+            </div>
           </div>
 
           {/* Mobile menu */}
