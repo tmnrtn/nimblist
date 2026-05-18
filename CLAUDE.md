@@ -206,23 +206,71 @@ dotnet dev-certs https --trust
 
 - **DTO pattern:** Controllers return DTOs (e.g., `ItemWithCategoryDto`), not EF models directly. Never return `ApplicationUser`-related navigation properties directly — they expose `PasswordHash`, `SecurityStamp`, etc.
 - **JSON cycles:** `ReferenceHandler.IgnoreCycles` is applied to both MVC and SignalR serialization.
-- **Migrations auto-apply:** `dbContext.Database.Migrate()` runs at startup.
+- **Migrations auto-apply:** `dbContext.Database.Migrate()` runs at startup, wrapped in a PostgreSQL session advisory lock (`pg_advisory_lock(887236419)`) so that multi-replica deployments serialise migrations without duplicate-run errors. The lock connection is separate from the EF context and is released in a `finally` block.
 - **Classification config:** `ClassificationService:PredictUrl` in `appsettings.json`. Classification logic lives in `Services/ClassificationService` (injected as `IClassificationService`) — not inline in controllers.
 - **Recipe scraper config:** `RecipeScraperService:ScrapeUrl`, `RecipeScraperService:ScrapeImageUrl`, and `RecipeScraperService:ParseUrl` in `appsettings.json`. `ParseUrl` is called by `RecipesController.ParseIngredientsAsync` during recipe edits to re-parse any ingredients whose text changed (identified by null `ParsedName`). `ScrapeImageUrl` is called by `POST /api/recipes/import-image`; returns 503 if not configured (i.e. LLM not set up).
 - **Cookie persistence:** Google OAuth sign-in uses `isPersistent: true` in `ExternalLogin.cshtml.cs` (both returning-user and first-registration paths) — overrides the scaffolded default of `false`.
 - **Admin controller:** `AdminController` is gated with `[Authorize(Roles = "Admin")]`. Endpoints: `GET/PUT /api/admin/llm-settings` (includes `ImageSearchApiKey` — masked in GET responses, only overwritten when a non-masked value is sent); `GET /api/admin/users`, `PUT /api/admin/users/{id}/role`, `DELETE /api/admin/users/{id}`; `GET /api/admin/families`, `DELETE /api/admin/families/{familyId}/members/{memberId}`, `DELETE /api/admin/families/{familyId}`; `GET /api/admin/classification-feedback`, `DELETE /api/admin/classification-feedback/{id:guid}`. A user cannot change or delete their own account via these endpoints (guarded by current-user check).
 - **Image search:** `ImageSearchController` (`GET /api/imagesearch?q=...`) is `[Authorize]` (any logged-in user). Reads `LlmSettings.ImageSearchApiKey` from the DB; returns 503 if absent. Calls Brave Search API v1 images endpoint with `X-Subscription-Token` header, maps `results[].properties.url` → `ImageUrl` and `results[].thumbnail.src` → `ThumbnailUrl`. Free tier: 2,000 calls/month at [api.search.brave.com](https://api.search.brave.com).
-- **Push notifications:** `PushNotificationService` (`Services/PushNotificationService.cs`) resolves all users with access to a list (owner + user shares + family member shares), looks up their `UserPushSubscription` rows, and sends Web Push payloads via the `WebPush` NuGet package using VAPID. Stale subscriptions (HTTP 410/404 from the push service) are auto-removed. `ItemsController` fires this as a background task after `PostItem`. VAPID config: `VapidSettings:Subject`, `VapidSettings:PublicKey`, `VapidSettings:PrivateKey` in `appsettings.json`; use `VapidSettings__PublicKey` / `VapidSettings__PrivateKey` env vars in Docker. Rotate keys for production.
-- **Shared resource access:** `GetAccessibleXxxIdsAsync(userId)` (implemented per-controller) unions own IDs + user-share IDs + family-share IDs into a `HashSet<Guid>`. This pattern is used by `RecipesController` and `MealPlansController`; apply it to any new shareable resource. Read/add endpoints use this set; delete remains owner-only.
+- **Push notifications:** `PushNotificationService` (`Services/PushNotificationService.cs`) implements `IPushNotificationService` with three methods: `NotifyItemAddedAsync` (fired from `ItemsController.PostItem` as a background task), `NotifyListSharedAsync` (fired from `ListSharesController.PostListShare`), and `NotifyRecipeSharedAsync` (fired from `RecipeSharesController.PostRecipeShare`). For family shares, each family member receives an individual notification. VAPID keys are **nullable** — the service silently no-ops when `VapidSettings:PublicKey` / `VapidSettings:PrivateKey` are empty; this prevents startup crashes in dev environments without keys configured. Stale subscriptions (HTTP 410/404 from the push service) are auto-removed. VAPID config: `VapidSettings:Subject`, `VapidSettings:PublicKey`, `VapidSettings:PrivateKey` in `appsettings.json`; use `VapidSettings__PublicKey` / `VapidSettings__PrivateKey` env vars in Docker. Rotate keys for production. **Do not notify on item check/uncheck** — this was explicitly rejected; only item-added and share events should trigger notifications.
+- **Shared resource access:** `GetAccessibleXxxIdsAsync(userId)` (implemented per-controller) unions own IDs + user-share IDs + family-share IDs into a `HashSet<Guid>`. This pattern is used by `ItemsController`, `RecipesController`, and `MealPlansController`; apply it to any new shareable resource. Read/add/update endpoints use this set; delete remains owner-only. `ItemsController` uses this so shared users can fully interact with list items — `GetItems`, `GetItem`, `PostItem`, `PutItem`, and `DeleteItem` all filter via `GetAccessibleListIdsAsync`. `PutItem` also validates that the *target* list (when moving an item) is in the accessible set. **Note:** `ListShare.ListId` is the FK property name (not `ShoppingListId`) — use `s.ListId` not `s.ShoppingListId` when querying `ListShares`.
 - **`IsOwned` in DTOs:** When a resource can be shared, include `bool IsOwned` in its detail and summary DTOs (computed as `entity.UserId == userId` in the controller). The frontend uses this to conditionally show owner-only controls (delete, share management).
 - **Ingredient parsing:** `RecipeIngredient` stores `ParsedName` (nullable, max 300) and `ParsedQuantity` (nullable, max 100). The scraper service uses `ingredient-parser-nlp` to populate these; quantities are stored as mixed-number strings (`"1 1/2"`) via `_format_quantity()` — never as improper fractions. When adding ingredients to a shopping list, `ParsedName ?? Text` is used for classification and the item name; `ParsedQuantity` maps to `Item.Quantity`. `RecipeDetailPage` always passes `parsedQuantity` through `transformQuantity` (at scale 1×) so any legacy improper-fraction values normalise on display.
 - **`DateOnly` in EF/API:** `MealPlanEntry.PlannedDate` uses `DateOnly`, which EF Core 9 + Npgsql maps to PostgreSQL `date`. System.Text.Json in .NET 8 serialises `DateOnly` as `"YYYY-MM-DD"` without a custom converter.
 - **Share controllers:** `ListSharesController`, `RecipeSharesController`, and `MealPlanSharesController` all use a private `ApplyShareTargetAsync` helper to set `UserId` or `FamilyId` on the share entity (including self-share guard and existence checks). Apply this pattern to any future share controller to keep cognitive complexity within SonarCloud limits.
 - **`QuantityHelper`** (`Services/QuantityHelper.cs`) — internal static class for merging quantity strings when deduplicating items added from recipes. `Merge(existing, incoming)` parses both quantities, adds amounts if units match, otherwise concatenates with ` + `. The regex uses a `(?!/)` negative lookahead so slash fractions like `"1/4 tsp"` parse as `0.25` (not `whole=1, unit="/4 tsp"`). `[assembly: InternalsVisibleTo("Nimblist.test")]` in `nimblist.api/AssemblyInfo.cs` exposes it to the test project.
+- **Account management:** `DELETE /api/auth/account` cancels any active PayPal subscription, signs the user out, then hard-deletes the `ApplicationUser` (cascading to all owned data). `GET /api/auth/export` returns a JSON file attachment containing the user's lists, items, recipes, meal plans, and subscription status — used for GDPR data portability.
+- **Subscription emails:** `ISubscriptionEmailService` / `SubscriptionEmailService` (`Services/SubscriptionEmailService.cs`) wraps `IEmailSender` (Resend) with four methods: `SendWelcomeAsync`, `SendSubscriptionActivatedAsync`, `SendPaymentFailedAsync`, `SendSubscriptionCancelledAsync`. All sends are fire-and-forget (failures are logged, not thrown). Called from `SubscriptionController` (activate/cancel) and `PayPalWebhookController` (webhook events). Resend config: `Resend:ApiKey` and `Resend:FromAddress` in `appsettings.json`.
+- **Legal pages:** `/privacy` (`PrivacyPolicyPage.tsx`) and `/terms` (`TermsOfServicePage.tsx`) are public routes (no `<ProtectedRoute>`). Links to both appear at the bottom of `BillingPage.tsx`.
 - **Cookie security:** The application cookie explicitly sets `Cookie.SecurePolicy = CookieSecurePolicy.Always` and `Cookie.SameSite = SameSiteMode.Strict` in `Program.cs` — do not remove these; they ensure the `Secure` flag is set regardless of request scheme.
 - **Image search:** Brave Search API only accepts `safesearch=off` or `safesearch=strict` — `safesearch=moderate` returns 422. `ImageSearchController` uses `safesearch=strict`.
 - **SonarCloud:** Project is `tmnrtn/nimblist` on SonarCloud. An MCP server is configured on `lxc-mcp.lan:8086/mcp` (add via `claude mcp add --transport http sonarcloud http://lxc-mcp.lan:8086/mcp`).
 - **Homelab repo:** Infrastructure and MCP server documentation lives at `C:\Users\mail\source\repos\homelab` (GitHub: `tmnrtn/homelab`, private). MCP server connection details and tokens are documented in `docs/mcp-servers.md`.
+
+---
+
+## Classification service
+
+### Inference (app.py)
+
+`clean_text()` and `_lemmatize_word()` in `app.py` define the **shared preprocessing contract** — they must stay byte-for-byte identical to the copies in `scripts/retrain.py`. Any change to preprocessing requires updating both files and retraining the models.
+
+Preprocessing pipeline (order matters):
+1. Lowercase
+2. Strip size/quantity tokens before punctuation removal (so word boundaries work): `500g`, `2l`, `750ml`, `6 pack`, `pack of 12`, `x4`, `4 x 500g`
+3. Remove punctuation
+4. Normalise whitespace
+5. Lemmatize: `eggs→egg`, `tomatoes→tomato`, `berries→berry`, `loaves→loaf`; skips `ss`/`us`/`is` endings and words ≤ 2 chars — no external dependencies
+
+**Confidence threshold:** The service uses `predict_proba` rather than `predict`. If the top class probability is below `PRIMARY_CONFIDENCE_THRESHOLD` (default `0.35`, configurable via env var), `predicted_primary_category` is returned as `null` — same for `SUB_CONFIDENCE_THRESHOLD`. This prevents confidently-wrong classifications for short/ambiguous inputs. The C# `ClassificationService` already handles null via `string.IsNullOrEmpty` — no sentinel strings (`"Unknown"`, `"N/A"`, `"No Sub-Model"`) are returned any more.
+
+### Retraining (scripts/)
+
+**`scripts/retrain.py`** — retrains all models and saves `.joblib` files directly into `src/nimblist/Nimblist.classification/`. Commit and push the updated `.joblib` files to deploy improved models (they bake into the Docker image at build time).
+
+Improvements over the original notebooks:
+- `sublinear_tf=True` and `max_features=15000` (primary); `max_features=5000` (sub-models, less data)
+- **Data augmentation:** for each cleaned product name, generates up to 2 left-truncated shorter versions (`organic whole milk` → `whole milk`, `milk`) so the model trains on user-input-length examples
+- **Two-pass training:** evaluation pass (vectorizer fit on 80% train split → honest accuracy metrics); deployment pass (vectorizer fit on all data → maximum vocabulary coverage)
+- **Feedback integration:** rows from `GET /api/classificationfeedback/export` are merged with the base CSV and oversampled (default 5×) as verified ground truth
+
+```bash
+# Retrain on base data only
+python scripts/retrain.py
+
+# Fetch feedback first, then retrain with it
+python scripts/fetch_feedback.py --api-url https://nimblist.tmnrtn.com --cookie <session-cookie-value>
+python scripts/retrain.py --feedback feedback.jsonl
+
+# After retraining, commit the updated .joblib files and push to deploy
+git add src/nimblist/Nimblist.classification/*.joblib src/nimblist/Nimblist.classification/sub_category_models/*.joblib
+git commit -m "Retrain classification models"
+git push
+```
+
+**`scripts/fetch_feedback.py`** — fetches `/api/classificationfeedback/export` using a browser session cookie (copy `.AspNetCore.Identity.Application` from DevTools → Application → Cookies after logging in) and writes `feedback.jsonl`.
+
+**`combined_cleaned.csv`** lives at `scripts/ClassificationModel/combined_cleaned.csv` (tracked in git, ~9 MB). The retrain script reads it but never writes to it — feedback data is merged in memory only.
 
 ---
 

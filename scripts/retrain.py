@@ -11,7 +11,7 @@ Usage:
 
 Pipeline improvements over the original training notebooks:
   - Quantity/size tokens (500g, 2L, 6 pack, x4) stripped from product names
-  - Rule-based lemmatization (eggs→egg, tomatoes→tomato) — no external dependencies
+  - Rule-based lemmatization (eggs->egg, tomatoes->tomato) — no external dependencies
   - Data augmentation: shorter left-truncated versions of each name are added as
     training examples, so "organic whole milk" also trains on "whole milk" and "milk"
   - TF-IDF max_features increased from 5,000 to 15,000; sublinear_tf=True
@@ -54,16 +54,16 @@ def _lemmatize_word(word: str) -> str:
     """Rule-based lemmatization for common grocery plural forms. No external dependencies."""
     if len(word) <= 2:
         return word
-    # ies → y: berries→berry, pastries→pastry, strawberries→strawberry
+    # ies -> y: berries->berry, pastries->pastry, strawberries->strawberry
     if len(word) > 4 and word.endswith('ies'):
         return word[:-3] + 'y'
-    # ves → f: loaves→loaf, halves→half
+    # ves -> f: loaves->loaf, halves->half
     if len(word) > 4 and word.endswith('ves'):
         return word[:-3] + 'f'
-    # oes → o: tomatoes→tomato, potatoes→potato, mangoes→mango
+    # oes -> o: tomatoes->tomato, potatoes->potato, mangoes->mango
     if len(word) > 5 and word.endswith('oes'):
         return word[:-2]
-    # Standard plural s: eggs→egg, biscuits→biscuit, carrots→carrot
+    # Standard plural s: eggs->egg, biscuits->biscuit, carrots->carrot
     # Skip: ss endings (grass), us endings (asparagus), is endings (basis)
     if (word.endswith('s')
             and not word.endswith('ss')
@@ -360,15 +360,15 @@ def main():
 
     primary_model_path = os.path.join(args.output_dir, 'supermarket_classifier_logreg.joblib')
     primary_vec_path = os.path.join(args.output_dir, 'tfidf_vectorizer_logreg.joblib')
-    print(f'\nSaving primary model     → {primary_model_path}')
+    print(f'\nSaving primary model     -> {primary_model_path}')
     joblib.dump(primary_model, primary_model_path)
-    print(f'Saving primary vectorizer → {primary_vec_path}')
+    print(f'Saving primary vectorizer -> {primary_vec_path}')
     joblib.dump(primary_vectorizer, primary_vec_path)
 
     for key, mdl in sub_models.items():
         joblib.dump(mdl, os.path.join(sub_dir, f'model_sub_{key}.joblib'))
         joblib.dump(sub_vectorizers[key], os.path.join(sub_dir, f'vectorizer_sub_{key}.joblib'))
-    print(f'Saved {len(sub_models)} sub-models → {sub_dir}')
+    print(f'Saved {len(sub_models)} sub-models -> {sub_dir}')
 
     print('\nDone. Restart the classification container to load the new models:')
     print('  docker compose restart Nimblist.classification')
