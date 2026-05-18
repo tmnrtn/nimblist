@@ -136,7 +136,7 @@ export default function HomePage() {
               <h4 className="text-lg font-bold">Premium</h4>
               <div className="mt-2">
                 <span className="text-4xl font-bold">£1.99</span>
-                <span className="text-indigo-200 text-base"> / month</span>
+                <span className="text-indigo-100 text-base"> / month</span>
               </div>
             </div>
             <ul className="space-y-2.5 text-sm text-indigo-100 flex-1">

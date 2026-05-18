@@ -105,6 +105,14 @@ const MealPlannerPage: React.FC = () => {
 
   useEffect(() => { loadEntries(); }, [loadEntries]);
 
+  // Close add-entry modal on Escape
+  useEffect(() => {
+    if (!addingToDay) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setAddingToDay(null); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [addingToDay]);
+
   const handleCreatePlan = async () => {
     if (!newPlanName.trim()) return;
     setIsCreatingPlan(true);
@@ -278,6 +286,7 @@ const MealPlannerPage: React.FC = () => {
             value={newPlanName}
             onChange={e => setNewPlanName(e.target.value)}
             placeholder="Plan name"
+            aria-label="Plan name"
             className="flex-grow px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500"
             onKeyDown={e => e.key === 'Enter' && handleCreatePlan()}
           />
@@ -362,7 +371,7 @@ const MealPlannerPage: React.FC = () => {
               >
                 {isAddingWeek ? 'Adding…' : 'Add all ingredients'}
               </button>
-              <button onClick={() => setShowAddWeek(false)} className="text-sm text-gray-500 hover:text-gray-700">✕</button>
+              <button onClick={() => setShowAddWeek(false)} aria-label="Close" className="text-sm text-gray-500 hover:text-gray-700">✕</button>
             </div>
           )}
           {addWeekResult && (
@@ -399,6 +408,7 @@ const MealPlannerPage: React.FC = () => {
                           onClick={() => handleDeleteEntry(entry.id)}
                           className="text-gray-300 hover:text-red-500 flex-shrink-0 transition-colors"
                           title="Remove"
+                          aria-label="Remove entry"
                         >
                           ✕
                         </button>
@@ -426,6 +436,7 @@ const MealPlannerPage: React.FC = () => {
                           </button>
                           <button
                             onClick={() => setEntryToAddToList(null)}
+                            aria-label="Cancel"
                             className="text-xs text-gray-400 hover:text-gray-600"
                           >
                             ✕
@@ -502,6 +513,7 @@ const MealPlannerPage: React.FC = () => {
                     }
                   }}
                   placeholder="Search recipes…"
+                  aria-label="Search recipes"
                   autoFocus
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />

@@ -37,6 +37,14 @@ const ShoppingListsPage: React.FC = () => {
     if (hasFetched && lists.length === 0) setShowNew(true);
   }, [hasFetched, lists.length]);
 
+  // Close template modal on Escape
+  useEffect(() => {
+    if (!fromTemplateId) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setFromTemplateId(null); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [fromTemplateId]);
+
   useEffect(() => {
     if (!isAuthenticated) {
       setError("Please log in to view your shopping lists.");
@@ -271,9 +279,18 @@ const ShoppingListsPage: React.FC = () => {
     <div className="space-y-6">
       {/* Use-template modal */}
       {fromTemplateId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800">Use template</h3>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setFromTemplateId(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="template-modal-title"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 id="template-modal-title" className="text-lg font-semibold text-gray-800">Use template</h3>
 
             {/* Mode tabs */}
             <div className="flex rounded-md border border-gray-200 overflow-hidden text-sm">
@@ -305,6 +322,7 @@ const ShoppingListsPage: React.FC = () => {
                   value={fromTemplateName}
                   onChange={(e) => setFromTemplateName(e.target.value)}
                   placeholder="New list name"
+                  aria-label="New list name"
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
@@ -312,6 +330,7 @@ const ShoppingListsPage: React.FC = () => {
                 <select
                   value={fromTemplateTargetListId}
                   onChange={(e) => setFromTemplateTargetListId(e.target.value)}
+                  aria-label="Select existing list"
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >

@@ -483,7 +483,7 @@ const RecipesPage: React.FC = () => {
       {mode === 'import' && isPaid && (
         <form onSubmit={e => { setImportedRecipeId(null); handleImport(e); }} className="p-4 bg-gray-100 rounded-md border border-gray-200 space-y-3">
           {importError && (
-            <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{importError}</p>
+            <p role="alert" className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{importError}</p>
           )}
           {importedRecipeId && (
             <p className="text-sm text-green-700 bg-green-50 p-2 rounded border border-green-300">
@@ -533,7 +533,7 @@ const RecipesPage: React.FC = () => {
       {mode === 'image' && isPaid && (
         <form onSubmit={e => { setImportedImageRecipeId(null); handleImportFromImage(e); }} className="p-4 bg-gray-100 rounded-md border border-gray-200 space-y-3">
           {imageImportError && (
-            <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{imageImportError}</p>
+            <p role="alert" className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">{imageImportError}</p>
           )}
           {importedImageRecipeId && (
             <p className="text-sm text-green-700 bg-green-50 p-2 rounded border border-green-300">
@@ -999,6 +999,7 @@ const RecipesPage: React.FC = () => {
                     <button
                       onClick={() => setRecipeIdToAddToList(null)}
                       disabled={isAddingToList}
+                      aria-label="Cancel"
                       className="text-xs px-1.5 py-1 text-gray-400 hover:text-gray-600"
                     >
                       ✕

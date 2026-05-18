@@ -392,7 +392,7 @@ const ListPageDetail: React.FC = () => {
         <h3 className="text-lg font-medium text-gray-700">Add New Item</h3>
         {/* Display any error specific to adding */}
         {addError && (
-          <p className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">
+          <p role="alert" className="text-sm text-red-600 bg-red-100 p-2 rounded border border-red-300">
             {addError}
           </p>
         )}
@@ -465,7 +465,7 @@ const ListPageDetail: React.FC = () => {
               return (
                 <form onSubmit={handleAddFromRecipe} className="space-y-3">
                   {addFromRecipeError && (
-                    <p className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">{addFromRecipeError}</p>
+                    <p role="alert" className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">{addFromRecipeError}</p>
                   )}
                   {addFromRecipeResult && (
                     <p className="text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200">{addFromRecipeResult}</p>
@@ -480,6 +480,7 @@ const ListPageDetail: React.FC = () => {
                       if (match) setSelectedRecipeId(match.id);
                     }}
                     placeholder="Search recipes…"
+                    aria-label="Search recipes"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   />
                   <select

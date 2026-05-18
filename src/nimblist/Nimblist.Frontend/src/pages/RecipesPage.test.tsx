@@ -635,8 +635,8 @@ describe("RecipesPage", () => {
     fireEvent.click(screen.getByText(/add ingredients to list/i));
     expect(screen.getByRole("combobox")).toBeInTheDocument();
 
-    // Click the ✕ cancel button
-    fireEvent.click(screen.getByRole("button", { name: /✕/i }));
+    // Click the cancel button
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
 
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
